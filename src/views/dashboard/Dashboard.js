@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import classNames from 'classnames'
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -12,9 +12,15 @@ import {
   CCardBody,
   CCardFooter,
   CCardHeader,
+  CCardTitle,
   CCol,
+  CNav,
+  CNavItem,
+  CNavLink,
   CProgress,
   CRow,
+  CTabContent,
+  CTabPane,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -75,6 +81,18 @@ const route = [
 ]
 
 const Dashboard = () => {
+  const [activeTab, setActiveTab] = useState('Details')
+  const [selectedTracker, setSelectedTracker] = useState(null)
+  const trackers = [
+    { id: 'T001', name: 'Tracker 1', location: [42.798939, -74.658409] },
+    { id: 'T002', name: 'Tracker 2', location: [42.799939, -74.659409] },
+    { id: 'T003', name: 'Tracker 3', location: [42.800939, -74.660409] },
+  ]
+
+  const handleTrackerClick = (tracker) => {
+    setSelectedTracker(tracker.location)
+  }
+
   const progressExample = [
     { title: 'Visits', value: '29.703 Users', percent: 40, color: 'success' },
     { title: 'Unique', value: '24.093 Users', percent: 20, color: 'info' },
@@ -199,200 +217,115 @@ const Dashboard = () => {
   return (
     <>
       <WidgetsDropdown className="mb-4" />
-      <CCard className="mb-4">
-        <CCardBody>
-          <CRow>
-            <CCol xs={12}>
+      <CRow>
+        <CCol xs={12}>
+          <CCard className="mb-4">
+            <CCardBody>
               <MapContainer
-                center={[42.798939, -74.658409]}
+                center={selectedTracker || [42.798939, -74.658409]}
                 zoom={13}
-                style={{ height: '300px', width: '100%' }}
+                style={{ height: '500px', width: '100%' }}
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {route.length > 1 ? (
+                {selectedTracker ? (
+                  <Marker position={selectedTracker} icon={customIcon}>
+                    <Popup>Selected Tracker Location</Popup>
+                  </Marker>
+                ) : (
                   <>
                     <Polyline positions={route} color="blue" />
                     <Marker position={route[route.length - 1]} icon={customIcon}>
                       <Popup>Current Location</Popup>
                     </Marker>
                   </>
-                ) : route.length === 1 ? (
-                  <Marker position={route[0]} icon={customIcon}>
-                    <Popup>Only one location available</Popup>
-                  </Marker>
-                ) : (
-                  <p>No route data available</p>
                 )}
               </MapContainer>
-            </CCol>
-          </CRow>
-        </CCardBody>
-        <CCardFooter>
-          <CRow
-            xs={{ cols: 1, gutter: 4 }}
-            sm={{ cols: 2 }}
-            lg={{ cols: 4 }}
-            xl={{ cols: 5 }}
-            className="mb-2 text-center"
-          >
-            {progressExample.map((item, index, items) => (
-              <CCol
-                className={classNames({
-                  'd-none d-xl-block': index + 1 === items.length,
-                })}
-                key={index}
-              >
-                <div className="text-body-secondary">{item.title}</div>
-                <div className="fw-semibold text-truncate">
-                  {item.value} ({item.percent}%)
-                </div>
-                <CProgress thin className="mt-2" color={item.color} value={item.percent} />
-              </CCol>
-            ))}
-          </CRow>
-        </CCardFooter>
-      </CCard>
-      {/* <CRow>
-        <CCol xs>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+      <CRow>
+        <CCol xs={12} lg={8}>
           <CCard className="mb-4">
-            <CCardHeader>Traffic {' & '} Sales</CCardHeader>
+            <CCardHeader>
+              <CNav variant="tabs" role="tablist" className="d-flex">
+                <CNavItem className="me-2">
+                  <CNavLink
+                    active={activeTab === 'Details'}
+                    onClick={() => setActiveTab('Details')}
+                  >
+                    Details
+                  </CNavLink>
+                </CNavItem>
+                <CNavItem className="me-2">
+                  <CNavLink
+                    active={activeTab === 'Sensors'}
+                    onClick={() => setActiveTab('Sensors')}
+                  >
+                    Sensors
+                  </CNavLink>
+                </CNavItem>
+                <CNavItem className="me-2">
+                  <CNavLink
+                    active={activeTab === 'Alerts'}
+                    onClick={() => setActiveTab('Alerts')}
+                  >
+                    Alerts
+                  </CNavLink>
+                </CNavItem>
+                <CNavItem>
+                  <CNavLink
+                    active={activeTab === 'Reports'}
+                    onClick={() => setActiveTab('Reports')}
+                  >
+                    Reports
+                  </CNavLink>
+                </CNavItem>
+              </CNav>
+            </CCardHeader>
             <CCardBody>
-              <CRow>
-                <CCol xs={12} md={6} xl={6}>
-                  <CRow>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-info py-1 px-3">
-                        <div className="text-body-secondary text-truncate small">New Clients</div>
-                        <div className="fs-5 fw-semibold">9,123</div>
-                      </div>
-                    </CCol>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-danger py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">
-                          Recurring Clients
-                        </div>
-                        <div className="fs-5 fw-semibold">22,643</div>
-                      </div>
-                    </CCol>
-                  </CRow>
-                  <hr className="mt-0" />
-                  {progressGroupExample1.map((item, index) => (
-                    <div className="progress-group mb-4" key={index}>
-                      <div className="progress-group-prepend">
-                        <span className="text-body-secondary small">{item.title}</span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="info" value={item.value1} />
-                        <CProgress thin color="danger" value={item.value2} />
-                      </div>
-                    </div>
-                  ))}
-                </CCol>
-                <CCol xs={12} md={6} xl={6}>
-                  <CRow>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-warning py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">Pageviews</div>
-                        <div className="fs-5 fw-semibold">78,623</div>
-                      </div>
-                    </CCol>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-success py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">Organic</div>
-                        <div className="fs-5 fw-semibold">49,123</div>
-                      </div>
-                    </CCol>
-                  </CRow>
-
-                  <hr className="mt-0" />
-
-                  {progressGroupExample2.map((item, index) => (
-                    <div className="progress-group mb-4" key={index}>
-                      <div className="progress-group-header">
-                        <CIcon className="me-2" icon={item.icon} size="lg" />
-                        <span>{item.title}</span>
-                        <span className="ms-auto fw-semibold">{item.value}%</span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="warning" value={item.value} />
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="mb-5"></div>
-
-                  {progressGroupExample3.map((item, index) => (
-                    <div className="progress-group" key={index}>
-                      <div className="progress-group-header">
-                        <CIcon className="me-2" icon={item.icon} size="lg" />
-                        <span>{item.title}</span>
-                        <span className="ms-auto fw-semibold">
-                          {item.value}{' '}
-                          <span className="text-body-secondary small">({item.percent}%)</span>
-                        </span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="success" value={item.percent} />
-                      </div>
-                    </div>
-                  ))}
-                </CCol>
-              </CRow>
-
-              <br />
-
-              <CTable align="middle" className="mb-0 border" hover responsive>
-                <CTableHead className="text-nowrap">
+              <CTabContent>
+                <CTabPane visible={activeTab === 'Details'}>
+                  <p>Details content goes here...</p>
+                </CTabPane>
+                <CTabPane visible={activeTab === 'Sensors'}>
+                  <p>Sensors content goes here...</p>
+                </CTabPane>
+                <CTabPane visible={activeTab === 'Alerts'}>
+                  <p>Alerts content goes here...</p>
+                </CTabPane>
+                <CTabPane visible={activeTab === 'Reports'}>
+                  <p>Reports content goes here...</p>
+                </CTabPane>
+              </CTabContent>
+            </CCardBody>
+          </CCard>
+        </CCol>
+        <CCol xs={12} lg={4}>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <CCardTitle>Registered Trackers</CCardTitle>
+            </CCardHeader>
+            <CCardBody>
+              <CTable hover responsive>
+                <CTableHead>
                   <CTableRow>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      <CIcon icon={cilPeople} />
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">User</CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      Country
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">Usage</CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      Payment Method
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">Activity</CTableHeaderCell>
+                    <CTableHeaderCell>Tracker ID</CTableHeaderCell>
+                    <CTableHeaderCell>Tracker Name</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {tableExample.map((item, index) => (
-                    <CTableRow v-for="item in tableItems" key={index}>
-                      <CTableDataCell className="text-center">
-                        <CAvatar size="md" src={item.avatar.src} status={item.avatar.status} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{item.user.name}</div>
-                        <div className="small text-body-secondary text-nowrap">
-                          <span>{item.user.new ? 'New' : 'Recurring'}</span> | Registered:{' '}
-                          {item.user.registered}
-                        </div>
-                      </CTableDataCell>
-                      <CTableDataCell className="text-center">
-                        <CIcon size="xl" icon={item.country.flag} title={item.country.name} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div className="d-flex justify-content-between text-nowrap">
-                          <div className="fw-semibold">{item.usage.value}%</div>
-                          <div className="ms-3">
-                            <small className="text-body-secondary">{item.usage.period}</small>
-                          </div>
-                        </div>
-                        <CProgress thin color={item.usage.color} value={item.usage.value} />
-                      </CTableDataCell>
-                      <CTableDataCell className="text-center">
-                        <CIcon size="xl" icon={item.payment.icon} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div className="small text-body-secondary text-nowrap">Last login</div>
-                        <div className="fw-semibold text-nowrap">{item.activity}</div>
-                      </CTableDataCell>
+                  {trackers.map((tracker, index) => (
+                    <CTableRow
+                      key={index}
+                      onClick={() => handleTrackerClick(tracker)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <CTableDataCell>{tracker.id}</CTableDataCell>
+                      <CTableDataCell>{tracker.name}</CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
@@ -400,7 +333,7 @@ const Dashboard = () => {
             </CCardBody>
           </CCard>
         </CCol>
-      </CRow> */}
+      </CRow>
     </>
   )
 }
