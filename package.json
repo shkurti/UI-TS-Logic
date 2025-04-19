@@ -38,6 +38,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.1.5",
     "redux": "5.0.1",
+    "serve": "^14.2.4",
     "simplebar-react": "^3.3.0"
   },
   "devDependencies": {
