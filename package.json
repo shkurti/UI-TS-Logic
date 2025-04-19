@@ -16,7 +16,7 @@
     "build": "vite build",
     "lint": "eslint",
     "serve": "vite preview",
-    "start": "serve -s build"
+    "start": "npx serve -s build"
 
   },
   "dependencies": {
