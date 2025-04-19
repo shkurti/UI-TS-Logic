@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import React, { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import {
@@ -34,13 +34,62 @@ const customIcon = L.icon({
   popupAnchor: [1, -34],
 })
 
+// Component to move the map to the selected tracker's location
+function MapMover({ position }) {
+  const map = useMap()
+  useEffect(() => {
+    if (position) {
+      map.setView(position, map.getZoom())
+    }
+  }, [position, map])
+  return null
+}
+
 const Trackers = () => {
-  const [trackers, setTrackers] = useState([
-    { id: 'T001', battery: '85%', lastConnected: '2023-10-01 12:30', location: [42.798939, -74.658409] },
-    { id: 'T002', battery: '60%', lastConnected: '2023-10-01 11:15', location: [42.799939, -74.659409] },
-    { id: 'T003', battery: '45%', lastConnected: '2023-10-01 10:45', location: [42.800939, -74.660409] },
-  ])
+  const [trackers, setTrackers] = useState([])
+  const [selectedTracker, setSelectedTracker] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [newTracker, setNewTracker] = useState({
+    tracker_name: '',
+    tracker_id: '',
+    device_type: '',
+    model_number: '',
+  })
+
+  useEffect(() => {
+    // Fetch initial list of trackers
+    fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        return response.json()
+      })
+      .then((data) => setTrackers(data))
+      .catch((error) => console.error('Error fetching trackers:', error))
+
+    // WebSocket for real-time updates
+    const ws = new WebSocket('ws://localhost:8000/ws')
+    ws.onopen = () => console.log('WebSocket connection established')
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data)
+      if (message.operationType === 'insert') {
+        setTrackers((prevTrackers) => {
+          const trackerExists = prevTrackers.some(
+            (tracker) => tracker.tracker_id === message.data.tracker_id,
+          )
+          if (!trackerExists) {
+            return [...prevTrackers, message.data]
+          }
+          return prevTrackers
+        })
+      }
+    }
+    ws.onerror = (error) => console.error('WebSocket error:', error)
+    ws.onclose = () => console.log('WebSocket connection closed')
+
+    return () => ws.close()
+  }, [])
 
   const handleRegisterTracker = () => {
     setShowModal(true)
@@ -48,17 +97,94 @@ const Trackers = () => {
 
   const handleCancel = () => {
     setShowModal(false)
+    setNewTracker({
+      tracker_name: '',
+      tracker_id: '',
+      device_type: '',
+      model_number: '',
+    })
   }
 
-  const handleRegister = () => {
-    // Logic to register a new tracker
-    alert('Tracker Registered!')
-    setShowModal(false)
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setNewTracker((prevState) => ({ ...prevState, [name]: value }))
   }
 
-  const handleDeleteSelected = () => {
-    // Logic to delete selected trackers
-    alert('Delete Selected Tracker clicked!')
+  const handleRegister = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/register_tracker', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTracker),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setTrackers((prevTrackers) => {
+          const trackerExists = prevTrackers.some(
+            (tracker) => tracker.tracker_id === result.tracker.tracker_id,
+          )
+          if (!trackerExists) {
+            return [...prevTrackers, result.tracker]
+          }
+          return prevTrackers
+        })
+        setShowModal(false)
+        setNewTracker({
+          tracker_name: '',
+          tracker_id: '',
+          device_type: '',
+          model_number: '',
+        })
+      } else {
+        const error = await response.json()
+        console.error('Failed to register tracker:', error.message)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  const handleDeleteSelected = async () => {
+    if (!selectedTracker) {
+      alert('Please select a tracker to delete.')
+      return
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete tracker "${selectedTracker.tracker_name}"?`,
+    )
+    if (!confirmDelete) return
+
+    try {
+      const response = await fetch(
+        `https://backend-ts-68222fd8cfc0.herokuapp.com/delete_tracker/${selectedTracker.tracker_id}`,
+        {
+          method: 'DELETE',
+        },
+      )
+
+      if (response.ok) {
+        alert('Tracker deleted successfully.')
+        setTrackers((prevTrackers) =>
+          prevTrackers.filter((tracker) => tracker.tracker_id !== selectedTracker.tracker_id),
+        )
+        setSelectedTracker(null)
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete tracker: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Error deleting tracker:', error)
+      alert('An error occurred while deleting the tracker.')
+    }
+  }
+
+  const handleTrackerSelect = (tracker) => {
+    setSelectedTracker(tracker)
   }
 
   return (
@@ -70,7 +196,11 @@ const Trackers = () => {
               <CButton color="primary" className="me-2" onClick={handleRegisterTracker}>
                 Register New Tracker
               </CButton>
-              <CButton color="danger" onClick={handleDeleteSelected}>
+              <CButton
+                color="danger"
+                onClick={handleDeleteSelected}
+                disabled={!selectedTracker}
+              >
                 Delete Selected Tracker
               </CButton>
             </CCardHeader>
@@ -85,12 +215,20 @@ const Trackers = () => {
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {trackers.map((tracker, index) => (
-                    <CTableRow key={index}>
-                      <CTableDataCell>{tracker.id}</CTableDataCell>
-                      <CTableDataCell>{tracker.battery}</CTableDataCell>
+                  {trackers.map((tracker) => (
+                    <CTableRow
+                      key={tracker.tracker_id}
+                      onClick={() => handleTrackerSelect(tracker)}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor:
+                          selectedTracker?.tracker_id === tracker.tracker_id ? '#f5f5f5' : '',
+                      }}
+                    >
+                      <CTableDataCell>{tracker.tracker_id}</CTableDataCell>
+                      <CTableDataCell>{tracker.batteryLevel}%</CTableDataCell>
                       <CTableDataCell>{tracker.lastConnected}</CTableDataCell>
-                      <CTableDataCell>{tracker.location.join(', ')}</CTableDataCell>
+                      <CTableDataCell>{tracker.location}</CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
@@ -102,7 +240,7 @@ const Trackers = () => {
           <CCard>
             <CCardBody>
               <MapContainer
-                center={[42.798939, -74.658409]}
+                center={[51.505, -0.09]}
                 zoom={13}
                 style={{ height: '400px', width: '100%' }}
               >
@@ -110,17 +248,23 @@ const Trackers = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {trackers.map((tracker, index) => (
-                  <Marker key={index} position={tracker.location} icon={customIcon}>
-                    <Popup>
-                      <strong>Tracker ID:</strong> {tracker.id}
-                      <br />
-                      <strong>Battery:</strong> {tracker.battery}
-                      <br />
-                      <strong>Last Connected:</strong> {tracker.lastConnected}
-                    </Popup>
-                  </Marker>
-                ))}
+                {selectedTracker && (
+                  <>
+                    <MapMover position={selectedTracker.location.split(', ').map(Number)} />
+                    <Marker
+                      position={selectedTracker.location.split(', ').map(Number)}
+                      icon={customIcon}
+                    >
+                      <Popup>
+                        <strong>{selectedTracker.tracker_name}</strong>
+                        <br />
+                        Battery: {selectedTracker.batteryLevel}%
+                        <br />
+                        Last Connected: {selectedTracker.lastConnected}
+                      </Popup>
+                    </Marker>
+                  </>
+                )}
               </MapContainer>
             </CCardBody>
           </CCard>
@@ -130,35 +274,52 @@ const Trackers = () => {
       <CModal visible={showModal} onClose={handleCancel}>
         <CModalHeader>Register New Tracker</CModalHeader>
         <CModalBody>
-          <CForm>
+          <CForm onSubmit={handleRegister}>
             <CFormInput
               type="text"
               label="Tracker Name"
+              name="tracker_name"
+              value={newTracker.tracker_name}
+              onChange={handleInputChange}
               placeholder="Enter Tracker Name"
               className="mb-3"
+              required
             />
             <CFormInput
               type="text"
               label="Tracker ID / Serial Number"
+              name="tracker_id"
+              value={newTracker.tracker_id}
+              onChange={handleInputChange}
               placeholder="Enter Tracker ID or Serial Number"
               className="mb-3"
+              required
             />
-            <CFormSelect label="Device Type" className="mb-3">
-              <option>Select Device Type</option>
-              <option>Type A</option>
-              <option>Type B</option>
-              <option>Type C</option>
+            <CFormSelect
+              label="Device Type"
+              name="device_type"
+              value={newTracker.device_type}
+              onChange={handleInputChange}
+              className="mb-3"
+              required
+            >
+              <option value="">Select Device Type</option>
+              <option value="gps-only">GPS-only</option>
+              <option value="gps-sensors">GPS + Sensors</option>
             </CFormSelect>
             <CFormInput
               type="text"
               label="Model Number"
+              name="model_number"
+              value={newTracker.model_number}
+              onChange={handleInputChange}
               placeholder="Enter Model Number"
               className="mb-3"
             />
           </CForm>
         </CModalBody>
         <CModalFooter>
-          <CButton color="primary" onClick={handleRegister}>
+          <CButton color="primary" type="submit" onClick={handleRegister}>
             Register
           </CButton>
           <CButton color="secondary" onClick={handleCancel}>
