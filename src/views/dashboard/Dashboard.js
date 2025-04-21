@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import {
@@ -31,6 +31,18 @@ const customIcon = L.icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 })
+
+// Component to adjust the map view to fit the route
+function FitBounds({ route }) {
+  const map = useMap()
+  useEffect(() => {
+    if (route.length > 0) {
+      const bounds = route.map(([lat, lng]) => [lat, lng]) // Convert route to bounds
+      map.fitBounds(bounds) // Adjust the map view to fit the route
+    }
+  }, [route, map])
+  return null
+}
 
 const Dashboard = () => {
   const [trackers, setTrackers] = useState([])
@@ -96,6 +108,7 @@ const Dashboard = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
+                <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
                     <Polyline positions={route} color="blue" />
