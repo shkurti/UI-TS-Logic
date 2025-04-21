@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [trackers, setTrackers] = useState([])
   const [selectedTracker, setSelectedTracker] = useState(null)
   const [historicalData, setHistoricalData] = useState([])
+  const [route, setRoute] = useState([]) // Store the route for the selected tracker
   const [activeTab, setActiveTab] = useState('Details')
 
   useEffect(() => {
@@ -63,9 +64,14 @@ const Dashboard = () => {
       .then((data) => {
         if (data && data.historical_data) {
           setHistoricalData(data.historical_data)
+          const geolocationData = data.historical_data
+            .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+          setRoute(geolocationData) // Update the route for the map
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
+          setRoute([]) // Clear the route if no data is found
         }
       })
       .catch((error) => console.error('Error fetching historical data:', error))
@@ -90,17 +96,18 @@ const Dashboard = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {selectedTracker && selectedTracker.location && (
-                  <Marker position={selectedTracker.location.split(', ').map(Number)} icon={customIcon}>
-                    <Popup>
-                      <strong>{selectedTracker.tracker_name}</strong>
-                      <br />
-                      Battery: {selectedTracker.batteryLevel}%
-                      <br />
-                      Last Connected: {selectedTracker.lastConnected}
-                    </Popup>
+                {route.length > 1 ? (
+                  <>
+                    <Polyline positions={route} color="blue" />
+                    <Marker position={route[route.length - 1]} icon={customIcon}>
+                      <Popup>Current Location</Popup>
+                    </Marker>
+                  </>
+                ) : route.length === 1 ? (
+                  <Marker position={route[0]} icon={customIcon}>
+                    <Popup>Only one location available</Popup>
                   </Marker>
-                )}
+                ) : null}
               </MapContainer>
             </CCardBody>
           </CCard>
