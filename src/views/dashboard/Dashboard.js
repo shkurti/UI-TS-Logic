@@ -81,14 +81,14 @@ const Dashboard = () => {
         if (data && data.historical_data) {
           setHistoricalData(data.historical_data)
           const geolocationData = data.historical_data
-            .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
+            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT,
-            temperature: record.Temp,
+            timestamp: record.DT || 'N/A', // Use DT for timestamp
+            temperature: parseFloat(record.Temp) || 0, // Ensure temperature is a number
           }))
           setTemperatureData(tempData)
         } else {
@@ -98,7 +98,12 @@ const Dashboard = () => {
           setTemperatureData([]) // Clear temperature data if no data is found
         }
       })
-      .catch((error) => console.error('Error fetching historical data:', error))
+      .catch((error) => {
+        console.error('Error fetching historical data:', error)
+        setHistoricalData([])
+        setRoute([])
+        setTemperatureData([])
+      })
   }
 
   const handleTabClick = (tab) => {
@@ -259,10 +264,16 @@ const Dashboard = () => {
                           }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" />
+                          <XAxis dataKey="timestamp" tick={false} /> {/* Hide timestamps on X-axis */}
                           <YAxis />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="temperature" stroke="#8884d8" />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'temperature' ? 'Temperature' : ''}: ${value}°C`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="temperature" stroke="#8884d8" activeDot={{ r: 8 }} />
                         </LineChart>
                       </ResponsiveContainer>
                     )}
