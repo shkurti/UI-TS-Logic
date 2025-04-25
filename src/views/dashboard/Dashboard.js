@@ -54,6 +54,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Details')
   const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
   const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
+  const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -85,17 +86,23 @@ const Dashboard = () => {
             .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
-          // Extract temperature data for the chart
+          // Extract temperature and humidity data for the chart
           const tempData = data.historical_data.map((record) => ({
             timestamp: record.timestamp || 'N/A', // Use timestamp field
             temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
           }))
+          const humData = data.historical_data.map((record) => ({
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field for humidity
+          }))
           setTemperatureData(tempData)
+          setHumidityData(humData)
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
           setRoute([]) // Clear the route if no data is found
           setTemperatureData([]) // Clear temperature data if no data is found
+          setHumidityData([]) // Clear humidity data if no data is found
         }
       })
       .catch((error) => {
@@ -103,6 +110,7 @@ const Dashboard = () => {
         setHistoricalData([])
         setRoute([])
         setTemperatureData([])
+        setHumidityData([])
       })
   }
 
@@ -278,7 +286,29 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Humidity' && (
-                      <p>Humidity chart visualization goes here...</p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={humidityData}
+                          margin={{
+                            top: 5,
+                            right: 20,
+                            left: 0,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} /> {/* Hide timestamps on X-axis */}
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'humidity' ? 'Humidity' : ''}: ${value}%`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="humidity" stroke="#82ca9d" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     )}
                     {activeSensor === 'Battery' && (
                       <p>Battery chart visualization goes here...</p>
