@@ -80,32 +80,25 @@ const Dashboard = () => {
       .then((data) => {
         if (data && data.historical_data) {
           setHistoricalData(data.historical_data)
-
-          // Correct key usage for geolocation data
           const geolocationData = data.historical_data
-            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
-            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)])
-          setRoute(geolocationData)
+            .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+          setRoute(geolocationData) // Update the route for the map
 
-          // Correct key usage for temperature data
+          // Extract temperature data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT, // Use DT for timestamp
-            temperature: record.Temp, // Use Temp for temperature
+            timestamp: record.DT,
+            temperature: record.Temp,
           }))
           setTemperatureData(tempData)
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
-          setRoute([])
-          setTemperatureData([])
+          setRoute([]) // Clear the route if no data is found
+          setTemperatureData([]) // Clear temperature data if no data is found
         }
       })
-      .catch((error) => {
-        console.error('Error fetching historical data:', error)
-        setHistoricalData([])
-        setRoute([])
-        setTemperatureData([])
-      })
+      .catch((error) => console.error('Error fetching historical data:', error))
   }
 
   const handleTabClick = (tab) => {
