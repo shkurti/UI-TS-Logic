@@ -81,8 +81,8 @@ const Dashboard = () => {
         if (data && data.historical_data) {
           setHistoricalData(data.historical_data)
           const geolocationData = data.historical_data
-            .filter((record) => record.Lat !== 'N/A' && record.Lng !== 'N/A')
-            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]) // Ensure values are numbers
+            .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
