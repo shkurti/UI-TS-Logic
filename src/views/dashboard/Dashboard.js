@@ -53,7 +53,6 @@ const Dashboard = () => {
   const [route, setRoute] = useState([]) // Store the route for the selected tracker
   const [activeTab, setActiveTab] = useState('Details')
   const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
-  const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -79,26 +78,28 @@ const Dashboard = () => {
       })
       .then((data) => {
         if (data && data.historical_data) {
-          setHistoricalData(data.historical_data)
           const geolocationData = data.historical_data
-            .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
+            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
-          const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT,
-            temperature: record.Temp,
+          const chartData = data.historical_data.map((record) => ({
+            timestamp: record.DT, // Use DT for timestamp
+            temperature: record.Temp, // Use Temp for temperature
           }))
-          setTemperatureData(tempData)
+          setHistoricalData(chartData) // Update the historical data for the chart
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
           setRoute([]) // Clear the route if no data is found
-          setTemperatureData([]) // Clear temperature data if no data is found
         }
       })
-      .catch((error) => console.error('Error fetching historical data:', error))
+      .catch((error) => {
+        console.error('Error fetching historical data:', error)
+        setHistoricalData([])
+        setRoute([])
+      })
   }
 
   const handleTabClick = (tab) => {
@@ -250,7 +251,7 @@ const Dashboard = () => {
                     {activeSensor === 'Temperature' && (
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart
-                          data={temperatureData}
+                          data={historicalData}
                           margin={{
                             top: 5,
                             right: 20,
