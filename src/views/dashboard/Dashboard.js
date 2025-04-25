@@ -87,8 +87,8 @@ const Dashboard = () => {
 
           // Extract temperature data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT for timestamp
-            temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Parse Temp as a number
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
           }))
           setTemperatureData(tempData)
         } else {
