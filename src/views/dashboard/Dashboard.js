@@ -84,10 +84,12 @@ const Dashboard = () => {
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
-          const chartData = data.historical_data.map((record) => ({
-            timestamp: record.DT, // Use DT for timestamp
-            temperature: record.Temp, // Use Temp for temperature
-          }))
+          const chartData = data.historical_data
+            .filter((record) => record.DT && record.Temp !== undefined) // Ensure valid data
+            .map((record) => ({
+              timestamp: new Date(record.DT).toLocaleString(), // Format timestamp for readability
+              temperature: parseFloat(record.Temp), // Ensure temperature is a number
+            }))
           setHistoricalData(chartData) // Update the historical data for the chart
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
