@@ -40,7 +40,8 @@
     "react-router-dom": "^7.1.5",
     "redux": "5.0.1",
     "serve": "^14.2.4",
-    "simplebar-react": "^3.3.0"
+    "simplebar-react": "^3.3.0",
+    "react-icons": "^4.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
