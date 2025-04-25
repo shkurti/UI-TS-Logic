@@ -22,6 +22,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSun } from 'react-icons/bs'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 // Define a custom marker icon
 const customIcon = L.icon({
@@ -52,6 +53,7 @@ const Dashboard = () => {
   const [route, setRoute] = useState([]) // Store the route for the selected tracker
   const [activeTab, setActiveTab] = useState('Details')
   const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
+  const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -82,10 +84,18 @@ const Dashboard = () => {
             .filter((record) => record.latitude !== 'N/A' && record.longitude !== 'N/A')
             .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
+
+          // Extract temperature data for the chart
+          const tempData = data.historical_data.map((record) => ({
+            timestamp: record.DT,
+            temperature: record.Temp,
+          }))
+          setTemperatureData(tempData)
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
           setRoute([]) // Clear the route if no data is found
+          setTemperatureData([]) // Clear temperature data if no data is found
         }
       })
       .catch((error) => console.error('Error fetching historical data:', error))
@@ -238,7 +248,23 @@ const Dashboard = () => {
                       />
                     </div>
                     {activeSensor === 'Temperature' && (
-                      <p>Temperature chart visualization goes here...</p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={temperatureData}
+                          margin={{
+                            top: 5,
+                            right: 20,
+                            left: 0,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" />
+                          <YAxis />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="temperature" stroke="#8884d8" />
+                        </LineChart>
+                      </ResponsiveContainer>
                     )}
                     {activeSensor === 'Humidity' && (
                       <p>Humidity chart visualization goes here...</p>
