@@ -21,6 +21,7 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
+import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSun } from 'react-icons/bs'
 
 // Define a custom marker icon
 const customIcon = L.icon({
@@ -50,6 +51,7 @@ const Dashboard = () => {
   const [historicalData, setHistoricalData] = useState([])
   const [route, setRoute] = useState([]) // Store the route for the selected tracker
   const [activeTab, setActiveTab] = useState('Details')
+  const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -211,12 +213,43 @@ const Dashboard = () => {
                     </p>
                   </CTabPane>
                 )}
-                {activeTab === 'Sensors' && historicalData.length > 0 ? (
+                {activeTab === 'Sensors' && (
                   <CTabPane visible>
-                    <p>Sensors data visualization goes here...</p>
+                    <div className="sensor-icons d-flex justify-content-around mb-4">
+                      <BsThermometerHalf
+                        size={30}
+                        className={`sensor-icon ${activeSensor === 'Temperature' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Temperature')}
+                      />
+                      <BsDroplet
+                        size={30}
+                        className={`sensor-icon ${activeSensor === 'Humidity' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Humidity')}
+                      />
+                      <BsBatteryHalf
+                        size={30}
+                        className={`sensor-icon ${activeSensor === 'Battery' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Battery')}
+                      />
+                      <BsSun
+                        size={30}
+                        className={`sensor-icon ${activeSensor === 'Light' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Light')}
+                      />
+                    </div>
+                    {activeSensor === 'Temperature' && (
+                      <p>Temperature chart visualization goes here...</p>
+                    )}
+                    {activeSensor === 'Humidity' && (
+                      <p>Humidity chart visualization goes here...</p>
+                    )}
+                    {activeSensor === 'Battery' && (
+                      <p>Battery chart visualization goes here...</p>
+                    )}
+                    {activeSensor === 'Light' && (
+                      <p>Light chart visualization goes here...</p>
+                    )}
                   </CTabPane>
-                ) : (
-                  activeTab === 'Sensors' && <p>No sensor data available for this tracker.</p>
                 )}
                 {activeTab === 'Alerts' && <CTabPane visible>Alerts content</CTabPane>}
                 {activeTab === 'Reports' && <CTabPane visible>Reports content</CTabPane>}
