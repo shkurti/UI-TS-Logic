@@ -7,8 +7,8 @@
   transition: transform 0.2s ease, background-color 0.2s ease;
   padding: 8px; /* Standardized padding */
   border-radius: 8px; /* Standardized border radius */
-  width: 60px; /* Fixed width */
-  height: 60px; /* Fixed height */
+  width: 70px; /* Fixed width */
+  height: 70px; /* Fixed height */
 }
 
 .sensor-icon-wrapper:hover {
