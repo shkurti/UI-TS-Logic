@@ -83,17 +83,17 @@ const Dashboard = () => {
         if (data && data.historical_data) {
           setHistoricalData(data.historical_data)
           const geolocationData = data.historical_data
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use correct field names
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+            .filter((record) => record.Lat !== undefined && record.Lng !== undefined) // Use correct field names
+            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature and humidity data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
+            timestamp: record.DT || 'N/A', // Use DT for timestamp
+            temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Use Temp field for temperature
           }))
           const humData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            timestamp: record.DT || 'N/A', // Use DT for timestamp
             humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field for humidity
           }))
           setTemperatureData(tempData)
