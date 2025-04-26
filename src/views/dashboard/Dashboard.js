@@ -88,15 +88,15 @@ const Dashboard = () => {
 
           // Extract temperature data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
+            timestamp: record.DT || 'N/A', // Use DT field for timestamp
+            temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Use Temp field for temperature
           }))
           setTemperatureData(tempData)
 
           // Extract humidity data for the chart
           const humData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
+            timestamp: record.DT || 'N/A', // Use DT field for timestamp
+            humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field for humidity
           }))
           setHumidityData(humData)
         } else {
