@@ -4,8 +4,8 @@
   align-items: center;
   cursor: pointer;
   transition: transform 0.2s ease, background-color 0.2s ease;
-  padding: 6px; /* Further reduced padding */
-  border-radius: 6px; /* Smaller border radius */
+  padding: 8px; /* Standardized padding */
+  border-radius: 8px; /* Standardized border radius */
 }
 
 .sensor-icon-wrapper:hover {
@@ -20,8 +20,8 @@
 }
 
 .sensor-icon {
-  margin-bottom: 3px; /* Further reduced margin */
-  font-size: 20px; /* Smaller icon size */
+  margin-bottom: 5px; /* Standardized margin */
+  font-size: 21px; /* Standardized icon size */
   transition: color 0.2s ease;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .sensor-label {
-  font-size: 10px; /* Smaller font size */
-  font-weight: normal; /* Reduced font weight */
+  font-size: 11px; /* Standardized font size */
+  font-weight: bold; /* Standardized font weight */
   text-align: center;
 }
