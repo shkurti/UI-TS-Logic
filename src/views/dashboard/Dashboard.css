@@ -4,8 +4,8 @@
   align-items: center;
   cursor: pointer;
   transition: transform 0.2s ease, background-color 0.2s ease;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 8px; /* Reduced padding */
+  border-radius: 8px; /* Slightly smaller border radius */
 }
 
 .sensor-icon-wrapper:hover {
@@ -20,7 +20,8 @@
 }
 
 .sensor-icon {
-  margin-bottom: 5px;
+  margin-bottom: 4px; /* Reduced margin */
+  font-size: 24px; /* Reduced icon size */
   transition: color 0.2s ease;
 }
 
@@ -29,7 +30,7 @@
 }
 
 .sensor-label {
-  font-size: 12px;
+  font-size: 11px; /* Slightly smaller font size */
   font-weight: bold;
   text-align: center;
 }
