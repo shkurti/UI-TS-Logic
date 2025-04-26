@@ -69,6 +69,7 @@ const Dashboard = () => {
       .catch((error) => console.error('Error fetching trackers:', error))
   }, [])
 
+  
   const handleTrackerSelect = (tracker) => {
     setSelectedTracker(tracker) // Set the selected tracker
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
