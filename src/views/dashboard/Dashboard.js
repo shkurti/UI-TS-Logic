@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import './Dashboard.css' // Import custom styles for the dashboard
 import {
   CCard,
   CCardBody,
@@ -252,26 +253,42 @@ const Dashboard = () => {
                 {activeTab === 'Sensors' && (
                   <CTabPane visible>
                     <div className="sensor-icons d-flex justify-content-around mb-4">
-                      <BsThermometerHalf
-                        size={30}
-                        className={`sensor-icon ${activeSensor === 'Temperature' ? 'active' : ''}`}
+                      <div
+                        className={`sensor-icon-wrapper ${
+                          activeSensor === 'Temperature' ? 'active' : ''
+                        }`}
                         onClick={() => setActiveSensor('Temperature')}
-                      />
-                      <BsDroplet
-                        size={30}
-                        className={`sensor-icon ${activeSensor === 'Humidity' ? 'active' : ''}`}
+                      >
+                        <BsThermometerHalf size={30} className="sensor-icon" />
+                        <p className="sensor-label">Temperature</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${
+                          activeSensor === 'Humidity' ? 'active' : ''
+                        }`}
                         onClick={() => setActiveSensor('Humidity')}
-                      />
-                      <BsBatteryHalf
-                        size={30}
-                        className={`sensor-icon ${activeSensor === 'Battery' ? 'active' : ''}`}
+                      >
+                        <BsDroplet size={30} className="sensor-icon" />
+                        <p className="sensor-label">Humidity</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${
+                          activeSensor === 'Battery' ? 'active' : ''
+                        }`}
                         onClick={() => setActiveSensor('Battery')}
-                      />
-                      <BsSun
-                        size={30}
-                        className={`sensor-icon ${activeSensor === 'Light' ? 'active' : ''}`}
+                      >
+                        <BsBatteryHalf size={30} className="sensor-icon" />
+                        <p className="sensor-label">Battery</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${
+                          activeSensor === 'Light' ? 'active' : ''
+                        }`}
                         onClick={() => setActiveSensor('Light')}
-                      />
+                      >
+                        <BsSun size={30} className="sensor-icon" />
+                        <p className="sensor-label">Light</p>
+                      </div>
                     </div>
                     {activeSensor === 'Temperature' && (
                       <ResponsiveContainer width="100%" height={300}>
