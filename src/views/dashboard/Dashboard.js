@@ -69,7 +69,6 @@ const Dashboard = () => {
       .catch((error) => console.error('Error fetching trackers:', error))
   }, [])
 
-  
   const handleTrackerSelect = (tracker) => {
     setSelectedTracker(tracker) // Set the selected tracker
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
@@ -89,11 +88,11 @@ const Dashboard = () => {
 
           // Extract temperature and humidity data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT for timestamp
+            timestamp: record.DT || 'N/A', // Use DT field for timestamp
             temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Use Temp field for temperature
           }))
           const humData = data.historical_data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT for timestamp
+            timestamp: record.DT || 'N/A', // Use DT field for timestamp
             humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field for humidity
           }))
           setTemperatureData(tempData)
