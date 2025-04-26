@@ -55,6 +55,7 @@ const Dashboard = () => {
   const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
   const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
   const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
+  const [batteryData, setBatteryData] = useState([]) // Store battery data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -88,23 +89,32 @@ const Dashboard = () => {
 
           // Extract temperature data for the chart
           const tempData = data.historical_data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT field for timestamp
-            temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Use Temp field for temperature
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
           }))
           setTemperatureData(tempData)
 
           // Extract humidity data for the chart
           const humData = data.historical_data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT field for timestamp
-            humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field for humidity
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
           }))
           setHumidityData(humData)
+
+          // Extract battery data for the chart
+          const battData = data.historical_data.map((record) => ({
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            battery: record.battery !== undefined ? parseFloat(record.battery) : 
+                     record.Batt !== undefined ? parseFloat(record.Batt) : null, // Use battery or Batt field
+          }))
+          setBatteryData(battData)
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id)
           setHistoricalData([])
           setRoute([]) // Clear the route if no data is found
           setTemperatureData([]) // Clear temperature data if no data is found
           setHumidityData([]) // Clear humidity data if no data is found
+          setBatteryData([]) // Clear battery data if no data is found
         }
       })
       .catch((error) => {
@@ -113,6 +123,7 @@ const Dashboard = () => {
         setRoute([])
         setTemperatureData([])
         setHumidityData([])
+        setBatteryData([])
       })
   }
 
@@ -313,7 +324,29 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Battery' && (
-                      <p>Battery chart visualization goes here...</p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={batteryData}
+                          margin={{
+                            top: 5,
+                            right: 20,
+                            left: 0,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} /> {/* Hide timestamps on X-axis */}
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'battery' ? 'Battery Level' : ''}: ${value}%`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     )}
                     {activeSensor === 'Light' && (
                       <p>Light chart visualization goes here...</p>
