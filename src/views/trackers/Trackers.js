@@ -62,52 +62,35 @@ const Trackers = () => {
     fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        return response.json();
+        return response.json()
       })
       .then((data) => setTrackers(data))
-      .catch((error) => console.error('Error fetching trackers:', error));
+      .catch((error) => console.error('Error fetching trackers:', error))
 
     // WebSocket for real-time updates
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => console.log('WebSocket connection established');
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
+    ws.onopen = () => console.log('WebSocket connection established')
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      console.log('WebSocket message received:', message); // Debug log
-
-      if (message.operationType === 'update') {
-        console.log('Updating tracker:', message.data); // Debug log
-        setTrackers((prevTrackers) =>
-          prevTrackers.map((tracker) =>
-            tracker.tracker_id === message.data.tracker_id
-              ? { ...tracker, ...message.data } // Update the tracker with new data
-              : tracker
-          )
-        );
-
-        // Update the selected tracker if it matches the updated tracker
-        if (selectedTracker?.tracker_id === message.data.tracker_id) {
-          setSelectedTracker((prev) => ({ ...prev, ...message.data }));
-        }
-      } else if (message.operationType === 'insert') {
-        console.log('Inserting new tracker:', message.data); // Debug log
+      const message = JSON.parse(event.data)
+      if (message.operationType === 'insert') {
         setTrackers((prevTrackers) => {
           const trackerExists = prevTrackers.some(
-            (tracker) => tracker.tracker_id === message.data.tracker_id
-          );
+            (tracker) => tracker.tracker_id === message.data.tracker_id,
+          )
           if (!trackerExists) {
-            return [...prevTrackers, message.data];
+            return [...prevTrackers, message.data]
           }
-          return prevTrackers;
-        });
+          return prevTrackers
+        })
       }
-    };
-    ws.onerror = (error) => console.error('WebSocket error:', error);
-    ws.onclose = () => console.log('WebSocket connection closed');
+    }
+    ws.onerror = (error) => console.error('WebSocket error:', error)
+    ws.onclose = () => console.log('WebSocket connection closed')
 
-    return () => ws.close();
-  }, [selectedTracker])
+    return () => ws.close()
+  }, [])
 
   const handleRegisterTracker = () => {
     setShowModal(true)
@@ -218,6 +201,16 @@ const Trackers = () => {
             .filter((record) => record.latitude && record.longitude)
             .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
           setRoute(geolocationData); // Update the route for the map
+
+          // Update tracker details
+          setSelectedTracker((prev) => ({
+            ...prev,
+            batteryLevel: data.historical_data.slice(-1)[0]?.battery || prev.batteryLevel,
+            lastConnected: data.historical_data.slice(-1)[0]?.timestamp || prev.lastConnected,
+            location: geolocationData.length > 0
+              ? `${geolocationData[geolocationData.length - 1][0]}, ${geolocationData[geolocationData.length - 1][1]}`
+              : prev.location,
+          }));
         } else {
           console.warn('No historical data found for tracker:', tracker.tracker_id);
           setRoute([]); // Clear the route if no data is found
@@ -229,10 +222,10 @@ const Trackers = () => {
   useEffect(() => {
     if (selectedTracker) {
       // WebSocket for real-time updates
-      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-      ws.onopen = () => console.log('WebSocket connection established');
+      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
+      ws.onopen = () => console.log('WebSocket connection established')
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
+        const message = JSON.parse(event.data)
         console.log('WebSocket message received:', message); // Debug log
 
         if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
@@ -244,19 +237,19 @@ const Trackers = () => {
             setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]);
           }
 
-          // Update the selected tracker details
+          // Update tracker details
           setSelectedTracker((prev) => ({
             ...prev,
             batteryLevel: newRecord?.battery || prev.batteryLevel,
             lastConnected: newRecord?.timestamp || prev.lastConnected,
-            location: `${Lat}, ${Lng}` || prev.location,
+            location: Lat && Lng ? `${Lat}, ${Lng}` : prev.location,
           }));
         }
-      };
-      ws.onerror = (error) => console.error('WebSocket error:', error);
-      ws.onclose = () => console.log('WebSocket connection closed');
+      }
+      ws.onerror = (error) => console.error('WebSocket error:', error)
+      ws.onclose = () => console.log('WebSocket connection closed')
 
-      return () => ws.close();
+      return () => ws.close()
     }
   }, [selectedTracker])
 
@@ -321,7 +314,6 @@ const Trackers = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
                     <Polyline positions={route} color="blue" />
