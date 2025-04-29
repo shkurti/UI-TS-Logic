@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import {
@@ -55,7 +55,6 @@ const Trackers = () => {
     device_type: '',
     model_number: '',
   })
-  const [route, setRoute] = useState([]); // Store the route for the selected tracker
 
   useEffect(() => {
     // Fetch initial list of trackers
@@ -186,72 +185,7 @@ const Trackers = () => {
 
   const handleTrackerSelect = (tracker) => {
     setSelectedTracker(tracker)
-
-    // Fetch historical data for the selected tracker
-    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data && data.historical_data) {
-          const geolocationData = data.historical_data
-            .filter((record) => record.latitude && record.longitude)
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
-          setRoute(geolocationData); // Update the route for the map
-
-          // Update tracker details
-          setSelectedTracker((prev) => ({
-            ...prev,
-            batteryLevel: data.historical_data.slice(-1)[0]?.battery || prev.batteryLevel,
-            lastConnected: data.historical_data.slice(-1)[0]?.timestamp || prev.lastConnected,
-            location: geolocationData.length > 0
-              ? `${geolocationData[geolocationData.length - 1][0]}, ${geolocationData[geolocationData.length - 1][1]}`
-              : prev.location,
-          }));
-        } else {
-          console.warn('No historical data found for tracker:', tracker.tracker_id);
-          setRoute([]); // Clear the route if no data is found
-        }
-      })
-      .catch((error) => console.error('Error fetching historical data:', error));
-  };
-
-  useEffect(() => {
-    if (selectedTracker) {
-      // WebSocket for real-time updates
-      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
-      ws.onopen = () => console.log('WebSocket connection established')
-      ws.onmessage = (event) => {
-        const message = JSON.parse(event.data)
-        console.log('WebSocket message received:', message); // Debug log
-
-        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
-          const { Lat, Lng } = message.geolocation || {};
-          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
-
-          // Update the map route
-          if (Lat && Lng) {
-            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]);
-          }
-
-          // Update tracker details
-          setSelectedTracker((prev) => ({
-            ...prev,
-            batteryLevel: newRecord?.battery || prev.batteryLevel,
-            lastConnected: newRecord?.timestamp || prev.lastConnected,
-            location: Lat && Lng ? `${Lat}, ${Lng}` : prev.location,
-          }));
-        }
-      }
-      ws.onerror = (error) => console.error('WebSocket error:', error)
-      ws.onclose = () => console.log('WebSocket connection closed')
-
-      return () => ws.close()
-    }
-  }, [selectedTracker])
+  }
 
   return (
     <>
@@ -314,18 +248,23 @@ const Trackers = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {route.length > 1 ? (
+                {selectedTracker && (
                   <>
-                    <Polyline positions={route} color="blue" />
-                    <Marker position={route[route.length - 1]} icon={customIcon}>
-                      <Popup>Current Location</Popup>
+                    <MapMover position={selectedTracker.location.split(', ').map(Number)} />
+                    <Marker
+                      position={selectedTracker.location.split(', ').map(Number)}
+                      icon={customIcon}
+                    >
+                      <Popup>
+                        <strong>{selectedTracker.tracker_name}</strong>
+                        <br />
+                        Battery: {selectedTracker.batteryLevel}%
+                        <br />
+                        Last Connected: {selectedTracker.lastConnected}
+                      </Popup>
                     </Marker>
                   </>
-                ) : route.length === 1 ? (
-                  <Marker position={route[0]} icon={customIcon}>
-                    <Popup>Only one location available</Popup>
-                  </Marker>
-                ) : null}
+                )}
               </MapContainer>
             </CCardBody>
           </CCard>
