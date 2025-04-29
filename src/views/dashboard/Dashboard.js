@@ -132,6 +132,56 @@ const Dashboard = () => {
     setActiveTab(tab) // Set the active tab
   }
 
+  useEffect(() => {
+    if (selectedTracker) {
+      // WebSocket for real-time updates
+      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+      ws.onopen = () => console.log('WebSocket connection established');
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        console.log('WebSocket message received:', message); // Debug log
+        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
+          const { Lat, Lng } = message.geolocation || {};
+          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
+
+          // Update the map route
+          if (Lat && Lng) {
+            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
+          }
+
+          // Update the chart data
+          if (newRecord) {
+            if (newRecord.timestamp && newRecord.temperature !== undefined) {
+              setTemperatureData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
+              ]);
+            }
+            if (newRecord.timestamp && newRecord.humidity !== undefined) {
+              setHumidityData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
+              ]);
+            }
+            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
+              setBatteryData((prevData) => [
+                ...prevData,
+                {
+                  timestamp: newRecord.timestamp,
+                  battery: parseFloat(newRecord.battery || newRecord.Batt),
+                },
+              ]);
+            }
+          }
+        }
+      };
+      ws.onerror = (error) => console.error('WebSocket error:', error);
+      ws.onclose = () => console.log('WebSocket connection closed');
+
+      return () => ws.close();
+    }
+  }, [selectedTracker]);
+
   return (
     <>
       <CRow>
