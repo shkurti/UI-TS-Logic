@@ -138,47 +138,36 @@ const Dashboard = () => {
         console.log('WebSocket message received:', message); // Debug log
 
         // Ensure the update is for the currently selected tracker
-        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
+        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
           const { Lat, Lng } = message.geolocation || {};
-          const newRecords = message.data.data || []; // Get the full data array
-
-          // Filter out duplicate records by comparing timestamps
-          const existingTimestamps = new Set(route.map(([lat, lng]) => `${lat},${lng}`));
-          const uniqueRecords = newRecords.filter(
-            (record) =>
-              record.latitude !== undefined &&
-              record.longitude !== undefined &&
-              !existingTimestamps.has(`${record.latitude},${record.longitude}`)
-          );
+          const newRecord = message.new_record; // Get the new record
 
           // Update the map route
-          const newGeolocationData = uniqueRecords.map((record) => [
-            parseFloat(record.latitude),
-            parseFloat(record.longitude),
-          ]);
-          setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
+          if (Lat && Lng) {
+            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]);
+          }
 
           // Update the chart data
-          uniqueRecords.forEach((record) => {
-            if (record.timestamp && record.temperature !== undefined) {
+          if (newRecord) {
+            if (newRecord.timestamp && newRecord.temperature !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
+                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
               ]);
             }
-            if (record.timestamp && record.humidity !== undefined) {
+            if (newRecord.timestamp && newRecord.humidity !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
+                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
               ]);
             }
-            if (record.timestamp && record.battery !== undefined) {
+            if (newRecord.timestamp && newRecord.battery !== undefined) {
               setBatteryData((prevData) => [
                 ...prevData,
-                { timestamp: record.timestamp, battery: parseFloat(record.battery) },
+                { timestamp: newRecord.timestamp, battery: parseFloat(newRecord.battery) },
               ]);
             }
-          });
+          }
         }
       };
       ws.onerror = (error) => console.error('WebSocket error:', error);
