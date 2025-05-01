@@ -193,6 +193,23 @@ const Dashboard = () => {
     }
   }, [selectedTracker]); // Ensure WebSocket logic is tied to the selected tracker
 
+  // Debugging: Log state changes to verify updates
+  useEffect(() => {
+    console.log('Route updated:', route);
+  }, [route]);
+
+  useEffect(() => {
+    console.log('Temperature Data updated:', temperatureData);
+  }, [temperatureData]);
+
+  useEffect(() => {
+    console.log('Humidity Data updated:', humidityData);
+  }, [humidityData]);
+
+  useEffect(() => {
+    console.log('Battery Data updated:', batteryData);
+  }, [batteryData]);
+
   return (
     <>
       <CRow>
