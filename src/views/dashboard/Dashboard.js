@@ -142,6 +142,10 @@ const Dashboard = () => {
           const { Lat, Lng } = message.geolocation || {};
           const newRecord = message.new_data?.[0]; // Get the latest record from new_data
 
+          // Debug logs for verification
+          console.log('New Record:', newRecord);
+          console.log('Geolocation:', { Lat, Lng });
+
           // Update the map route
           if (Lat && Lng) {
             setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
