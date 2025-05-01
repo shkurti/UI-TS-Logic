@@ -136,36 +136,36 @@ const Dashboard = () => {
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message); // Debug log
-        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
-          const newRecords = message.data.data || []; // Get the new nested data array
+        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
+          const newRecords = message.new_data || []; // Get only the new data
 
           // Update the map route
           const newGeolocationData = newRecords
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
+            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
+            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
           setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
 
           // Update the chart data
           newRecords.forEach((record) => {
-            if (record.timestamp && record.temperature !== undefined) {
+            if (record.DT && record.Temp !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
+                { timestamp: record.DT, temperature: parseFloat(record.Temp) },
               ]);
             }
-            if (record.timestamp && record.humidity !== undefined) {
+            if (record.DT && record.Hum !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
+                { timestamp: record.DT, humidity: parseFloat(record.Hum) },
               ]);
             }
           });
 
-          // Update battery data (from the main document)
-          if (message.data.batteryLevel !== undefined) {
+          // Update battery data (if available in the message)
+          if (message.geolocation.Lat && message.geolocation.Lng) {
             setBatteryData((prevData) => [
               ...prevData,
-              { timestamp: new Date().toISOString(), battery: parseFloat(message.data.batteryLevel) },
+              { timestamp: new Date().toISOString(), battery: parseFloat(message.geolocation.Batt || 0) },
             ]);
           }
         }
