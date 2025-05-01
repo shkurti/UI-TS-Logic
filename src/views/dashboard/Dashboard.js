@@ -135,7 +135,9 @@ const Dashboard = () => {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       console.log('WebSocket message received:', message); // Debug log
-      if (message.operationType === 'insert' && selectedTracker && message.tracker_id === selectedTracker.tracker_id) {
+
+      // Ensure the update is for the currently selected tracker
+      if (message.operationType === 'insert' && message.tracker_id === selectedTracker?.tracker_id) {
         const newRecords = message.new_data || []; // Get only the new data
 
         // Update the map route
@@ -173,7 +175,7 @@ const Dashboard = () => {
     ws.onclose = () => console.log('WebSocket connection closed');
 
     return () => ws.close();
-  }, [selectedTracker]);
+  }, [selectedTracker]); // Ensure WebSocket logic is tied to the selected tracker
 
   return (
     <>
