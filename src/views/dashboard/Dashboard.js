@@ -109,7 +109,6 @@ const Dashboard = () => {
           setBatteryData(battData);
         } else {
           console.warn('No data found for tracker:', tracker.tracker_id);
-          setHistoricalData([]);
           setRoute([]); // Clear the route if no data is found
           setTemperatureData([]); // Clear temperature data if no data is found
           setHumidityData([]); // Clear humidity data if no data is found
@@ -118,7 +117,6 @@ const Dashboard = () => {
       })
       .catch((error) => {
         console.error('Error fetching historical data:', error);
-        setHistoricalData([]);
         setRoute([]);
         setTemperatureData([]);
         setHumidityData([]);
@@ -139,13 +137,13 @@ const Dashboard = () => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message); // Debug log
         if (message.operationType === 'insert' && message.data.trackerID === selectedTracker.tracker_id) {
-          const { Lat, Lng } = message.geolocation || {};
           const newRecords = message.data.data || []; // Get the new nested data array
 
           // Update the map route
-          if (Lat && Lng) {
-            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]);
-          }
+          const newGeolocationData = newRecords
+            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
+            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
+          setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
 
           // Update the chart data
           newRecords.forEach((record) => {
