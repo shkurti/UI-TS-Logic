@@ -129,52 +129,55 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    // WebSocket for real-time updates
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => console.log('WebSocket connection established');
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      console.log('WebSocket message received:', message); // Debug log
+    if (selectedTracker) {
+      // WebSocket for real-time updates
+      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+      ws.onopen = () => console.log('WebSocket connection established');
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        console.log('WebSocket message received:', message); // Debug log
 
-      // Ensure the update is for the currently selected tracker
-      if (message.operationType === 'insert' && message.tracker_id === selectedTracker?.tracker_id) {
-        const newRecords = message.new_data || []; // Get only the new data
+        // Ensure the update is for the currently selected tracker
+        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
+          const { Lat, Lng } = message.geolocation || {};
+          const newRecord = message.new_data?.slice(-1)[0]; // Get the latest record from new_data
 
-        // Update the map route
-        const newGeolocationData = newRecords
-          .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
-          .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
-        setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
-
-        // Update the chart data
-        newRecords.forEach((record) => {
-          if (record.DT && record.Temp !== undefined) {
-            setTemperatureData((prevData) => [
-              ...prevData,
-              { timestamp: record.DT, temperature: parseFloat(record.Temp) },
-            ]);
+          // Update the map route
+          if (Lat && Lng) {
+            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
           }
-          if (record.DT && record.Hum !== undefined) {
-            setHumidityData((prevData) => [
-              ...prevData,
-              { timestamp: record.DT, humidity: parseFloat(record.Hum) },
-            ]);
-          }
-        });
 
-        // Update battery data (if available in the message)
-        if (message.geolocation.Lat && message.geolocation.Lng) {
-          setBatteryData((prevData) => [
-            ...prevData,
-            { timestamp: new Date().toISOString(), battery: parseFloat(message.geolocation.Batt || 0) },
-          ]);
+          // Update the chart data
+          if (newRecord) {
+            if (newRecord.DT && newRecord.Temp !== undefined) {
+              setTemperatureData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.DT, temperature: parseFloat(newRecord.Temp) },
+              ]);
+            }
+            if (newRecord.DT && newRecord.Hum !== undefined) {
+              setHumidityData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.DT, humidity: parseFloat(newRecord.Hum) },
+              ]);
+            }
+            if (newRecord.DT && (newRecord.Batt !== undefined || newRecord.battery !== undefined)) {
+              setBatteryData((prevData) => [
+                ...prevData,
+                {
+                  timestamp: newRecord.DT,
+                  battery: parseFloat(newRecord.Batt || newRecord.battery),
+                },
+              ]);
+            }
+          }
         }
-      }
-    };
-    ws.onerror = (error) => console.error('WebSocket error:', error);
-    ws.onclose = () => console.log('WebSocket connection closed');
+      };
+      ws.onerror = (error) => console.error('WebSocket error:', error);
+      ws.onclose = () => console.log('WebSocket connection closed');
 
-    return () => ws.close();
+      return () => ws.close();
+    }
   }, [selectedTracker]); // Ensure WebSocket logic is tied to the selected tracker
 
   return (
