@@ -140,7 +140,7 @@ const Dashboard = () => {
         // Ensure the update is for the currently selected tracker
         if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
           const { Lat, Lng } = message.geolocation || {};
-          const newRecord = message.new_data?.slice(-1)[0]; // Get the latest record from new_data
+          const newRecord = message.new_data?.[0]; // Get the latest record from new_data
 
           // Update the map route
           if (Lat && Lng) {
