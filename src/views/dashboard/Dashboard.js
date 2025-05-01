@@ -83,28 +83,28 @@ const Dashboard = () => {
       .then((data) => {
         if (data && data.data) { // Process the nested 'data' array
           const geolocationData = data.data
-            .filter((record) => record.Lat !== undefined && record.Lng !== undefined) // Ensure Lat and Lng exist
-            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]); // Convert to [lat, lng] format
+            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use latitude and longitude fields
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]); // Convert to [lat, lng] format
           setRoute(geolocationData); // Update the route for the map
 
           // Extract temperature data for the chart
           const tempData = data.data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT field for timestamp
-            temperature: record.Temp !== undefined ? parseFloat(record.Temp) : null, // Use Temp field
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
           }));
           setTemperatureData(tempData);
 
           // Extract humidity data for the chart
           const humData = data.data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT field for timestamp
-            humidity: record.Hum !== undefined ? parseFloat(record.Hum) : null, // Use Hum field
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
           }));
           setHumidityData(humData);
 
           // Extract battery data for the chart
           const battData = data.data.map((record) => ({
-            timestamp: record.DT || 'N/A', // Use DT field for timestamp
-            battery: data.Batt !== undefined ? parseFloat(data.Batt) : null, // Use Batt field from the main document
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            battery: data.batteryLevel !== undefined ? parseFloat(data.batteryLevel) : null, // Use batteryLevel field from the main document
           }));
           setBatteryData(battData);
         } else {
@@ -136,36 +136,36 @@ const Dashboard = () => {
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message); // Debug log
-        if (message.operationType === 'insert' && message.data.trackerID === selectedTracker.tracker_id) {
+        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
           const newRecords = message.data.data || []; // Get the new nested data array
 
           // Update the map route
           const newGeolocationData = newRecords
-            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
-            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
+            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
           setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
 
           // Update the chart data
           newRecords.forEach((record) => {
-            if (record.DT && record.Temp !== undefined) {
+            if (record.timestamp && record.temperature !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: record.DT, temperature: parseFloat(record.Temp) },
+                { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
               ]);
             }
-            if (record.DT && record.Hum !== undefined) {
+            if (record.timestamp && record.humidity !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: record.DT, humidity: parseFloat(record.Hum) },
+                { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
               ]);
             }
           });
 
           // Update battery data (from the main document)
-          if (message.data.Batt !== undefined) {
+          if (message.data.batteryLevel !== undefined) {
             setBatteryData((prevData) => [
               ...prevData,
-              { timestamp: new Date().toISOString(), battery: parseFloat(message.data.Batt) },
+              { timestamp: new Date().toISOString(), battery: parseFloat(message.data.batteryLevel) },
             ]);
           }
         }
