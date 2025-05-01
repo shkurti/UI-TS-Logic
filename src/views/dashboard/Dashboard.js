@@ -142,14 +142,24 @@ const Dashboard = () => {
           const { Lat, Lng } = message.geolocation || {};
           const newRecords = message.data.data || []; // Get the full data array
 
+          // Filter out duplicate records by comparing timestamps
+          const existingTimestamps = new Set(route.map(([lat, lng]) => `${lat},${lng}`));
+          const uniqueRecords = newRecords.filter(
+            (record) =>
+              record.latitude !== undefined &&
+              record.longitude !== undefined &&
+              !existingTimestamps.has(`${record.latitude},${record.longitude}`)
+          );
+
           // Update the map route
-          const newGeolocationData = newRecords
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
+          const newGeolocationData = uniqueRecords.map((record) => [
+            parseFloat(record.latitude),
+            parseFloat(record.longitude),
+          ]);
           setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
 
           // Update the chart data
-          newRecords.forEach((record) => {
+          uniqueRecords.forEach((record) => {
             if (record.timestamp && record.temperature !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
