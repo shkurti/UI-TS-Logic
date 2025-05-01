@@ -138,13 +138,9 @@ const Dashboard = () => {
         console.log('WebSocket message received:', message); // Debug log
 
         // Ensure the update is for the currently selected tracker
-        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
+        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
           const { Lat, Lng } = message.geolocation || {};
-          const newRecord = message.new_data?.[0]; // Get the latest record from new_data
-
-          // Debug logs for verification
-          console.log('New Record:', newRecord);
-          console.log('Geolocation:', { Lat, Lng });
+          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
 
           // Update the map route
           if (Lat && Lng) {
@@ -153,24 +149,24 @@ const Dashboard = () => {
 
           // Update the chart data
           if (newRecord) {
-            if (newRecord.DT && newRecord.Temp !== undefined) {
+            if (newRecord.timestamp && newRecord.temperature !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: newRecord.DT, temperature: parseFloat(newRecord.Temp) },
+                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
               ]);
             }
-            if (newRecord.DT && newRecord.Hum !== undefined) {
+            if (newRecord.timestamp && newRecord.humidity !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: newRecord.DT, humidity: parseFloat(newRecord.Hum) },
+                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
               ]);
             }
-            if (newRecord.DT && (newRecord.Batt !== undefined || newRecord.battery !== undefined)) {
+            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
               setBatteryData((prevData) => [
                 ...prevData,
                 {
-                  timestamp: newRecord.DT,
-                  battery: parseFloat(newRecord.Batt || newRecord.battery),
+                  timestamp: newRecord.timestamp,
+                  battery: parseFloat(newRecord.battery || newRecord.Batt),
                 },
               ]);
             }
