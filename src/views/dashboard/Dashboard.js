@@ -129,52 +129,50 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    if (selectedTracker) {
-      // WebSocket for real-time updates
-      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-      ws.onopen = () => console.log('WebSocket connection established');
-      ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        console.log('WebSocket message received:', message); // Debug log
-        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
-          const newRecords = message.new_data || []; // Get only the new data
+    // WebSocket for real-time updates
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    ws.onopen = () => console.log('WebSocket connection established');
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('WebSocket message received:', message); // Debug log
+      if (message.operationType === 'insert' && selectedTracker && message.tracker_id === selectedTracker.tracker_id) {
+        const newRecords = message.new_data || []; // Get only the new data
 
-          // Update the map route
-          const newGeolocationData = newRecords
-            .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
-            .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
-          setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
+        // Update the map route
+        const newGeolocationData = newRecords
+          .filter((record) => record.Lat !== undefined && record.Lng !== undefined)
+          .map((record) => [parseFloat(record.Lat), parseFloat(record.Lng)]);
+        setRoute((prevRoute) => [...prevRoute, ...newGeolocationData]);
 
-          // Update the chart data
-          newRecords.forEach((record) => {
-            if (record.DT && record.Temp !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: record.DT, temperature: parseFloat(record.Temp) },
-              ]);
-            }
-            if (record.DT && record.Hum !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: record.DT, humidity: parseFloat(record.Hum) },
-              ]);
-            }
-          });
-
-          // Update battery data (if available in the message)
-          if (message.geolocation.Lat && message.geolocation.Lng) {
-            setBatteryData((prevData) => [
+        // Update the chart data
+        newRecords.forEach((record) => {
+          if (record.DT && record.Temp !== undefined) {
+            setTemperatureData((prevData) => [
               ...prevData,
-              { timestamp: new Date().toISOString(), battery: parseFloat(message.geolocation.Batt || 0) },
+              { timestamp: record.DT, temperature: parseFloat(record.Temp) },
             ]);
           }
-        }
-      };
-      ws.onerror = (error) => console.error('WebSocket error:', error);
-      ws.onclose = () => console.log('WebSocket connection closed');
+          if (record.DT && record.Hum !== undefined) {
+            setHumidityData((prevData) => [
+              ...prevData,
+              { timestamp: record.DT, humidity: parseFloat(record.Hum) },
+            ]);
+          }
+        });
 
-      return () => ws.close();
-    }
+        // Update battery data (if available in the message)
+        if (message.geolocation.Lat && message.geolocation.Lng) {
+          setBatteryData((prevData) => [
+            ...prevData,
+            { timestamp: new Date().toISOString(), battery: parseFloat(message.geolocation.Batt || 0) },
+          ]);
+        }
+      }
+    };
+    ws.onerror = (error) => console.error('WebSocket error:', error);
+    ws.onclose = () => console.log('WebSocket connection closed');
+
+    return () => ws.close();
   }, [selectedTracker]);
 
   return (
