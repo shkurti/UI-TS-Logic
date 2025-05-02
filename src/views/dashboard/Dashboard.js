@@ -136,28 +136,44 @@ const Dashboard = () => {
 
           // Update the map route
           if (geolocation.Lat && geolocation.Lng) {
-            setRoute((prevRoute) => [...prevRoute, [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)]])
+            setRoute((prevRoute) => {
+              const updatedRoute = [...prevRoute, [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)]]
+              console.log('Updated Route:', updatedRoute) // Debug log
+              return updatedRoute
+            })
           }
 
           // Update the chart data
           if (new_record) {
             if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-              ])
+              setTemperatureData((prevData) => {
+                const updatedData = [
+                  ...prevData,
+                  { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                ]
+                console.log('Updated Temperature Data:', updatedData) // Debug log
+                return updatedData
+              })
             }
             if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-              ])
+              setHumidityData((prevData) => {
+                const updatedData = [
+                  ...prevData,
+                  { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                ]
+                console.log('Updated Humidity Data:', updatedData) // Debug log
+                return updatedData
+              })
             }
             if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-              ])
+              setBatteryData((prevData) => {
+                const updatedData = [
+                  ...prevData,
+                  { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                ]
+                console.log('Updated Battery Data:', updatedData) // Debug log
+                return updatedData
+              })
             }
           }
         }
