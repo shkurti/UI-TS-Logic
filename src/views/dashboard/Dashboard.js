@@ -128,64 +128,70 @@ const Dashboard = () => {
     setActiveTab(tab) // Set the active tab
   }
 
+  const handleWebSocketMessage = (message) => {
+    const { operationType, tracker_id, geolocation, new_record } = message;
+
+    if (operationType === 'insert' && tracker_id === selectedTracker?.tracker_id) {
+      const { Lat, Lng } = geolocation || {};
+
+      // Update the map route
+      if (Lat && Lng) {
+        setRoute((prevRoute) => {
+          const updatedRoute = [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]];
+          console.log('Updated Route:', updatedRoute); // Debug log
+          return updatedRoute;
+        });
+      }
+
+      // Update the chart data
+      if (new_record) {
+        setTemperatureData((prevData) => {
+          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
+          if (!exists) {
+            return [
+              ...prevData,
+              { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+            ];
+          }
+          return prevData;
+        });
+
+        setHumidityData((prevData) => {
+          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
+          if (!exists) {
+            return [
+              ...prevData,
+              { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+            ];
+          }
+          return prevData;
+        });
+
+        setBatteryData((prevData) => {
+          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
+          if (!exists) {
+            return [
+              ...prevData,
+              { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery || new_record.Batt) },
+            ];
+          }
+          return prevData;
+        });
+      }
+    }
+  };
+
   useEffect(() => {
     if (selectedTracker) {
-      // WebSocket for real-time updates
       const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
       ws.onopen = () => console.log('WebSocket connection established');
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        console.log('WebSocket message received:', message); // Debug log
-
-        // Ensure the update is for the currently selected tracker
-        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
-          const { Lat, Lng } = message.geolocation || {};
-          const newRecord = message.new_record; // Get the new record
-
-          // Update the map route
-          if (Lat && Lng) {
-            setRoute((prevRoute) => {
-              const updatedRoute = [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]];
-              console.log('Updated Route:', updatedRoute); // Debug log
-              return updatedRoute;
-            });
-          }
-
-          // Update the chart data
-          if (newRecord) {
-            setTemperatureData((prevData) => {
-              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
-              if (!exists) {
-                return [
-                  ...prevData,
-                  { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
-                ];
-              }
-              return prevData;
-            });
-
-            setHumidityData((prevData) => {
-              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
-              if (!exists) {
-                return [
-                  ...prevData,
-                  { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
-                ];
-              }
-              return prevData;
-            });
-
-            setBatteryData((prevData) => {
-              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
-              if (!exists) {
-                return [
-                  ...prevData,
-                  { timestamp: newRecord.timestamp, battery: parseFloat(newRecord.battery || newRecord.Batt) },
-                ];
-              }
-              return prevData;
-            });
-          }
+        try {
+          const message = JSON.parse(event.data);
+          console.log('WebSocket message received:', message); // Debug log
+          handleWebSocketMessage(message);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
         }
       };
       ws.onerror = (error) => console.error('WebSocket error:', error);
@@ -193,27 +199,10 @@ const Dashboard = () => {
 
       return () => ws.close();
     }
-  }, [selectedTracker]); // Ensure WebSocket logic is tied to the selected tracker
-
-  // Debugging: Log state changes to verify updates
-  useEffect(() => {
-    console.log('Route updated:', route);
-  }, [route]);
-
-  useEffect(() => {
-    console.log('Temperature Data updated:', temperatureData);
-  }, [temperatureData]);
-
-  useEffect(() => {
-    console.log('Humidity Data updated:', humidityData);
-  }, [humidityData]);
-
-  useEffect(() => {
-    console.log('Battery Data updated:', batteryData);
-  }, [batteryData]);
+  }, [selectedTracker]);
 
   // Force re-render of the map and charts when the state changes
-  const forceUpdateKey = `${route.length}-${temperatureData.length}-${humidityData.length}-${batteryData.length}`;
+  const forceUpdateKey = `${route.length}-${temperatureData.length}-${humidityData.length}-${batteryData.length}-${Date.now()}`;
 
   return (
     <>
