@@ -35,7 +35,7 @@ const customIcon = L.icon({
   popupAnchor: [1, -34],
 })
 
-// Component to adjust the map view to fit the route
+// Ensure the map re-renders when the route updates
 function FitBounds({ route }) {
   const map = useMap()
   useEffect(() => {
@@ -43,7 +43,7 @@ function FitBounds({ route }) {
       const bounds = route.map(([lat, lng]) => [lat, lng]) // Convert route to bounds
       map.fitBounds(bounds) // Adjust the map view to fit the route
     }
-  }, [route, map])
+  }, [route, map]) // Ensure the map re-renders when the route updates
   return null
 }
 
@@ -104,7 +104,7 @@ const Dashboard = () => {
           // Extract battery data for the chart
           const battData = data.data.map((record) => ({
             timestamp: record.timestamp || 'N/A', // Use timestamp field
-            battery: data.batteryLevel !== undefined ? parseFloat(data.batteryLevel) : null, // Use batteryLevel field from the main document
+            battery: record.battery !== undefined ? parseFloat(record.battery) : null, // Use battery field
           }));
           setBatteryData(battData);
         } else {
@@ -156,10 +156,12 @@ const Dashboard = () => {
             setTemperatureData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                return [
+                const updatedTemperatureData = [
                   ...prevData,
                   { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
                 ];
+                console.log('Updated Temperature Data:', updatedTemperatureData); // Debug log
+                return updatedTemperatureData;
               }
               return prevData;
             });
@@ -167,10 +169,12 @@ const Dashboard = () => {
             setHumidityData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                return [
+                const updatedHumidityData = [
                   ...prevData,
                   { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
                 ];
+                console.log('Updated Humidity Data:', updatedHumidityData); // Debug log
+                return updatedHumidityData;
               }
               return prevData;
             });
@@ -178,10 +182,12 @@ const Dashboard = () => {
             setBatteryData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                return [
+                const updatedBatteryData = [
                   ...prevData,
                   { timestamp: newRecord.timestamp, battery: parseFloat(newRecord.battery || newRecord.Batt) },
                 ];
+                console.log('Updated Battery Data:', updatedBatteryData); // Debug log
+                return updatedBatteryData;
               }
               return prevData;
             });
@@ -230,13 +236,13 @@ const Dashboard = () => {
                 <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
-                    <Polyline positions={route} color="blue" />
-                    <Marker position={route[route.length - 1]} icon={customIcon}>
+                    <Polyline key={route.length} positions={route} color="blue" />
+                    <Marker key={route.length} position={route[route.length - 1]} icon={customIcon}>
                       <Popup>Current Location</Popup>
                     </Marker>
                   </>
                 ) : route.length === 1 ? (
-                  <Marker position={route[0]} icon={customIcon}>
+                  <Marker key={route.length} position={route[0]} icon={customIcon}>
                     <Popup>Only one location available</Popup>
                   </Marker>
                 ) : null}
