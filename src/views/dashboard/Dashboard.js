@@ -156,12 +156,10 @@ const Dashboard = () => {
             setTemperatureData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                const updatedTemperatureData = [
+                return [
                   ...prevData,
                   { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
                 ];
-                console.log('Updated Temperature Data:', updatedTemperatureData); // Debug log
-                return updatedTemperatureData;
               }
               return prevData;
             });
@@ -169,12 +167,10 @@ const Dashboard = () => {
             setHumidityData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                const updatedHumidityData = [
+                return [
                   ...prevData,
                   { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
                 ];
-                console.log('Updated Humidity Data:', updatedHumidityData); // Debug log
-                return updatedHumidityData;
               }
               return prevData;
             });
@@ -182,12 +178,10 @@ const Dashboard = () => {
             setBatteryData((prevData) => {
               const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
               if (!exists) {
-                const updatedBatteryData = [
+                return [
                   ...prevData,
                   { timestamp: newRecord.timestamp, battery: parseFloat(newRecord.battery || newRecord.Batt) },
                 ];
-                console.log('Updated Battery Data:', updatedBatteryData); // Debug log
-                return updatedBatteryData;
               }
               return prevData;
             });
@@ -218,6 +212,9 @@ const Dashboard = () => {
     console.log('Battery Data updated:', batteryData);
   }, [batteryData]);
 
+  // Force re-render of the map and charts when the state changes
+  const forceUpdateKey = `${route.length}-${temperatureData.length}-${humidityData.length}-${batteryData.length}`;
+
   return (
     <>
       <CRow>
@@ -225,6 +222,7 @@ const Dashboard = () => {
           <CCard className="mb-4">
             <CCardBody>
               <MapContainer
+                key={forceUpdateKey} // Force re-render when the state changes
                 center={[42.798939, -74.658409]}
                 zoom={13}
                 style={{ height: '500px', width: '100%' }}
