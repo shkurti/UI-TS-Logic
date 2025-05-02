@@ -144,32 +144,47 @@ const Dashboard = () => {
 
           // Update the map route
           if (Lat && Lng) {
-            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]);
+            setRoute((prevRoute) => {
+              const updatedRoute = [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]];
+              console.log('Updated Route:', updatedRoute); // Debug log
+              return updatedRoute;
+            });
           }
 
           // Update the chart data
           if (newRecord) {
-            if (newRecord.timestamp && newRecord.temperature !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
-              ]);
-            }
-            if (newRecord.timestamp && newRecord.humidity !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
-              ]);
-            }
-            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
-              setBatteryData((prevData) => [
-                ...prevData,
-                {
-                  timestamp: newRecord.timestamp,
-                  battery: parseFloat(newRecord.battery || newRecord.Batt),
-                },
-              ]);
-            }
+            setTemperatureData((prevData) => {
+              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
+              if (!exists) {
+                return [
+                  ...prevData,
+                  { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
+                ];
+              }
+              return prevData;
+            });
+
+            setHumidityData((prevData) => {
+              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
+              if (!exists) {
+                return [
+                  ...prevData,
+                  { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
+                ];
+              }
+              return prevData;
+            });
+
+            setBatteryData((prevData) => {
+              const exists = prevData.some((record) => record.timestamp === newRecord.timestamp);
+              if (!exists) {
+                return [
+                  ...prevData,
+                  { timestamp: newRecord.timestamp, battery: parseFloat(newRecord.battery || newRecord.Batt) },
+                ];
+              }
+              return prevData;
+            });
           }
         }
       };
