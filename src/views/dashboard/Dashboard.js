@@ -35,7 +35,7 @@ const customIcon = L.icon({
   popupAnchor: [1, -34],
 })
 
-// Ensure the map re-renders when the route updates
+// Component to adjust the map view to fit the route
 function FitBounds({ route }) {
   const map = useMap()
   useEffect(() => {
@@ -43,7 +43,7 @@ function FitBounds({ route }) {
       const bounds = route.map(([lat, lng]) => [lat, lng]) // Convert route to bounds
       map.fitBounds(bounds) // Adjust the map view to fit the route
     }
-  }, [route, map]) // Ensure the map re-renders when the route updates
+  }, [route, map])
   return null
 }
 
@@ -72,126 +72,107 @@ const Dashboard = () => {
   }, [])
 
   const handleTrackerSelect = (tracker) => {
-    setSelectedTracker(tracker); // Set the selected tracker
+    setSelectedTracker(tracker) // Set the selected tracker
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        return response.json();
+        return response.json()
       })
       .then((data) => {
-        if (data && data.data) { // Process the nested 'data' array
-          const geolocationData = data.data
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use latitude and longitude fields
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]); // Convert to [lat, lng] format
-          setRoute(geolocationData); // Update the route for the map
+        if (data && data.historical_data) {
+          setHistoricalData(data.historical_data)
+          const geolocationData = data.historical_data
+            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use correct field names
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
+          setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
-          const tempData = data.data.map((record) => ({
+          const tempData = data.historical_data.map((record) => ({
             timestamp: record.timestamp || 'N/A', // Use timestamp field
             temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
-          }));
-          setTemperatureData(tempData);
+          }))
+          setTemperatureData(tempData)
 
           // Extract humidity data for the chart
-          const humData = data.data.map((record) => ({
+          const humData = data.historical_data.map((record) => ({
             timestamp: record.timestamp || 'N/A', // Use timestamp field
             humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
-          }));
-          setHumidityData(humData);
+          }))
+          setHumidityData(humData)
 
           // Extract battery data for the chart
-          const battData = data.data.map((record) => ({
+          const battData = data.historical_data.map((record) => ({
             timestamp: record.timestamp || 'N/A', // Use timestamp field
-            battery: record.battery !== undefined ? parseFloat(record.battery) : null, // Use battery field
-          }));
-          setBatteryData(battData);
+            battery: record.battery !== undefined ? parseFloat(record.battery) : 
+                     record.Batt !== undefined ? parseFloat(record.Batt) : null, // Use battery or Batt field
+          }))
+          setBatteryData(battData)
         } else {
-          console.warn('No data found for tracker:', tracker.tracker_id);
-          setRoute([]); // Clear the route if no data is found
-          setTemperatureData([]); // Clear temperature data if no data is found
-          setHumidityData([]); // Clear humidity data if no data is found
-          setBatteryData([]); // Clear battery data if no data is found
+          console.warn('No historical data found for tracker:', tracker.tracker_id)
+          setHistoricalData([])
+          setRoute([]) // Clear the route if no data is found
+          setTemperatureData([]) // Clear temperature data if no data is found
+          setHumidityData([]) // Clear humidity data if no data is found
+          setBatteryData([]) // Clear battery data if no data is found
         }
       })
       .catch((error) => {
-        console.error('Error fetching historical data:', error);
-        setRoute([]);
-        setTemperatureData([]);
-        setHumidityData([]);
-        setBatteryData([]);
-      });
-  };
+        console.error('Error fetching historical data:', error)
+        setHistoricalData([])
+        setRoute([])
+        setTemperatureData([])
+        setHumidityData([])
+        setBatteryData([])
+      })
+  }
 
   const handleTabClick = (tab) => {
     setActiveTab(tab) // Set the active tab
   }
 
-  const handleWebSocketMessage = (message) => {
-    const { operationType, tracker_id, geolocation, new_record } = message;
-
-    if (operationType === 'insert' && tracker_id === selectedTracker?.tracker_id) {
-      const { Lat, Lng } = geolocation || {};
-
-      // Update the map route
-      if (Lat && Lng) {
-        setRoute((prevRoute) => {
-          const updatedRoute = [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]];
-          console.log('Updated Route:', updatedRoute); // Debug log
-          return updatedRoute;
-        });
-      }
-
-      // Update the chart data
-      if (new_record) {
-        setTemperatureData((prevData) => {
-          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
-          if (!exists) {
-            return [
-              ...prevData,
-              { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-            ];
-          }
-          return prevData;
-        });
-
-        setHumidityData((prevData) => {
-          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
-          if (!exists) {
-            return [
-              ...prevData,
-              { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-            ];
-          }
-          return prevData;
-        });
-
-        setBatteryData((prevData) => {
-          const exists = prevData.some((record) => record.timestamp === new_record.timestamp);
-          if (!exists) {
-            return [
-              ...prevData,
-              { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery || new_record.Batt) },
-            ];
-          }
-          return prevData;
-        });
-      }
-    }
-  };
-
   useEffect(() => {
     if (selectedTracker) {
+      // WebSocket for real-time updates
       const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
       ws.onopen = () => console.log('WebSocket connection established');
       ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('WebSocket message received:', message); // Debug log
-          handleWebSocketMessage(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+        const message = JSON.parse(event.data);
+        console.log('WebSocket message received:', message); // Debug log
+        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
+          const { Lat, Lng } = message.geolocation || {};
+          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
+
+          // Update the map route
+          if (Lat && Lng) {
+            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
+          }
+
+          // Update the chart data
+          if (newRecord) {
+            if (newRecord.timestamp && newRecord.temperature !== undefined) {
+              setTemperatureData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
+              ]);
+            }
+            if (newRecord.timestamp && newRecord.humidity !== undefined) {
+              setHumidityData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
+              ]);
+            }
+            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
+              setBatteryData((prevData) => [
+                ...prevData,
+                {
+                  timestamp: newRecord.timestamp,
+                  battery: parseFloat(newRecord.battery || newRecord.Batt),
+                },
+              ]);
+            }
+          }
         }
       };
       ws.onerror = (error) => console.error('WebSocket error:', error);
@@ -201,9 +182,6 @@ const Dashboard = () => {
     }
   }, [selectedTracker]);
 
-  // Force re-render of the map and charts when the state changes
-  const forceUpdateKey = `${route.length}-${temperatureData.length}-${humidityData.length}-${batteryData.length}-${Date.now()}`;
-
   return (
     <>
       <CRow>
@@ -211,7 +189,6 @@ const Dashboard = () => {
           <CCard className="mb-4">
             <CCardBody>
               <MapContainer
-                key={forceUpdateKey} // Force re-render when the state changes
                 center={[42.798939, -74.658409]}
                 zoom={13}
                 style={{ height: '500px', width: '100%' }}
@@ -223,13 +200,13 @@ const Dashboard = () => {
                 <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
-                    <Polyline key={route.length} positions={route} color="blue" />
-                    <Marker key={route.length} position={route[route.length - 1]} icon={customIcon}>
+                    <Polyline positions={route} color="blue" />
+                    <Marker position={route[route.length - 1]} icon={customIcon}>
                       <Popup>Current Location</Popup>
                     </Marker>
                   </>
                 ) : route.length === 1 ? (
-                  <Marker key={route.length} position={route[0]} icon={customIcon}>
+                  <Marker position={route[0]} icon={customIcon}>
                     <Popup>Only one location available</Popup>
                   </Marker>
                 ) : null}
@@ -364,7 +341,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     {activeSensor === 'Temperature' && (
-                      <ResponsiveContainer key={`temp-${forceUpdateKey}`} width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={300}>
                         <LineChart
                           data={temperatureData}
                           margin={{
@@ -389,7 +366,7 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Humidity' && (
-                      <ResponsiveContainer key={`hum-${forceUpdateKey}`} width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={300}>
                         <LineChart
                           data={humidityData}
                           margin={{
@@ -414,7 +391,7 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Battery' && (
-                      <ResponsiveContainer key={`batt-${forceUpdateKey}`} width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={300}>
                         <LineChart
                           data={batteryData}
                           margin={{
