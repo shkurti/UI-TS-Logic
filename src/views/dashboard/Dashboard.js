@@ -375,7 +375,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     {activeSensor === 'Temperature' && (
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer key={`temp-${forceUpdateKey}`} width="100%" height={300}>
                         <LineChart
                           data={temperatureData}
                           margin={{
@@ -400,7 +400,7 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Humidity' && (
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer key={`hum-${forceUpdateKey}`} width="100%" height={300}>
                         <LineChart
                           data={humidityData}
                           margin={{
@@ -425,7 +425,7 @@ const Dashboard = () => {
                       </ResponsiveContainer>
                     )}
                     {activeSensor === 'Battery' && (
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer key={`batt-${forceUpdateKey}`} width="100%" height={300}>
                         <LineChart
                           data={batteryData}
                           margin={{
