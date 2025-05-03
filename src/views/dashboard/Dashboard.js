@@ -150,22 +150,22 @@ const Dashboard = () => {
 
           // Update the chart data
           if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
+            if (new_record.DT && new_record.Temp !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                { timestamp: new_record.DT, temperature: parseFloat(new_record.Temp) },
               ]);
             }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
+            if (new_record.DT && new_record.Hum !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                { timestamp: new_record.DT, humidity: parseFloat(new_record.Hum) },
               ]);
             }
-            if (new_record.timestamp && new_record.battery !== undefined) {
+            if (new_record.DT && new_record.Batt !== undefined) {
               setBatteryData((prevData) => [
                 ...prevData,
-                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                { timestamp: new_record.DT, battery: parseFloat(new_record.Batt) },
               ]);
             }
           }
