@@ -142,36 +142,55 @@ const Dashboard = () => {
 
           // Update the map route
           if (geolocation?.Lat && geolocation?.Lng) {
-            setRoute((prevRoute) => [
-              ...prevRoute,
-              [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)],
-            ]);
+            setRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)];
+              // Avoid adding duplicate points to the map
+              if (!lastPoint || lastPoint[0] !== newPoint[0] || lastPoint[1] !== newPoint[1]) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
           }
 
           // Update the chart data
           if (new_record) {
-            // Handle multiple records if they exist
-            const records = Array.isArray(new_record) ? new_record : [new_record];
-            records.forEach((record) => {
-              if (record.timestamp && record.temperature !== undefined) {
-                setTemperatureData((prevData) => [
-                  ...prevData,
-                  { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
-                ]);
-              }
-              if (record.timestamp && record.humidity !== undefined) {
-                setHumidityData((prevData) => [
-                  ...prevData,
-                  { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
-                ]);
-              }
-              if (record.timestamp && record.battery !== undefined) {
-                setBatteryData((prevData) => [
-                  ...prevData,
-                  { timestamp: record.timestamp, battery: parseFloat(record.battery) },
-                ]);
-              }
-            });
+            if (new_record.timestamp && new_record.temperature !== undefined) {
+              setTemperatureData((prevData) => {
+                // Avoid adding duplicate temperature records
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.humidity !== undefined) {
+              setHumidityData((prevData) => {
+                // Avoid adding duplicate humidity records
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.battery !== undefined) {
+              setBatteryData((prevData) => {
+                // Avoid adding duplicate battery records
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                  ];
+                }
+                return prevData;
+              });
+            }
           }
         }
       };
