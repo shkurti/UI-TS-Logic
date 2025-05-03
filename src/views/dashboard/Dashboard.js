@@ -50,6 +50,7 @@ function FitBounds({ route }) {
 const Dashboard = () => {
   const [trackers, setTrackers] = useState([])
   const [selectedTracker, setSelectedTracker] = useState(null)
+  const [historicalData, setHistoricalData] = useState([])
   const [route, setRoute] = useState([]) // Store the route for the selected tracker
   const [activeTab, setActiveTab] = useState('Details')
   const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
@@ -80,42 +81,46 @@ const Dashboard = () => {
         return response.json()
       })
       .then((data) => {
-        if (data && data.data) {
-          const geolocationData = data.data
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)])
+        if (data && data.historical_data) {
+          setHistoricalData(data.historical_data)
+          const geolocationData = data.historical_data
+            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use correct field names
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
           setRoute(geolocationData) // Update the route for the map
 
           // Extract temperature data for the chart
-          const tempData = data.data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null,
+          const tempData = data.historical_data.map((record) => ({
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
           }))
           setTemperatureData(tempData)
 
           // Extract humidity data for the chart
-          const humData = data.data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null,
+          const humData = data.historical_data.map((record) => ({
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
           }))
           setHumidityData(humData)
 
           // Extract battery data for the chart
-          const battData = data.data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined ? parseFloat(record.battery) : null,
+          const battData = data.historical_data.map((record) => ({
+            timestamp: record.timestamp || 'N/A', // Use timestamp field
+            battery: record.battery !== undefined ? parseFloat(record.battery) : 
+                     record.Batt !== undefined ? parseFloat(record.Batt) : null, // Use battery or Batt field
           }))
           setBatteryData(battData)
         } else {
-          console.warn('No data found for tracker:', tracker.tracker_id)
-          setRoute([])
-          setTemperatureData([])
-          setHumidityData([])
-          setBatteryData([])
+          console.warn('No historical data found for tracker:', tracker.tracker_id)
+          setHistoricalData([])
+          setRoute([]) // Clear the route if no data is found
+          setTemperatureData([]) // Clear temperature data if no data is found
+          setHumidityData([]) // Clear humidity data if no data is found
+          setBatteryData([]) // Clear battery data if no data is found
         }
       })
       .catch((error) => {
-        console.error('Error fetching tracker data:', error)
+        console.error('Error fetching historical data:', error)
+        setHistoricalData([])
         setRoute([])
         setTemperatureData([])
         setHumidityData([])
@@ -123,68 +128,59 @@ const Dashboard = () => {
       })
   }
 
+  const handleTabClick = (tab) => {
+    setActiveTab(tab) // Set the active tab
+  }
+
   useEffect(() => {
     if (selectedTracker) {
-      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
-      ws.onopen = () => console.log('WebSocket connection established')
+      // WebSocket for real-time updates
+      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+      ws.onopen = () => console.log('WebSocket connection established');
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data)
-        console.log('WebSocket message received:', message)
-
-        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
-          const { new_record, geolocation } = message
+        const message = JSON.parse(event.data);
+        console.log('WebSocket message received:', message); // Debug log
+        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
+          const { Lat, Lng } = message.geolocation || {};
+          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
 
           // Update the map route
-          if (geolocation.Lat && geolocation.Lng) {
-            setRoute((prevRoute) => {
-              const updatedRoute = [...prevRoute, [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)]]
-              console.log('Updated Route:', updatedRoute) // Debug log
-              return updatedRoute
-            })
+          if (Lat && Lng) {
+            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
           }
 
           // Update the chart data
-          if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => {
-                const updatedData = [
-                  ...prevData,
-                  { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-                ]
-                console.log('Updated Temperature Data:', updatedData) // Debug log
-                return updatedData
-              })
+          if (newRecord) {
+            if (newRecord.timestamp && newRecord.temperature !== undefined) {
+              setTemperatureData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
+              ]);
             }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => {
-                const updatedData = [
-                  ...prevData,
-                  { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-                ]
-                console.log('Updated Humidity Data:', updatedData) // Debug log
-                return updatedData
-              })
+            if (newRecord.timestamp && newRecord.humidity !== undefined) {
+              setHumidityData((prevData) => [
+                ...prevData,
+                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
+              ]);
             }
-            if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => {
-                const updatedData = [
-                  ...prevData,
-                  { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-                ]
-                console.log('Updated Battery Data:', updatedData) // Debug log
-                return updatedData
-              })
+            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
+              setBatteryData((prevData) => [
+                ...prevData,
+                {
+                  timestamp: newRecord.timestamp,
+                  battery: parseFloat(newRecord.battery || newRecord.Batt),
+                },
+              ]);
             }
           }
         }
-      }
+      };
+      ws.onerror = (error) => console.error('WebSocket error:', error);
+      ws.onclose = () => console.log('WebSocket connection closed');
 
-      ws.onerror = (error) => console.error('WebSocket error:', error)
-      ws.onclose = () => console.log('WebSocket connection closed')
-
-      return () => ws.close()
+      return () => ws.close();
     }
-  }, [selectedTracker])
+  }, [selectedTracker]);
 
   return (
     <>
@@ -201,7 +197,7 @@ const Dashboard = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                <FitBounds route={route} />
+                <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
                     <Polyline positions={route} color="blue" />
@@ -255,7 +251,7 @@ const Dashboard = () => {
                 <CNavItem>
                   <CNavLink
                     active={activeTab === 'Details'}
-                    onClick={() => setActiveTab('Details')}
+                    onClick={() => handleTabClick('Details')}
                   >
                     Details
                   </CNavLink>
@@ -263,7 +259,7 @@ const Dashboard = () => {
                 <CNavItem>
                   <CNavLink
                     active={activeTab === 'Sensors'}
-                    onClick={() => setActiveTab('Sensors')}
+                    onClick={() => handleTabClick('Sensors')}
                   >
                     Sensors
                   </CNavLink>
@@ -271,7 +267,7 @@ const Dashboard = () => {
                 <CNavItem>
                   <CNavLink
                     active={activeTab === 'Alerts'}
-                    onClick={() => setActiveTab('Alerts')}
+                    onClick={() => handleTabClick('Alerts')}
                   >
                     Alerts
                   </CNavLink>
@@ -279,7 +275,7 @@ const Dashboard = () => {
                 <CNavItem>
                   <CNavLink
                     active={activeTab === 'Reports'}
-                    onClick={() => setActiveTab('Reports')}
+                    onClick={() => handleTabClick('Reports')}
                   >
                     Reports
                   </CNavLink>
