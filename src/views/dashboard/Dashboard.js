@@ -137,7 +137,7 @@ const Dashboard = () => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message); // Debug log
 
-        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
+        if (message.operationType === 'insert' && String(message.tracker_id) === String(selectedTracker.tracker_id)) {
           const { new_record, geolocation } = message;
 
           // Update the map route
