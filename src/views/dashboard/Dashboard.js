@@ -136,36 +136,36 @@ const Dashboard = () => {
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message); // Debug log
-        if (message.operationType === 'insert' && message.data.tracker_id === selectedTracker.tracker_id) {
-          const { Lat, Lng } = message.geolocation || {};
-          const newRecord = message.data.historical_data?.slice(-1)[0]; // Get the latest record
+
+        if (message.operationType === 'insert' && message.tracker_id === selectedTracker.tracker_id) {
+          const { new_record, geolocation } = message;
 
           // Update the map route
-          if (Lat && Lng) {
-            setRoute((prevRoute) => [...prevRoute, [parseFloat(Lat), parseFloat(Lng)]]); // Append new location to the route
+          if (geolocation?.Lat && geolocation?.Lng) {
+            setRoute((prevRoute) => [
+              ...prevRoute,
+              [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)],
+            ]);
           }
 
           // Update the chart data
-          if (newRecord) {
-            if (newRecord.timestamp && newRecord.temperature !== undefined) {
+          if (new_record) {
+            if (new_record.timestamp && new_record.temperature !== undefined) {
               setTemperatureData((prevData) => [
                 ...prevData,
-                { timestamp: newRecord.timestamp, temperature: parseFloat(newRecord.temperature) },
+                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
               ]);
             }
-            if (newRecord.timestamp && newRecord.humidity !== undefined) {
+            if (new_record.timestamp && new_record.humidity !== undefined) {
               setHumidityData((prevData) => [
                 ...prevData,
-                { timestamp: newRecord.timestamp, humidity: parseFloat(newRecord.humidity) },
+                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
               ]);
             }
-            if (newRecord.timestamp && (newRecord.battery !== undefined || newRecord.Batt !== undefined)) {
+            if (new_record.timestamp && new_record.battery !== undefined) {
               setBatteryData((prevData) => [
                 ...prevData,
-                {
-                  timestamp: newRecord.timestamp,
-                  battery: parseFloat(newRecord.battery || newRecord.Batt),
-                },
+                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
               ]);
             }
           }
