@@ -150,24 +150,28 @@ const Dashboard = () => {
 
           // Update the chart data
           if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-              ]);
-            }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-              ]);
-            }
-            if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-              ]);
-            }
+            // Handle multiple records if they exist
+            const records = Array.isArray(new_record) ? new_record : [new_record];
+            records.forEach((record) => {
+              if (record.timestamp && record.temperature !== undefined) {
+                setTemperatureData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
+                ]);
+              }
+              if (record.timestamp && record.humidity !== undefined) {
+                setHumidityData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
+                ]);
+              }
+              if (record.timestamp && record.battery !== undefined) {
+                setBatteryData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, battery: parseFloat(record.battery) },
+                ]);
+              }
+            });
           }
         }
       };
