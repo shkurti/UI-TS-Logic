@@ -72,61 +72,57 @@ const Dashboard = () => {
   }, [])
 
   const handleTrackerSelect = (tracker) => {
-    setSelectedTracker(tracker) // Set the selected tracker
+    setSelectedTracker(tracker); // Set the selected tracker
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json()
+        return response.json();
       })
       .then((data) => {
-        if (data && data.historical_data) {
-          setHistoricalData(data.historical_data)
-          const geolocationData = data.historical_data
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined) // Use correct field names
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]) // Ensure values are numbers
-          setRoute(geolocationData) // Update the route for the map
+        if (data && data.data && data.data.length > 0) {
+          const geolocationData = data.data
+            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
+            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
+          setRoute(geolocationData); // Update the route for the map
 
           // Extract temperature data for the chart
-          const tempData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null, // Use temperature field
-          }))
-          setTemperatureData(tempData)
+          const tempData = data.data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null,
+          }));
+          setTemperatureData(tempData);
 
           // Extract humidity data for the chart
-          const humData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null, // Use humidity field
-          }))
-          setHumidityData(humData)
+          const humData = data.data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null,
+          }));
+          setHumidityData(humData);
 
           // Extract battery data for the chart
-          const battData = data.historical_data.map((record) => ({
-            timestamp: record.timestamp || 'N/A', // Use timestamp field
-            battery: record.battery !== undefined ? parseFloat(record.battery) : 
-                     record.Batt !== undefined ? parseFloat(record.Batt) : null, // Use battery or Batt field
-          }))
-          setBatteryData(battData)
+          const battData = data.data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            battery: record.battery !== undefined ? parseFloat(record.battery) : null,
+          }));
+          setBatteryData(battData);
         } else {
-          console.warn('No historical data found for tracker:', tracker.tracker_id)
-          setHistoricalData([])
-          setRoute([]) // Clear the route if no data is found
-          setTemperatureData([]) // Clear temperature data if no data is found
-          setHumidityData([]) // Clear humidity data if no data is found
-          setBatteryData([]) // Clear battery data if no data is found
+          console.warn(`No historical data found for tracker: ${tracker.tracker_id}`);
+          setRoute([]);
+          setTemperatureData([]);
+          setHumidityData([]);
+          setBatteryData([]);
         }
       })
       .catch((error) => {
-        console.error('Error fetching historical data:', error)
-        setHistoricalData([])
-        setRoute([])
-        setTemperatureData([])
-        setHumidityData([])
-        setBatteryData([])
-      })
-  }
+        console.error('Error fetching tracker data:', error);
+        setRoute([]);
+        setTemperatureData([]);
+        setHumidityData([]);
+        setBatteryData([]);
+      });
+  };
 
   const handleTabClick = (tab) => {
     setActiveTab(tab) // Set the active tab
