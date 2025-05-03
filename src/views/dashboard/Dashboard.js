@@ -150,24 +150,28 @@ const Dashboard = () => {
 
           // Update the chart data
           if (new_record) {
-            if (new_record.DT && new_record.Temp !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.DT, temperature: parseFloat(new_record.Temp) },
-              ]);
-            }
-            if (new_record.DT && new_record.Hum !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.DT, humidity: parseFloat(new_record.Hum) },
-              ]);
-            }
-            if (new_record.DT && new_record.Batt !== undefined) {
-              setBatteryData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.DT, battery: parseFloat(new_record.Batt) },
-              ]);
-            }
+            // Handle multiple records if they exist
+            const records = Array.isArray(new_record) ? new_record : [new_record];
+            records.forEach((record) => {
+              if (record.timestamp && record.temperature !== undefined) {
+                setTemperatureData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, temperature: parseFloat(record.temperature) },
+                ]);
+              }
+              if (record.timestamp && record.humidity !== undefined) {
+                setHumidityData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, humidity: parseFloat(record.humidity) },
+                ]);
+              }
+              if (record.timestamp && record.battery !== undefined) {
+                setBatteryData((prevData) => [
+                  ...prevData,
+                  { timestamp: record.timestamp, battery: parseFloat(record.battery) },
+                ]);
+              }
+            });
           }
         }
       };
