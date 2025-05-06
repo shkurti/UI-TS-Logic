@@ -167,7 +167,6 @@ const Dashboard = () => {
           if (new_record) {
             if (new_record.timestamp && new_record.temperature !== undefined) {
               setTemperatureData((prevData) => {
-                // Avoid adding duplicate temperature records
                 if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
                   return [
                     ...prevData,
@@ -179,7 +178,6 @@ const Dashboard = () => {
             }
             if (new_record.timestamp && new_record.humidity !== undefined) {
               setHumidityData((prevData) => {
-                // Avoid adding duplicate humidity records
                 if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
                   return [
                     ...prevData,
@@ -191,7 +189,6 @@ const Dashboard = () => {
             }
             if (new_record.timestamp && new_record.battery !== undefined) {
               setBatteryData((prevData) => {
-                // Avoid adding duplicate battery records
                 if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
                   return [
                     ...prevData,
@@ -203,7 +200,6 @@ const Dashboard = () => {
             }
             if (new_record.timestamp && new_record.speed !== undefined) {
               setSpeedData((prevData) => {
-                // Avoid adding duplicate speed records
                 if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
                   return [
                     ...prevData,
@@ -443,7 +439,7 @@ const Dashboard = () => {
                     {activeSensor === 'Battery' && (
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart
-                          data={batteryData}
+                          data={batteryData} // Ensure batteryData is passed correctly
                           margin={{
                             top: 5,
                             right: 20,
@@ -452,7 +448,7 @@ const Dashboard = () => {
                           }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" tick={false} /> {/* Hide timestamps on X-axis */}
+                          <XAxis dataKey="timestamp" tick={false} /> {/* Ensure the X-axis uses the correct timestamp */}
                           <YAxis />
                           <Tooltip
                             formatter={(value, name) => [
@@ -461,7 +457,12 @@ const Dashboard = () => {
                             ]}
                             labelFormatter={(label) => `Timestamp: ${label}`}
                           />
-                          <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
+                          <Line
+                            type="monotone"
+                            dataKey="battery" // Ensure this matches the key in batteryData
+                            stroke="#ffc658"
+                            activeDot={{ r: 8 }}
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     )}
