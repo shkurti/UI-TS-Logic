@@ -57,6 +57,7 @@ const Dashboard = () => {
   const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
   const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
   const [batteryData, setBatteryData] = useState([]) // Store battery data for the chart
+  const [speedData, setSpeedData] = useState([]) // Store speed data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -107,12 +108,20 @@ const Dashboard = () => {
             battery: record.battery !== undefined ? parseFloat(record.battery) : null,
           }));
           setBatteryData(battData);
+
+          // Extract speed data for the chart
+          const spdData = data.data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            speed: record.speed !== undefined ? parseFloat(record.speed) : null,
+          }));
+          setSpeedData(spdData);
         } else {
           console.warn(`No historical data found for tracker: ${tracker.tracker_id}`);
           setRoute([]);
           setTemperatureData([]);
           setHumidityData([]);
           setBatteryData([]);
+          setSpeedData([]);
         }
       })
       .catch((error) => {
@@ -121,6 +130,7 @@ const Dashboard = () => {
         setTemperatureData([]);
         setHumidityData([]);
         setBatteryData([]);
+        setSpeedData([]);
       });
   };
 
@@ -186,6 +196,18 @@ const Dashboard = () => {
                   return [
                     ...prevData,
                     { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.speed !== undefined) {
+              setSpeedData((prevData) => {
+                // Avoid adding duplicate speed records
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
                   ];
                 }
                 return prevData;
@@ -358,6 +380,15 @@ const Dashboard = () => {
                         <BsSun size={30} className="sensor-icon" />
                         <p className="sensor-label">Light</p>
                       </div>
+                      <div
+                        className={`sensor-icon-wrapper ${
+                          activeSensor === 'Speed' ? 'active' : ''
+                        }`}
+                        onClick={() => setActiveSensor('Speed')}
+                      >
+                        <BsSun size={30} className="sensor-icon" />
+                        <p className="sensor-label">Speed</p>
+                      </div>
                     </div>
                     {activeSensor === 'Temperature' && (
                       <ResponsiveContainer width="100%" height={300}>
@@ -436,6 +467,31 @@ const Dashboard = () => {
                     )}
                     {activeSensor === 'Light' && (
                       <p>Light chart visualization goes here...</p>
+                    )}
+                    {activeSensor === 'Speed' && (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={speedData}
+                          margin={{
+                            top: 5,
+                            right: 20,
+                            left: 0,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} /> {/* Hide timestamps on X-axis */}
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'speed' ? 'Speed' : ''}: ${value} km/h`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="speed" stroke="#ff7300" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     )}
                   </CTabPane>
                 )}
