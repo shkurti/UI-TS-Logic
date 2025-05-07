@@ -82,6 +82,7 @@ const Dashboard = () => {
         return response.json();
       })
       .then((data) => {
+        console.log("Tracker Data Received:", data); // Debug log to verify data
         if (data && data.data && data.data.length > 0) {
           const geolocationData = data.data
             .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
