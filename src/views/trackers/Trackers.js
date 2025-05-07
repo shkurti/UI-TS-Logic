@@ -96,16 +96,18 @@ const Trackers = () => {
 
             if (trackerIndex !== -1) {
               // Update the existing tracker
-              const updatedTrackers = [...prevTrackers]
-              updatedTrackers[trackerIndex] = {
-                ...updatedTrackers[trackerIndex],
-                batteryLevel: message.new_record.battery || updatedTrackers[trackerIndex].batteryLevel,
-                lastConnected: message.new_record.timestamp || updatedTrackers[trackerIndex].lastConnected,
-                location: message.geolocation
-                  ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
-                  : updatedTrackers[trackerIndex].location,
-              }
-              return updatedTrackers
+              return prevTrackers.map((tracker, index) =>
+                index === trackerIndex
+                  ? {
+                      ...tracker,
+                      batteryLevel: message.new_record.battery || tracker.batteryLevel,
+                      lastConnected: message.new_record.timestamp || tracker.lastConnected,
+                      location: message.geolocation
+                        ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
+                        : tracker.location,
+                    }
+                  : tracker
+              )
             } else {
               // Add a new tracker if it doesn't exist
               return [
