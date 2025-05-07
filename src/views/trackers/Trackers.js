@@ -225,10 +225,16 @@ const Trackers = () => {
                           selectedTracker?.tracker_id === tracker.tracker_id ? '#f5f5f5' : '',
                       }}
                     >
-                      <CTableDataCell>{tracker.tracker_id}</CTableDataCell>
-                      <CTableDataCell>{tracker.batteryLevel}%</CTableDataCell>
-                      <CTableDataCell>{tracker.lastConnected}</CTableDataCell>
-                      <CTableDataCell>{tracker.location}</CTableDataCell>
+                      <CTableDataCell>{tracker.tracker_id || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>
+                        {tracker.batteryLevel !== undefined ? `${tracker.batteryLevel}%` : 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>{tracker.lastConnected || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>
+                        {tracker.location && tracker.location !== 'N/A, N/A'
+                          ? tracker.location
+                          : 'N/A'}
+                      </CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
@@ -248,7 +254,7 @@ const Trackers = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {selectedTracker && (
+                {selectedTracker && selectedTracker.location && selectedTracker.location !== 'N/A, N/A' && (
                   <>
                     <MapMover position={selectedTracker.location.split(', ').map(Number)} />
                     <Marker
@@ -256,11 +262,13 @@ const Trackers = () => {
                       icon={customIcon}
                     >
                       <Popup>
-                        <strong>{selectedTracker.tracker_name}</strong>
+                        <strong>{selectedTracker.tracker_name || 'Unknown Tracker'}</strong>
                         <br />
-                        Battery: {selectedTracker.batteryLevel}%
+                        Battery: {selectedTracker.batteryLevel !== undefined
+                          ? `${selectedTracker.batteryLevel}%`
+                          : 'N/A'}
                         <br />
-                        Last Connected: {selectedTracker.lastConnected}
+                        Last Connected: {selectedTracker.lastConnected || 'N/A'}
                       </Popup>
                     </Marker>
                   </>
