@@ -69,8 +69,8 @@ const Trackers = () => {
         // Format the data to match the expected structure
         const formattedTrackers = data.map((tracker) => ({
           ...tracker,
-          batteryLevel: tracker.batteryLevel !== undefined ? tracker.batteryLevel : 'N/A',
-          lastConnected: tracker.lastConnected || 'N/A',
+          batteryLevel: tracker.batteryLevel !== undefined && tracker.batteryLevel !== 'N/A' ? `${tracker.batteryLevel}%` : 'N/A',
+          lastConnected: tracker.lastConnected !== undefined && tracker.lastConnected !== 'N/A' ? tracker.lastConnected : 'N/A',
           location:
             tracker.location && tracker.location !== 'N/A, N/A'
               ? tracker.location
@@ -84,28 +84,48 @@ const Trackers = () => {
     const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
     ws.onopen = () => console.log('WebSocket connection established')
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data)
-      if (message.operationType === 'insert') {
-        setTrackers((prevTrackers) => {
-          const trackerExists = prevTrackers.some(
-            (tracker) => tracker.tracker_id === message.data.tracker_id,
-          )
-          if (!trackerExists) {
-            return [
-              ...prevTrackers,
-              {
-                ...message.data,
-                batteryLevel: message.data.batteryLevel || 'N/A',
-                lastConnected: message.data.lastConnected || 'N/A',
-                location:
-                  message.data.location && message.data.location !== 'N/A, N/A'
-                    ? message.data.location
+      try {
+        const message = JSON.parse(event.data)
+        console.log('WebSocket message received:', message) // Debug log
+
+        if (message.operationType === 'insert' && message.tracker_id) {
+          setTrackers((prevTrackers) => {
+            const trackerExists = prevTrackers.some(
+              (tracker) => tracker.tracker_id === message.tracker_id
+            )
+
+            if (trackerExists) {
+              // Update the existing tracker
+              return prevTrackers.map((tracker) =>
+                tracker.tracker_id === message.tracker_id
+                  ? {
+                      ...tracker,
+                      batteryLevel: message.new_record.battery || tracker.batteryLevel,
+                      lastConnected: message.new_record.timestamp || tracker.lastConnected,
+                      location: message.geolocation
+                        ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
+                        : tracker.location,
+                    }
+                  : tracker
+              )
+            } else {
+              // Add a new tracker if it doesn't exist
+              return [
+                ...prevTrackers,
+                {
+                  tracker_id: message.tracker_id,
+                  batteryLevel: message.new_record.battery || 'N/A',
+                  lastConnected: message.new_record.timestamp || 'N/A',
+                  location: message.geolocation
+                    ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
                     : 'N/A, N/A',
-              },
-            ]
-          }
-          return prevTrackers
-        })
+                },
+              ]
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error)
       }
     }
     ws.onerror = (error) => console.error('WebSocket error:', error)
