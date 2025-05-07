@@ -90,24 +90,22 @@ const Trackers = () => {
 
         if (message.operationType === 'insert' && message.tracker_id) {
           setTrackers((prevTrackers) => {
-            const trackerExists = prevTrackers.some(
+            const trackerIndex = prevTrackers.findIndex(
               (tracker) => tracker.tracker_id === message.tracker_id
             )
 
-            if (trackerExists) {
+            if (trackerIndex !== -1) {
               // Update the existing tracker
-              return prevTrackers.map((tracker) =>
-                tracker.tracker_id === message.tracker_id
-                  ? {
-                      ...tracker,
-                      batteryLevel: message.new_record.battery || tracker.batteryLevel,
-                      lastConnected: message.new_record.timestamp || tracker.lastConnected,
-                      location: message.geolocation
-                        ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
-                        : tracker.location,
-                    }
-                  : tracker
-              )
+              const updatedTrackers = [...prevTrackers]
+              updatedTrackers[trackerIndex] = {
+                ...updatedTrackers[trackerIndex],
+                batteryLevel: message.new_record.battery || updatedTrackers[trackerIndex].batteryLevel,
+                lastConnected: message.new_record.timestamp || updatedTrackers[trackerIndex].lastConnected,
+                location: message.geolocation
+                  ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
+                  : updatedTrackers[trackerIndex].location,
+              }
+              return updatedTrackers
             } else {
               // Add a new tracker if it doesn't exist
               return [
