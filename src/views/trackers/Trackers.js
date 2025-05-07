@@ -65,7 +65,19 @@ const Trackers = () => {
         }
         return response.json()
       })
-      .then((data) => setTrackers(data))
+      .then((data) => {
+        // Format the data to match the expected structure
+        const formattedTrackers = data.map((tracker) => ({
+          ...tracker,
+          batteryLevel: tracker.batteryLevel !== undefined ? tracker.batteryLevel : 'N/A',
+          lastConnected: tracker.lastConnected || 'N/A',
+          location:
+            tracker.location && tracker.location !== 'N/A, N/A'
+              ? tracker.location
+              : 'N/A, N/A',
+        }))
+        setTrackers(formattedTrackers)
+      })
       .catch((error) => console.error('Error fetching trackers:', error))
 
     // WebSocket for real-time updates
@@ -79,7 +91,18 @@ const Trackers = () => {
             (tracker) => tracker.tracker_id === message.data.tracker_id,
           )
           if (!trackerExists) {
-            return [...prevTrackers, message.data]
+            return [
+              ...prevTrackers,
+              {
+                ...message.data,
+                batteryLevel: message.data.batteryLevel || 'N/A',
+                lastConnected: message.data.lastConnected || 'N/A',
+                location:
+                  message.data.location && message.data.location !== 'N/A, N/A'
+                    ? message.data.location
+                    : 'N/A, N/A',
+              },
+            ]
           }
           return prevTrackers
         })
