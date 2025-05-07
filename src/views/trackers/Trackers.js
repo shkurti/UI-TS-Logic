@@ -96,8 +96,8 @@ const Trackers = () => {
 
             if (trackerIndex !== -1) {
               // Update the existing tracker
-              return prevTrackers.map((tracker, index) =>
-                index === trackerIndex
+              return prevTrackers.map((tracker) =>
+                tracker.tracker_id === message.tracker_id
                   ? {
                       ...tracker,
                       batteryLevel: message.new_record.battery || tracker.batteryLevel,
