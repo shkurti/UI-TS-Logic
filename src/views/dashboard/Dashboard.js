@@ -238,7 +238,11 @@ const Dashboard = () => {
                 <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
                 {route.length > 1 ? (
                   <>
-                    <Polyline positions={route} color="blue" />
+                    <Polyline 
+                      positions={route} 
+                      color="blue" 
+                      pathOptions={{ fill: false }} // Ensure the path is not interpreted as a closed polygon
+                    />
                     <Marker position={route[route.length - 1]} icon={customIcon}>
                       <Popup>Current Location</Popup>
                     </Marker>
