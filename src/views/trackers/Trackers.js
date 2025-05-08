@@ -69,7 +69,9 @@ const Trackers = () => {
         // Format the data to match the expected structure
         const formattedTrackers = data.map((tracker) => ({
           ...tracker,
-          batteryLevel: tracker.batteryLevel !== undefined && tracker.batteryLevel !== 'N/A' ? `${tracker.batteryLevel}%` : 'N/A',
+          batteryLevel: tracker.batteryLevel
+            ? `${String(tracker.batteryLevel).replace('%', '')}%` // Ensure single %
+            : 'N/A',
           lastConnected: tracker.lastConnected !== undefined && tracker.lastConnected !== 'N/A' ? tracker.lastConnected : 'N/A',
           location:
             tracker.location && tracker.location !== 'N/A, N/A'
@@ -99,7 +101,9 @@ const Trackers = () => {
               const updatedTrackers = [...prevTrackers]
               updatedTrackers[trackerIndex] = {
                 ...updatedTrackers[trackerIndex],
-                batteryLevel: message.new_record.battery || updatedTrackers[trackerIndex].batteryLevel,
+                batteryLevel: message.new_record.battery
+                  ? `${String(message.new_record.battery).replace('%', '')}%` // Ensure single %
+                  : updatedTrackers[trackerIndex].batteryLevel,
                 lastConnected: message.new_record.timestamp || updatedTrackers[trackerIndex].lastConnected,
                 location: message.geolocation
                   ? `${message.geolocation.Lat}, ${message.geolocation.Lng}`
