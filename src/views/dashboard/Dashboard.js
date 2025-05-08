@@ -236,7 +236,7 @@ const Dashboard = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
-                {route.length > 1 ? (
+                {route.length > 1 && ( // Ensure the route has at least two points before rendering the Polyline
                   <>
                     <Polyline 
                       positions={route} 
@@ -247,7 +247,8 @@ const Dashboard = () => {
                       <Popup>Current Location</Popup>
                     </Marker>
                   </>
-                ) : route.length === 1 ? (
+                )}
+                {route.length === 1 ? (
                   <Marker position={route[0]} icon={customIcon}>
                     <Popup>Only one location available</Popup>
                   </Marker>
