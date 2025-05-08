@@ -236,23 +236,31 @@ const Dashboard = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <FitBounds route={route} /> {/* Adjust the map view to fit the route */}
-                {route.length > 1 && ( // Ensure the route has at least two points before rendering the Polyline
+                {/* Clean the route array to remove duplicates or invalid points */}
+                const cleanRoute = route.filter(
+                  (point, index, self) =>
+                    point.length === 2 && // Ensure the point has exactly two coordinates
+                    !self.slice(0, index).some((p) => p[0] === point[0] && p[1] === point[1]) // Remove duplicates
+                )
+
+                {/* Render the Polyline only if the cleaned route has at least two points */}
+                {cleanRoute.length > 1 && (
                   <>
                     <Polyline 
-                      positions={route} 
+                      positions={cleanRoute} 
                       color="blue" 
-                      pathOptions={{ fill: false }} // Ensure the path is not interpreted as a closed polygon
+                      pathOptions={{ fill: false, noClip: true }} // Ensure the path is not interpreted as a closed polygon
                     />
-                    <Marker position={route[route.length - 1]} icon={customIcon}>
+                    <Marker position={cleanRoute[cleanRoute.length - 1]} icon={customIcon}>
                       <Popup>Current Location</Popup>
                     </Marker>
                   </>
                 )}
-                {route.length === 1 ? (
-                  <Marker position={route[0]} icon={customIcon}>
+                {cleanRoute.length === 1 && (
+                  <Marker position={cleanRoute[0]} icon={customIcon}>
                     <Popup>Only one location available</Popup>
                   </Marker>
-                ) : null}
+                )}
               </MapContainer>
             </CCardBody>
           </CCard>
