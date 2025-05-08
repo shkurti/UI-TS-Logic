@@ -272,7 +272,7 @@ const Trackers = () => {
                     >
                       <CTableDataCell>{tracker.tracker_id || 'N/A'}</CTableDataCell>
                       <CTableDataCell>
-                        {tracker.batteryLevel !== undefined ? `${tracker.batteryLevel}%` : 'N/A'}
+                        {tracker.batteryLevel || 'N/A'} {/* Remove redundant % appending */}
                       </CTableDataCell>
                       <CTableDataCell>{tracker.lastConnected || 'N/A'}</CTableDataCell>
                       <CTableDataCell>
@@ -310,7 +310,7 @@ const Trackers = () => {
                         <strong>{selectedTracker.tracker_name || 'Unknown Tracker'}</strong>
                         <br />
                         Battery: {selectedTracker.batteryLevel !== undefined
-                          ? `${selectedTracker.batteryLevel}%`
+                          ? `${selectedTracker.batteryLevel}`
                           : 'N/A'}
                         <br />
                         Last Connected: {selectedTracker.lastConnected || 'N/A'}
