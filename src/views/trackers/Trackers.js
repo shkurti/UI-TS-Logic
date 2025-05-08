@@ -91,7 +91,7 @@ const Trackers = () => {
         if (message.operationType === 'insert' && message.tracker_id) {
           setTrackers((prevTrackers) => {
             const trackerIndex = prevTrackers.findIndex(
-              (tracker) => tracker.tracker_id === message.tracker_id
+              (tracker) => String(tracker.tracker_id) === String(message.tracker_id) // Ensure type-safe comparison
             )
 
             if (trackerIndex !== -1) {
