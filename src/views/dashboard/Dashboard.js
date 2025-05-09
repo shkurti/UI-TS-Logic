@@ -85,8 +85,9 @@ const Dashboard = () => {
         console.log("Tracker Data Received:", data); // Debug log to verify data
         if (data && data.data && data.data.length > 0) {
           const geolocationData = data.data
-            .filter((record) => record.latitude !== undefined && record.longitude !== undefined)
-            .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
+            .filter(record => record.latitude !== undefined && record.longitude !== undefined)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // Ensure order
+            .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)]);
           setRoute(geolocationData); // Update the route for the map
 
           // Extract temperature data for the chart
@@ -151,17 +152,27 @@ const Dashboard = () => {
         if (message.operationType === 'insert' && String(message.tracker_id) === String(selectedTracker.tracker_id)) {
           const { new_record, geolocation } = message;
 
-          // Update the map route
-          if (geolocation?.Lat && geolocation?.Lng) {
+          // Sanitize incoming data
+          const lat = parseFloat(geolocation?.Lat);
+          const lng = parseFloat(geolocation?.Lng);
+
+          if (!isNaN(lat) && !isNaN(lng)) {
             setRoute((prevRoute) => {
               const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [parseFloat(geolocation.Lat), parseFloat(geolocation.Lng)];
-              // Avoid adding duplicate points to the map
-              if (!lastPoint || lastPoint[0] !== newPoint[0] || lastPoint[1] !== newPoint[1]) {
+              const newPoint = [lat, lng];
+
+              // Debug logs
+              console.log('Current Route:', prevRoute);
+              console.log('New Point:', newPoint);
+
+              // Avoid adding duplicate points
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
                 return [...prevRoute, newPoint];
               }
               return prevRoute;
             });
+          } else {
+            console.warn('Invalid geolocation data received:', geolocation);
           }
 
           // Update the chart data
