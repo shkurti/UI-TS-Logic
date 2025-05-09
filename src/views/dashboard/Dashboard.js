@@ -47,6 +47,18 @@ function FitBounds({ route }) {
   return null
 }
 
+const deduplicateRoute = (route) => {
+  const seen = new Set();
+  return route.filter(([lat, lng]) => {
+    const key = `${lat},${lng}`;
+    if (seen.has(key)) {
+      return false; // Skip duplicate points
+    }
+    seen.add(key);
+    return true;
+  });
+};
+
 const Dashboard = () => {
   const [trackers, setTrackers] = useState([])
   const [selectedTracker, setSelectedTracker] = useState(null)
@@ -88,7 +100,7 @@ const Dashboard = () => {
             .filter(record => record.latitude !== undefined && record.longitude !== undefined)
             .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // Ensure order
             .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)]);
-          setRoute(geolocationData); // Update the route for the map
+          setRoute(deduplicateRoute(geolocationData)); // Update the route for the map
 
           // Extract temperature data for the chart
           const tempData = data.data.map((record) => ({
@@ -150,7 +162,7 @@ const Dashboard = () => {
         console.log('WebSocket message received:', message); // Debug log
 
         if (message.operationType === 'insert' && String(message.tracker_id) === String(selectedTracker.tracker_id)) {
-          const { new_record, geolocation } = message;
+          const { geolocation } = message;
 
           // Sanitize incoming data
           const lat = parseFloat(geolocation?.Lat);
@@ -165,62 +177,15 @@ const Dashboard = () => {
               console.log('Current Route:', prevRoute);
               console.log('New Point:', newPoint);
 
-              // Avoid adding duplicate points
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                return [...prevRoute, newPoint];
-              }
-              return prevRoute;
+              // Avoid adding duplicate points and clean the route
+              const updatedRoute = !lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng
+                ? [...prevRoute, newPoint]
+                : prevRoute;
+
+              return deduplicateRoute(updatedRoute); // Deduplicate the route
             });
           } else {
             console.warn('Invalid geolocation data received:', geolocation);
-          }
-
-          // Update the chart data
-          if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
           }
         }
       };
