@@ -191,28 +191,48 @@ const Dashboard = () => {
           // Update the chart data
           if (new_record) {
             if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-              ]);
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                  ];
+                }
+                return prevData; // Avoid duplicates
+              });
             }
             if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-              ]);
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                  ];
+                }
+                return prevData; // Avoid duplicates
+              });
             }
             if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-              ]);
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                  ];
+                }
+                return prevData; // Avoid duplicates
+              });
             }
             if (new_record.timestamp && new_record.speed !== undefined) {
-              setSpeedData((prevData) => [
-                ...prevData,
-                { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
-              ]);
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
+                  ];
+                }
+                return prevData; // Avoid duplicates
+              });
             }
           }
         }
