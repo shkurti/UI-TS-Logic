@@ -162,7 +162,7 @@ const Dashboard = () => {
         console.log('WebSocket message received:', message); // Debug log
 
         if (message.operationType === 'insert' && String(message.tracker_id) === String(selectedTracker.tracker_id)) {
-          const { geolocation } = message;
+          const { new_record, geolocation } = message;
 
           // Sanitize incoming data
           const lat = parseFloat(geolocation?.Lat);
@@ -186,6 +186,34 @@ const Dashboard = () => {
             });
           } else {
             console.warn('Invalid geolocation data received:', geolocation);
+          }
+
+          // Update the chart data
+          if (new_record) {
+            if (new_record.timestamp && new_record.temperature !== undefined) {
+              setTemperatureData((prevData) => [
+                ...prevData,
+                { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+              ]);
+            }
+            if (new_record.timestamp && new_record.humidity !== undefined) {
+              setHumidityData((prevData) => [
+                ...prevData,
+                { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+              ]);
+            }
+            if (new_record.timestamp && new_record.battery !== undefined) {
+              setBatteryData((prevData) => [
+                ...prevData,
+                { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+              ]);
+            }
+            if (new_record.timestamp && new_record.speed !== undefined) {
+              setSpeedData((prevData) => [
+                ...prevData,
+                { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
+              ]);
+            }
           }
         }
       };
