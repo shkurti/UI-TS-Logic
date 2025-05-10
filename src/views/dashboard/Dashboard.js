@@ -60,32 +60,48 @@ const deduplicateRoute = (route) => {
 };
 
 const Dashboard = () => {
-  const [trackers, setTrackers] = useState([])
-  const [selectedTracker, setSelectedTracker] = useState(null)
-  const [historicalData, setHistoricalData] = useState([])
-  const [route, setRoute] = useState([]) // Store the route for the selected tracker
-  const [activeTab, setActiveTab] = useState('Details')
-  const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
-  const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
-  const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
-  const [batteryData, setBatteryData] = useState([]) // Store battery data for the chart
-  const [speedData, setSpeedData] = useState([]) // Store speed data for the chart
+  const [trackers, setTrackers] = useState([]);
+  const [selectedTracker, setSelectedTracker] = useState(null);
+  const [shipments, setShipments] = useState([]); // Store shipments for the selected tracker
+  const [selectedShipment, setSelectedShipment] = useState(null); // Store the selected shipment
+  const [historicalData, setHistoricalData] = useState([]);
+  const [route, setRoute] = useState([]); // Store the route for the selected tracker
+  const [activeTab, setActiveTab] = useState('Details');
+  const [activeSensor, setActiveSensor] = useState('Temperature'); // Track the active sensor
+  const [temperatureData, setTemperatureData] = useState([]); // Store temperature data for the chart
+  const [humidityData, setHumidityData] = useState([]); // Store humidity data for the chart
+  const [batteryData, setBatteryData] = useState([]); // Store battery data for the chart
+  const [speedData, setSpeedData] = useState([]); // Store speed data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
     fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json()
+        return response.json();
       })
       .then((data) => setTrackers(data))
-      .catch((error) => console.error('Error fetching trackers:', error))
-  }, [])
+      .catch((error) => console.error('Error fetching trackers:', error));
+  }, []);
 
   const handleTrackerSelect = (tracker) => {
-    setSelectedTracker(tracker); // Set the selected tracker
+    setSelectedTracker(tracker);
+    // Fetch shipments for the selected tracker
+    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipments/${tracker.tracker_id}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setShipments(data);
+        setSelectedShipment(data[0]); // Default to the first shipment
+      })
+      .catch((error) => console.error('Error fetching shipments:', error));
+
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
@@ -146,6 +162,11 @@ const Dashboard = () => {
         setBatteryData([]);
         setSpeedData([]);
       });
+  };
+
+  const handleShipmentSelect = (shipmentId) => {
+    const shipment = shipments.find((s) => s.id === shipmentId);
+    setSelectedShipment(shipment);
   };
 
   const handleTabClick = (tab) => {
@@ -306,6 +327,54 @@ const Dashboard = () => {
             </CCardBody>
           </CCard>
         </CCol>
+        <CCol xs={12} lg={8}>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <CCardTitle>Shipment Details</CCardTitle>
+            </CCardHeader>
+            <CCardBody>
+              {selectedTracker && shipments.length > 0 ? (
+                <>
+                  <div className="mb-3">
+                    <label htmlFor="shipment-select">Select Shipment:</label>
+                    <select
+                      id="shipment-select"
+                      className="form-select"
+                      value={selectedShipment?.id || ''}
+                      onChange={(e) => handleShipmentSelect(e.target.value)}
+                    >
+                      {shipments.map((shipment) => (
+                        <option key={shipment.id} value={shipment.id}>
+                          {shipment.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedShipment && (
+                    <div>
+                      <p>
+                        <strong>Shipment Name:</strong> {selectedShipment.name}
+                      </p>
+                      <p>
+                        <strong>Start Date:</strong> {selectedShipment.startDate}
+                      </p>
+                      <p>
+                        <strong>End Date:</strong> {selectedShipment.endDate}
+                      </p>
+                      <p>
+                        <strong>Status:</strong> {selectedShipment.status}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p>Select a tracker to view its shipments.</p>
+              )}
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+      <CRow>
         <CCol xs={12} lg={8}>
           <CCard className="mb-4">
             <CCardHeader>
@@ -524,7 +593,7 @@ const Dashboard = () => {
         </CCol>
       </CRow>
     </>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;
