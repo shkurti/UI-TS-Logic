@@ -70,7 +70,6 @@ const Dashboard = () => {
   const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
   const [batteryData, setBatteryData] = useState([]) // Store battery data for the chart
   const [speedData, setSpeedData] = useState([]) // Store speed data for the chart
-  const [shipments, setShipments] = useState([]); // Store shipments for the selected tracker
 
   useEffect(() => {
     // Fetch all registered trackers
@@ -83,13 +82,6 @@ const Dashboard = () => {
       })
       .then((data) => setTrackers(data))
       .catch((error) => console.error('Error fetching trackers:', error))
-
-    // Hardcoded example shipments
-    setShipments([
-      { id: 'SHP001', origin: 'New York', destination: 'Los Angeles', status: 'In Transit' },
-      { id: 'SHP002', origin: 'Chicago', destination: 'Houston', status: 'Delivered' },
-      { id: 'SHP003', origin: 'San Francisco', destination: 'Seattle', status: 'Pending' },
-    ]);
   }, [])
 
   const handleTrackerSelect = (tracker) => {
@@ -154,20 +146,6 @@ const Dashboard = () => {
         setBatteryData([]);
         setSpeedData([]);
       });
-
-    // Fetch shipments for the selected tracker
-    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipments/${tracker.tracker_id}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Shipments Data Received:", data); // Debug log to verify data
-        setShipments(data); // Update shipments state
-      })
-      .catch((error) => console.error('Error fetching shipments:', error));
   };
 
   const handleTabClick = (tab) => {
@@ -541,41 +519,6 @@ const Dashboard = () => {
                 {activeTab === 'Alerts' && <CTabPane visible>Alerts content</CTabPane>}
                 {activeTab === 'Reports' && <CTabPane visible>Reports content</CTabPane>}
               </CTabContent>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-      <CRow>
-        <CCol xs={12}>
-          <CCard className="mb-4">
-            <CCardHeader>
-              <CCardTitle>Shipments</CCardTitle>
-            </CCardHeader>
-            <CCardBody>
-              {shipments.length > 0 ? (
-                <CTable>
-                  <CTableHead>
-                    <CTableRow>
-                      <CTableHeaderCell>Shipment ID</CTableHeaderCell>
-                      <CTableHeaderCell>Origin</CTableHeaderCell>
-                      <CTableHeaderCell>Destination</CTableHeaderCell>
-                      <CTableHeaderCell>Status</CTableHeaderCell>
-                    </CTableRow>
-                  </CTableHead>
-                  <CTableBody>
-                    {shipments.map((shipment) => (
-                      <CTableRow key={shipment.id}>
-                        <CTableDataCell>{shipment.id}</CTableDataCell>
-                        <CTableDataCell>{shipment.origin}</CTableDataCell>
-                        <CTableDataCell>{shipment.destination}</CTableDataCell>
-                        <CTableDataCell>{shipment.status}</CTableDataCell>
-                      </CTableRow>
-                    ))}
-                  </CTableBody>
-                </CTable>
-              ) : (
-                <p>No shipments available for this tracker.</p>
-              )}
             </CCardBody>
           </CCard>
         </CCol>
