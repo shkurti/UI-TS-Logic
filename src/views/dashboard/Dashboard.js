@@ -83,6 +83,13 @@ const Dashboard = () => {
       })
       .then((data) => setTrackers(data))
       .catch((error) => console.error('Error fetching trackers:', error))
+
+    // Hardcoded example shipments
+    setShipments([
+      { id: 'SHP001', origin: 'New York', destination: 'Los Angeles', status: 'In Transit' },
+      { id: 'SHP002', origin: 'Chicago', destination: 'Houston', status: 'Delivered' },
+      { id: 'SHP003', origin: 'San Francisco', destination: 'Seattle', status: 'Pending' },
+    ]);
   }, [])
 
   const handleTrackerSelect = (tracker) => {
