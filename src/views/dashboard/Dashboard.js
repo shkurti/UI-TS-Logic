@@ -59,6 +59,41 @@ const deduplicateRoute = (route) => {
   });
 };
 
+const TrackerWidget = ({ shipments }) => {
+  const [selectedId, setSelectedId] = useState(shipments[0]?.id || "");
+  const selectedShipment = shipments.find((s) => s.id === selectedId);
+
+  return (
+    <div className="max-w-md mx-auto p-4 rounded-2xl shadow-xl bg-white space-y-4">
+      <h2 className="text-xl font-semibold text-gray-800">Tracker Shipments</h2>
+
+      <select
+        className="w-full p-2 rounded-md border border-gray-300"
+        value={selectedId}
+        onChange={(e) => setSelectedId(e.target.value)}
+      >
+        {shipments.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+
+      {selectedShipment && (
+        <div className="bg-gray-50 p-4 rounded-lg border">
+          <h3 className="text-lg font-medium">{selectedShipment.name}</h3>
+          <p>
+            Status: <span className="font-semibold">{selectedShipment.status}</span>
+          </p>
+          <p>Last Updated: {selectedShipment.lastUpdated}</p>
+          <p>Temperature: {selectedShipment.temperature}</p>
+          <p>Location: {selectedShipment.location}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const [trackers, setTrackers] = useState([]);
   const [selectedTracker, setSelectedTracker] = useState(null);
@@ -333,40 +368,8 @@ const Dashboard = () => {
               <CCardTitle>Shipment Details</CCardTitle>
             </CCardHeader>
             <CCardBody>
-              {selectedTracker && shipments.length > 0 ? (
-                <>
-                  <div className="mb-3">
-                    <label htmlFor="shipment-select">Select Shipment:</label>
-                    <select
-                      id="shipment-select"
-                      className="form-select"
-                      value={selectedShipment?.id || ''}
-                      onChange={(e) => handleShipmentSelect(e.target.value)}
-                    >
-                      {shipments.map((shipment) => (
-                        <option key={shipment.id} value={shipment.id}>
-                          {shipment.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedShipment && (
-                    <div>
-                      <p>
-                        <strong>Shipment Name:</strong> {selectedShipment.name}
-                      </p>
-                      <p>
-                        <strong>Start Date:</strong> {selectedShipment.startDate}
-                      </p>
-                      <p>
-                        <strong>End Date:</strong> {selectedShipment.endDate}
-                      </p>
-                      <p>
-                        <strong>Status:</strong> {selectedShipment.status}
-                      </p>
-                    </div>
-                  )}
-                </>
+              {shipments.length > 0 ? (
+                <TrackerWidget shipments={shipments} />
               ) : (
                 <p>Select a tracker to view its shipments.</p>
               )}
