@@ -34,7 +34,7 @@ const Shipments = () => {
   ])
   const [modalVisible, setModalVisible] = useState(false)
   const [legs, setLegs] = useState([
-    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
+    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] },
   ])
 
   const handleAddLeg = () => {
@@ -50,7 +50,6 @@ const Shipments = () => {
         carrier: '',
         awb: '',
         alerts: [],
-        departureDate: '',
       },
     ]);
   }
@@ -70,7 +69,7 @@ const Shipments = () => {
   const handleCancel = () => {
     setModalVisible(false)
     setLegs([
-      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
+      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] },
     ])
   }
 
@@ -239,13 +238,6 @@ const Shipments = () => {
                 <option value="Geofence outside New York">Geofence outside New York</option>
                 <option value="001 - Light Changes">001 - Light Changes</option>
               </CFormSelect>
-              <CFormInput
-                type="datetime-local"
-                placeholder="Departure Date"
-                value={leg.departureDate}
-                onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
-                className="mb-2"
-              />
             </div>
           ))}
           <CButton color="secondary" onClick={handleAddLeg}>
