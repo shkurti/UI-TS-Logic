@@ -170,9 +170,9 @@ const Shipments = () => {
         </CCol>
       </CRow>
 
-      <CModal visible={modalVisible} onClose={() => setModalVisible(false)}>
+      <CModal visible={modalVisible} onClose={() => setModalVisible(false)} size="lg">
         <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody>
+        <CModalBody style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {legs.map((leg, index) => (
             <div key={index} className="mb-4">
               <h5>Leg {index + 1}</h5>
