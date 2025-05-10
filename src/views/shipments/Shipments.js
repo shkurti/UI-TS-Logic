@@ -38,10 +38,21 @@ const Shipments = () => {
   ])
 
   const handleAddLeg = () => {
+    const lastLeg = legs[legs.length - 1];
     setLegs([
       ...legs,
-      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
-    ])
+      {
+        from: lastLeg.to, // Use the previous leg's Stop Address as the new leg's Ship From Address
+        to: '',
+        shipDate: '',
+        arrivalDate: '',
+        mode: '',
+        carrier: '',
+        awb: '',
+        alerts: [],
+        departureDate: '',
+      },
+    ]);
   }
 
   const handleInputChange = (index, field, value) => {
