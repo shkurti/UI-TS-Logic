@@ -59,84 +59,34 @@ const deduplicateRoute = (route) => {
   });
 };
 
-const TrackerWidget = ({ shipments }) => {
-  const [selectedId, setSelectedId] = useState(shipments[0]?.id || "");
-  const selectedShipment = shipments.find((s) => s.id === selectedId);
-
-  return (
-    <div className="max-w-md mx-auto p-4 rounded-2xl shadow-xl bg-white space-y-4">
-      <h2 className="text-xl font-semibold text-gray-800">Tracker Shipments</h2>
-
-      <select
-        className="w-full p-2 rounded-md border border-gray-300"
-        value={selectedId}
-        onChange={(e) => setSelectedId(e.target.value)}
-      >
-        {shipments.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-
-      {selectedShipment && (
-        <div className="bg-gray-50 p-4 rounded-lg border">
-          <h3 className="text-lg font-medium">{selectedShipment.name}</h3>
-          <p>
-            Status: <span className="font-semibold">{selectedShipment.status}</span>
-          </p>
-          <p>Last Updated: {selectedShipment.lastUpdated}</p>
-          <p>Temperature: {selectedShipment.temperature}</p>
-          <p>Location: {selectedShipment.location}</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const Dashboard = () => {
-  const [trackers, setTrackers] = useState([]);
-  const [selectedTracker, setSelectedTracker] = useState(null);
+  const [trackers, setTrackers] = useState([])
+  const [selectedTracker, setSelectedTracker] = useState(null)
+  const [historicalData, setHistoricalData] = useState([])
+  const [route, setRoute] = useState([]) // Store the route for the selected tracker
+  const [activeTab, setActiveTab] = useState('Details')
+  const [activeSensor, setActiveSensor] = useState('Temperature') // Track the active sensor
+  const [temperatureData, setTemperatureData] = useState([]) // Store temperature data for the chart
+  const [humidityData, setHumidityData] = useState([]) // Store humidity data for the chart
+  const [batteryData, setBatteryData] = useState([]) // Store battery data for the chart
+  const [speedData, setSpeedData] = useState([]) // Store speed data for the chart
   const [shipments, setShipments] = useState([]); // Store shipments for the selected tracker
-  const [selectedShipment, setSelectedShipment] = useState(null); // Store the selected shipment
-  const [historicalData, setHistoricalData] = useState([]);
-  const [route, setRoute] = useState([]); // Store the route for the selected tracker
-  const [activeTab, setActiveTab] = useState('Details');
-  const [activeSensor, setActiveSensor] = useState('Temperature'); // Track the active sensor
-  const [temperatureData, setTemperatureData] = useState([]); // Store temperature data for the chart
-  const [humidityData, setHumidityData] = useState([]); // Store humidity data for the chart
-  const [batteryData, setBatteryData] = useState([]); // Store battery data for the chart
-  const [speedData, setSpeedData] = useState([]); // Store speed data for the chart
 
   useEffect(() => {
     // Fetch all registered trackers
     fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        return response.json();
+        return response.json()
       })
       .then((data) => setTrackers(data))
-      .catch((error) => console.error('Error fetching trackers:', error));
-  }, []);
+      .catch((error) => console.error('Error fetching trackers:', error))
+  }, [])
 
   const handleTrackerSelect = (tracker) => {
-    setSelectedTracker(tracker);
-    // Fetch shipments for the selected tracker
-    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipments/${tracker.tracker_id}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        setShipments(data);
-        setSelectedShipment(data[0]); // Default to the first shipment
-      })
-      .catch((error) => console.error('Error fetching shipments:', error));
-
+    setSelectedTracker(tracker); // Set the selected tracker
     fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
@@ -197,11 +147,20 @@ const Dashboard = () => {
         setBatteryData([]);
         setSpeedData([]);
       });
-  };
 
-  const handleShipmentSelect = (shipmentId) => {
-    const shipment = shipments.find((s) => s.id === shipmentId);
-    setSelectedShipment(shipment);
+    // Fetch shipments for the selected tracker
+    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipments/${tracker.tracker_id}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Shipments Data Received:", data); // Debug log to verify data
+        setShipments(data); // Update shipments state
+      })
+      .catch((error) => console.error('Error fetching shipments:', error));
   };
 
   const handleTabClick = (tab) => {
@@ -362,22 +321,6 @@ const Dashboard = () => {
             </CCardBody>
           </CCard>
         </CCol>
-        <CCol xs={12} lg={8}>
-          <CCard className="mb-4">
-            <CCardHeader>
-              <CCardTitle>Shipment Details</CCardTitle>
-            </CCardHeader>
-            <CCardBody>
-              {shipments.length > 0 ? (
-                <TrackerWidget shipments={shipments} />
-              ) : (
-                <p>Select a tracker to view its shipments.</p>
-              )}
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-      <CRow>
         <CCol xs={12} lg={8}>
           <CCard className="mb-4">
             <CCardHeader>
@@ -595,8 +538,43 @@ const Dashboard = () => {
           </CCard>
         </CCol>
       </CRow>
+      <CRow>
+        <CCol xs={12}>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <CCardTitle>Shipments</CCardTitle>
+            </CCardHeader>
+            <CCardBody>
+              {shipments.length > 0 ? (
+                <CTable>
+                  <CTableHead>
+                    <CTableRow>
+                      <CTableHeaderCell>Shipment ID</CTableHeaderCell>
+                      <CTableHeaderCell>Origin</CTableHeaderCell>
+                      <CTableHeaderCell>Destination</CTableHeaderCell>
+                      <CTableHeaderCell>Status</CTableHeaderCell>
+                    </CTableRow>
+                  </CTableHead>
+                  <CTableBody>
+                    {shipments.map((shipment) => (
+                      <CTableRow key={shipment.id}>
+                        <CTableDataCell>{shipment.id}</CTableDataCell>
+                        <CTableDataCell>{shipment.origin}</CTableDataCell>
+                        <CTableDataCell>{shipment.destination}</CTableDataCell>
+                        <CTableDataCell>{shipment.status}</CTableDataCell>
+                      </CTableRow>
+                    ))}
+                  </CTableBody>
+                </CTable>
+              ) : (
+                <p>No shipments available for this tracker.</p>
+              )}
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
     </>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard
