@@ -61,18 +61,25 @@ const Shipments = () => {
 
   const handleSubmit = async () => {
     try {
+      // Format the legs data to ensure proper date handling
+      const formattedLegs = legs.map((leg) => ({
+        ...leg,
+        shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null,
+        arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null,
+      }));
+
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ legs }),
+        body: JSON.stringify({ legs: formattedLegs }),
       });
 
       if (response.ok) {
         console.log('Shipment data submitted successfully');
         setModalVisible(false);
-        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '',  alerts: [] }]);
+        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', alerts: [] }]);
       } else {
         console.error('Failed to submit shipment data');
       }
