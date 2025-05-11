@@ -76,10 +76,19 @@ const Shipments = () => {
       // Format the legs data to ensure proper date handling
       const formattedLegs = legs.map((leg) => {
         console.log(`Processing leg: ${JSON.stringify(leg)}`); // Debugging log
+
+        // Ensure shipDate and arrivalDate are properly formatted
+        const shipDate = leg.shipDate && !isNaN(Date.parse(leg.shipDate)) 
+          ? new Date(leg.shipDate).toISOString() 
+          : null;
+        const arrivalDate = leg.arrivalDate && !isNaN(Date.parse(leg.arrivalDate)) 
+          ? new Date(leg.arrivalDate).toISOString() 
+          : null;
+
         return {
           ...leg,
-          shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null, // Convert to ISO 8601 format
-          arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
+          shipDate, // Use the validated and formatted shipDate
+          arrivalDate, // Use the validated and formatted arrivalDate
         };
       });
 
@@ -224,7 +233,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Ship Date"
-                value={legs[index].shipDate || ''} // Ensure the value is in the correct format
+                value={legs.shipDate} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -237,7 +246,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Arrival Date"
-                value={legs[index].arrivalDate || ''} // Ensure the value is in the correct format
+                value={legs.arrivalDate} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
