@@ -54,6 +54,7 @@ const Shipments = () => {
   }
 
   const handleInputChange = (index, field, value) => {
+    console.log(`Updating leg ${index}, field ${field}, with value: ${value}`); // Debugging log
     const updatedLegs = [...legs];
     updatedLegs[index][field] = value;
     setLegs(updatedLegs);
@@ -68,7 +69,7 @@ const Shipments = () => {
         arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
       }));
 
-      console.log("Formatted legs data:", formattedLegs); // Debugging log
+      console.log("Formatted legs data before sending:", formattedLegs); // Debugging log
 
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
@@ -209,7 +210,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Ship Date"
-                value={leg.shipDate}
+                value={leg.shipDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -222,7 +223,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Arrival Date"
-                value={leg.arrivalDate}
+                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
