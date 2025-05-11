@@ -37,6 +37,17 @@ const Shipments = () => {
     { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '',  alerts: [] },
   ])
 
+  const formatDateForInput = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const handleAddLeg = () => {
     const lastLeg = legs[legs.length - 1];
     setLegs([
@@ -63,11 +74,14 @@ const Shipments = () => {
   const handleSubmit = async () => {
     try {
       // Format the legs data to ensure proper date handling
-      const formattedLegs = legs.map((leg) => ({
-        ...leg,
-        shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null, // Convert to ISO 8601 format
-        arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
-      }));
+      const formattedLegs = legs.map((leg) => {
+        console.log(`Processing leg: ${JSON.stringify(leg)}`); // Debugging log
+        return {
+          ...leg,
+          shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null, // Convert to ISO 8601 format
+          arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
+        };
+      });
 
       console.log("Formatted legs data before sending:", formattedLegs); // Debugging log
 
@@ -210,7 +224,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Ship Date"
-                value={leg.shipDate || ''} // Ensure the value is in the correct format
+                value={formatDateForInput(legs[index].shipDate)} // Format the value for the input
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -223,7 +237,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Arrival Date"
-                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
+                value={formatDateForInput(legs[index].arrivalDate)} // Format the value for the input
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
