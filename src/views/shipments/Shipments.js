@@ -60,10 +60,26 @@ const Shipments = () => {
     setLegs(updatedLegs)
   }
 
-  const handleSubmit = () => {
-    // Logic to submit the form data to MongoDB
-    console.log('Submitting shipment:', legs)
-    setModalVisible(false)
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ legs }),
+      });
+
+      if (response.ok) {
+        console.log('Shipment data submitted successfully');
+        setModalVisible(false);
+        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] }]);
+      } else {
+        console.error('Failed to submit shipment data');
+      }
+    } catch (error) {
+      console.error('Error submitting shipment data:', error);
+    }
   }
 
   const handleCancel = () => {
