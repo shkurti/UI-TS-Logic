@@ -34,7 +34,7 @@ const Shipments = () => {
   ])
   const [modalVisible, setModalVisible] = useState(false)
   const [legs, setLegs] = useState([
-    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] },
+    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '',  alerts: [] },
   ])
 
   const handleAddLeg = () => {
@@ -48,7 +48,6 @@ const Shipments = () => {
         arrivalDate: '',
         mode: '',
         carrier: '',
-        awb: '',
         alerts: [],
       },
     ]);
@@ -73,7 +72,7 @@ const Shipments = () => {
       if (response.ok) {
         console.log('Shipment data submitted successfully');
         setModalVisible(false);
-        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] }]);
+        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '',  alerts: [] }]);
       } else {
         console.error('Failed to submit shipment data');
       }
@@ -85,7 +84,7 @@ const Shipments = () => {
   const handleCancel = () => {
     setModalVisible(false)
     setLegs([
-      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [] },
+      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '',  alerts: [] },
     ])
   }
 
@@ -234,14 +233,7 @@ const Shipments = () => {
                 onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
                 className="mb-2"
               />
-              {leg.mode === 'Air' && (
-                <CFormInput
-                  placeholder="AWB (Air Waybill)"
-                  value={leg.awb}
-                  onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
-                  className="mb-2"
-                />
-              )}
+
               <CFormSelect
                 multiple
                 value={leg.alerts}
