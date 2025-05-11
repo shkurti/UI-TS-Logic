@@ -54,10 +54,10 @@ const Shipments = () => {
   }
 
   const handleInputChange = (index, field, value) => {
-    const updatedLegs = [...legs]
-    updatedLegs[index][field] = value
-    setLegs(updatedLegs)
-  }
+    const updatedLegs = [...legs];
+    updatedLegs[index][field] = value;
+    setLegs(updatedLegs);
+  };
 
   const handleSubmit = async () => {
     try {
@@ -67,6 +67,8 @@ const Shipments = () => {
         shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null, // Convert to ISO 8601 format
         arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
       }));
+
+      console.log("Formatted legs data:", formattedLegs); // Debugging log
 
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
@@ -86,7 +88,7 @@ const Shipments = () => {
     } catch (error) {
       console.error('Error submitting shipment data:', error);
     }
-  }
+  };
 
   const handleCancel = () => {
     setModalVisible(false)
