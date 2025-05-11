@@ -233,7 +233,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Ship Date"
-                value={legs.shipDate} // Ensure the value is in the correct format
+                value={leg.shipDate} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -246,7 +246,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Arrival Date"
-                value={legs.arrivalDate} // Ensure the value is in the correct format
+                value={leg.arrivalDate} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
