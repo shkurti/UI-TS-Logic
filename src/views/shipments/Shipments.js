@@ -64,8 +64,8 @@ const Shipments = () => {
       // Format the legs data to ensure proper date handling
       const formattedLegs = legs.map((leg) => ({
         ...leg,
-        shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null,
-        arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null,
+        shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null, // Convert to ISO 8601 format
+        arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null, // Convert to ISO 8601 format
       }));
 
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
