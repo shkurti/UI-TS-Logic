@@ -76,9 +76,10 @@ const Shipments = () => {
   const submitForm = async () => {
     const isValid = legs.every((leg) =>
       ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field] && leg[field].trim() !== ''
+        (field) => leg[field] && String(leg[field]).trim() !== '' // Ensure all fields are non-empty strings
       )
     )
+
     if (!isValid) {
       alert('Please fill all required fields.')
       return
