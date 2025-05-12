@@ -75,7 +75,7 @@ const Shipments = () => {
 
   const submitForm = async () => {
     const isValid = legs.every((leg, index) => {
-      // Validate fields based on the leg's position
+      // Determine required fields based on the leg's position
       const requiredFields = ['shipDate', 'arrivalDate', 'departureDate', 'mode', 'carrier'];
       if (index === 0) {
         requiredFields.push('shipFromAddress', 'stopAddress'); // First leg requires "Ship From Address" and "Stop Address"
@@ -85,8 +85,11 @@ const Shipments = () => {
         requiredFields.push('stopAddress'); // Intermediate legs require "Stop Address"
       }
 
-      // Check that all required fields are non-empty and defined
-      return requiredFields.every((field) => leg[field] !== undefined && leg[field] !== null && String(leg[field]).trim() !== '');
+      // Validate that all required fields are non-empty and defined
+      return requiredFields.every((field) => {
+        const value = leg[field];
+        return value !== undefined && value !== null && String(value).trim() !== '';
+      });
     });
 
     if (!isValid) {
