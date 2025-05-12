@@ -74,44 +74,30 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
-    const isValid = legs.every((leg, index) => {
-      const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
-
-      if (index === 0) {
-        requiredFields.push('shipFromAddress') // First leg requires Ship From Address
-      }
-
-      requiredFields.push('stopAddress') // All legs require Stop Address (or Ship To Address for the last leg)
-
-      const missingFields = requiredFields.filter((field) => !leg[field] || leg[field].trim() === '')
-      if (missingFields.length > 0) {
-        console.error(`Validation failed for leg ${index + 1}. Missing fields:`, missingFields)
-      }
-
-      return missingFields.length === 0
-    })
-
+    const isValid = legs.every((leg) =>
+      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
+        (field) => leg[field] && leg[field].trim() !== ''
+      )
+    )
     if (!isValid) {
       alert('Please fill all required fields.')
       return
     }
 
     const shipmentData = {
-      legs: legs.map((leg, index) => ({
+      legs: legs.map((leg) => ({
         legNumber: leg.legNumber,
-        shipFromAddress: index === 0 ? leg.shipFromAddress : '', // Ensure shipFromAddress is included for the first leg
+        shipFromAddress: leg.shipFromAddress,
         shipDate: leg.shipDate,
         alertPresets: leg.alertPresets,
         mode: leg.mode,
         carrier: leg.carrier,
-        stopAddress: leg.stopAddress, // Ensure stopAddress is included for all legs
+        stopAddress: leg.stopAddress,
         arrivalDate: leg.arrivalDate,
         departureDate: leg.departureDate,
-        awb: leg.mode === 'Air' ? leg.awb : '', // Include AWB only for Air mode
+        awb: leg.mode === 'Air' ? leg.awb : undefined,
       })),
     }
-
-    console.log('Submitting shipment data:', shipmentData) // Debugging log
 
     try {
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
@@ -119,7 +105,6 @@ const Shipments = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
       })
-
       if (response.ok) {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
@@ -142,11 +127,11 @@ const Shipments = () => {
       } else {
         const error = await response.json()
         console.error('Error inserting shipment:', error)
-        alert(`Failed to create shipment: ${error.detail || 'Unknown error'}`)
+        alert('Failed to create shipment.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred while creating the shipment.')
+      alert('An error occurred.')
     }
   }
 
@@ -238,41 +223,19 @@ const Shipments = () => {
       </CButton>
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
+        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4">
                 <h5>Leg {leg.legNumber}</h5>
                 <CRow>
-                  {index === 0 && (
-                    <CCol>
-                      <CFormInput
-                        label="Ship From Address"
-                        value={leg.shipFromAddress}
-                        onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
-                      />
-                    </CCol>
-                  )}
-                  {index > 0 && index < legs.length - 1 && (
-                    <CCol>
-                      <CFormInput
-                        label="Stop Address"
-                        value={leg.stopAddress}
-                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
-                      />
-                    </CCol>
-                  )}
-                  {index === legs.length - 1 && (
-                    <CCol>
-                      <CFormInput
-                        label="Ship To Address"
-                        value={leg.stopAddress}
-                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
-                      />
-                    </CCol>
-                  )}
-                </CRow>
-                <CRow>
+                  <CCol>
+                    <CFormInput
+                      label="Ship From Address"
+                      value={leg.shipFromAddress}
+                      onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                    />
+                  </CCol>
                   <CCol>
                     <CFormInput
                       type="date"
@@ -281,6 +244,8 @@ const Shipments = () => {
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                     />
                   </CCol>
+                </CRow>
+                <CRow>
                   <CCol>
                     <CFormSelect
                       label="Mode"
@@ -293,13 +258,20 @@ const Shipments = () => {
                       <option value="Sea">Sea</option>
                     </CFormSelect>
                   </CCol>
-                </CRow>
-                <CRow>
                   <CCol>
                     <CFormInput
                       label="Carrier"
                       value={leg.carrier}
                       onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol>
+                    <CFormInput
+                      label="Stop Address"
+                      value={leg.stopAddress}
+                      onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
                     />
                   </CCol>
                   <CCol>
