@@ -99,6 +99,8 @@ const Shipments = () => {
       })),
     }
 
+    console.log('Sending shipment data:', shipmentData) // Debugging log
+
     try {
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
@@ -107,7 +109,7 @@ const Shipments = () => {
       })
       if (response.ok) {
         const result = await response.json()
-        console.log('Shipment inserted successfully:', result)
+        console.log('Shipment inserted successfully:', result) // Debugging log
         alert('Shipment created successfully!')
         setIsModalOpen(false)
         setLegs([
@@ -126,7 +128,7 @@ const Shipments = () => {
         ])
       } else {
         const error = await response.json()
-        console.error('Error inserting shipment:', error)
+        console.error('Error inserting shipment:', error) // Debugging log
         alert('Failed to create shipment.')
       }
     } catch (error) {
