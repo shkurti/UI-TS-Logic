@@ -34,49 +34,31 @@ const Shipments = () => {
   ])
   const [modalVisible, setModalVisible] = useState(false)
   const [legs, setLegs] = useState([
-    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', alerts: [] },
+    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
   ])
 
   const handleInputChange = (index, field, value) => {
-    console.log(`Updating leg ${index}, field ${field}, with value: ${value}`) // Debugging log
     const updatedLegs = [...legs]
-    updatedLegs[index][field] = value // Directly assign the value
+    updatedLegs[index][field] = value
     setLegs(updatedLegs)
   }
 
   const handleAddLeg = () => {
-    const lastLeg = legs[legs.length - 1]
     setLegs([
       ...legs,
-      { from: lastLeg.to, to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', alerts: [] },
+      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
     ])
   }
 
   const handleSubmit = async () => {
+    const formattedLegs = legs.map((leg) => ({
+      ...leg,
+      shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null,
+      arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null,
+      departureDate: leg.departureDate ? new Date(leg.departureDate).toISOString() : null,
+    }))
+
     try {
-      // Format the legs data to ensure proper date handling
-      const formattedLegs = legs.map((leg) => {
-        console.log(`Processing leg: ${JSON.stringify(leg)}`) // Debugging log
-
-        // Ensure shipDate and arrivalDate are properly formatted
-        const shipDate =
-          leg.shipDate && leg.shipDate.trim() !== ''
-            ? new Date(leg.shipDate).toISOString()
-            : null
-        const arrivalDate =
-          leg.arrivalDate && leg.arrivalDate.trim() !== ''
-            ? new Date(leg.arrivalDate).toISOString()
-            : null
-
-        return {
-          ...leg,
-          shipDate, // Use the validated and formatted shipDate
-          arrivalDate, // Use the validated and formatted arrivalDate
-        }
-      })
-
-      console.log('Formatted legs data before sending:', formattedLegs) // Debugging log
-
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,7 +68,7 @@ const Shipments = () => {
       if (response.ok) {
         console.log('Shipment data submitted successfully')
         setModalVisible(false)
-        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', alerts: [] }])
+        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' }])
       } else {
         console.error('Failed to submit shipment data')
       }
@@ -97,7 +79,7 @@ const Shipments = () => {
 
   const handleCancel = () => {
     setModalVisible(false)
-    setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', alerts: [] }])
+    setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' }])
   }
 
   return (
@@ -204,8 +186,8 @@ const Shipments = () => {
             <div key={index} className="mb-4">
               <h5>Leg {index + 1}</h5>
               <CFormInput
-                label="From"
-                placeholder="Ship From Address"
+                label="Ship From Address"
+                placeholder="Enter Ship From Address"
                 value={leg.from}
                 onChange={(e) => handleInputChange(index, 'from', e.target.value)}
                 className="mb-2"
@@ -213,13 +195,13 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 label="Ship Date"
-                value={leg.shipDate || ''} // Ensure the value is in the correct format
+                value={leg.shipDate}
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
               <CFormInput
-                label="To"
-                placeholder="Stop Address"
+                label="Stop Address"
+                placeholder="Enter Stop Address"
                 value={leg.to}
                 onChange={(e) => handleInputChange(index, 'to', e.target.value)}
                 className="mb-2"
@@ -227,7 +209,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 label="Arrival Date"
-                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
+                value={leg.arrivalDate}
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
@@ -242,9 +224,18 @@ const Shipments = () => {
                 <option value="Air">Air</option>
                 <option value="Sea">Sea</option>
               </CFormSelect>
+              {leg.mode === 'Air' && (
+                <CFormInput
+                  label="AWB (Air Waybill)"
+                  placeholder="Enter AWB Number"
+                  value={leg.awb}
+                  onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
+                  className="mb-2"
+                />
+              )}
               <CFormInput
                 label="Carrier"
-                placeholder="Carrier"
+                placeholder="Enter Carrier Name"
                 value={leg.carrier}
                 onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
                 className="mb-2"
@@ -262,10 +253,17 @@ const Shipments = () => {
                 <option value="Geofence outside New York">Geofence outside New York</option>
                 <option value="001 - Light Changes">001 - Light Changes</option>
               </CFormSelect>
+              <CFormInput
+                type="datetime-local"
+                label="Departure Date"
+                value={leg.departureDate}
+                onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
+                className="mb-2"
+              />
             </div>
           ))}
           <CButton color="secondary" onClick={handleAddLeg}>
-            Add Leg
+            Add Stop
           </CButton>
         </CModalBody>
         <CModalFooter>
