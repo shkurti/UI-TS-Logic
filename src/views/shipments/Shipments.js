@@ -38,8 +38,9 @@ const Shipments = () => {
   ])
 
   const handleInputChange = (index, field, value) => {
+    console.log(`Updating leg ${index}, field ${field}, with value: ${value}`) // Debugging log
     const updatedLegs = [...legs]
-    updatedLegs[index][field] = value
+    updatedLegs[index][field] = value // Directly assign the value
     setLegs(updatedLegs)
   }
 
@@ -52,13 +53,30 @@ const Shipments = () => {
   }
 
   const handleSubmit = async () => {
-    const formattedLegs = legs.map((leg) => ({
-      ...leg,
-      shipDate: leg.shipDate ? new Date(leg.shipDate).toISOString() : null,
-      arrivalDate: leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null,
-    }))
-
     try {
+      // Format the legs data to ensure proper date handling
+      const formattedLegs = legs.map((leg) => {
+        console.log(`Processing leg: ${JSON.stringify(leg)}`) // Debugging log
+
+        // Ensure shipDate and arrivalDate are properly formatted
+        const shipDate =
+          leg.shipDate && leg.shipDate.trim() !== ''
+            ? new Date(leg.shipDate).toISOString()
+            : null
+        const arrivalDate =
+          leg.arrivalDate && leg.arrivalDate.trim() !== ''
+            ? new Date(leg.arrivalDate).toISOString()
+            : null
+
+        return {
+          ...leg,
+          shipDate, // Use the validated and formatted shipDate
+          arrivalDate, // Use the validated and formatted arrivalDate
+        }
+      })
+
+      console.log('Formatted legs data before sending:', formattedLegs) // Debugging log
+
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,7 +213,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 label="Ship Date"
-                value={leg.shipDate}
+                value={leg.shipDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -209,7 +227,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 label="Arrival Date"
-                value={leg.arrivalDate}
+                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
