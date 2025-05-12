@@ -78,12 +78,10 @@ const Shipments = () => {
         console.log(`Processing leg: ${JSON.stringify(leg)}`); // Debugging log
 
         // Ensure shipDate and arrivalDate are properly formatted
-        const shipDate = leg.shipDate && leg.shipDate.trim() !== "" && !isNaN(Date.parse(leg.shipDate)) 
-          ? new Date(leg.shipDate).toISOString() 
-          : null;
-        const arrivalDate = leg.arrivalDate && leg.arrivalDate.trim() !== "" && !isNaN(Date.parse(leg.arrivalDate)) 
-          ? new Date(leg.arrivalDate).toISOString() 
-          : null;
+        const shipDate = leg.shipDate ? new Date(leg.shipDate).toISOString() : null;
+
+        const arrivalDate = leg.arrivalDate ? new Date(leg.arrivalDate).toISOString() : null;
+
 
         return {
           ...leg,
