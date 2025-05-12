@@ -76,7 +76,7 @@ const Shipments = () => {
   const submitForm = async () => {
     const isValid = legs.every((leg) =>
       ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field]
+        (field) => leg[field] && leg[field].trim() !== ''
       )
     )
     if (!isValid) {
@@ -220,7 +220,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Ship Date"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
@@ -258,7 +258,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Arrival Date"
                       value={leg.arrivalDate}
                       onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
@@ -266,7 +266,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Departure Date"
                       value={leg.departureDate}
                       onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
