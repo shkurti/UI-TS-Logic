@@ -18,11 +18,6 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
-  CFormSelect,
-  CModal,
-  CModalHeader,
-  CModalBody,
-  CModalFooter,
 } from '@coreui/react'
 
 const Shipments = () => {
@@ -32,77 +27,6 @@ const Shipments = () => {
     { id: 'S002', from: 'Chicago', to: 'Houston', eta: '2023-10-06' },
     { id: 'S003', from: 'Miami', to: 'Seattle', eta: '2023-10-07' },
   ])
-  const [modalVisible, setModalVisible] = useState(false)
-  const [legs, setLegs] = useState([
-    { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
-  ])
-
-  const handleInputChange = (index, field, value) => {
-    console.log(`Updating leg ${index}, field ${field}, with value: ${value}`) // Debugging log
-    const updatedLegs = [...legs]
-    updatedLegs[index][field] = value || '' // Ensure empty strings are handled
-    setLegs(updatedLegs)
-  }
-
-  const handleAddLeg = () => {
-    setLegs([
-      ...legs,
-      { from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' },
-    ])
-  }
-
-  const handleSubmit = async () => {
-    try {
-      // Format the legs data to ensure proper date handling
-      const formattedLegs = legs.map((leg) => {
-        console.log(`Processing leg: ${JSON.stringify(leg)}`) // Debugging log
-
-        // Ensure shipDate, arrivalDate, and departureDate are properly formatted
-        const shipDate =
-          leg.shipDate && leg.shipDate.trim() !== ''
-            ? new Date(leg.shipDate).toISOString()
-            : null
-        const arrivalDate =
-          leg.arrivalDate && leg.arrivalDate.trim() !== ''
-            ? new Date(leg.arrivalDate).toISOString()
-            : null
-        const departureDate =
-          leg.departureDate && leg.departureDate.trim() !== ''
-            ? new Date(leg.departureDate).toISOString()
-            : null
-
-        return {
-          ...leg,
-          shipDate, // Use the validated and formatted shipDate
-          arrivalDate, // Use the validated and formatted arrivalDate
-          departureDate, // Use the validated and formatted departureDate
-        }
-      })
-
-      console.log('Formatted legs data before sending:', formattedLegs) // Debugging log
-
-      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legs: formattedLegs }),
-      })
-
-      if (response.ok) {
-        console.log('Shipment data submitted successfully')
-        setModalVisible(false)
-        setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' }])
-      } else {
-        console.error('Failed to submit shipment data')
-      }
-    } catch (error) {
-      console.error('Error submitting shipment data:', error)
-    }
-  }
-
-  const handleCancel = () => {
-    setModalVisible(false)
-    setLegs([{ from: '', to: '', shipDate: '', arrivalDate: '', mode: '', carrier: '', awb: '', alerts: [], departureDate: '' }])
-  }
 
   return (
     <>
@@ -110,9 +34,6 @@ const Shipments = () => {
         <CCol xs={12} lg={4}>
           <CCard>
             <CCardHeader>
-              <CButton color="primary" className="w-100 mb-3" onClick={() => setModalVisible(true)}>
-                Create New Shipment
-              </CButton>
               <CFormInput placeholder="Search Shipments" className="mb-3" />
               <CNav variant="tabs" role="tablist" className="mb-3">
                 <CNavItem>
@@ -142,20 +63,10 @@ const Shipments = () => {
               </CNav>
               <CRow className="mb-3">
                 <CCol>
-                  <CFormSelect>
-                    <option>Filter by Ship From</option>
-                    <option>New York</option>
-                    <option>Chicago</option>
-                    <option>Miami</option>
-                  </CFormSelect>
+                  <CFormInput placeholder="Filter by Ship From" />
                 </CCol>
                 <CCol>
-                  <CFormSelect>
-                    <option>Filter by Ship To</option>
-                    <option>Los Angeles</option>
-                    <option>Houston</option>
-                    <option>Seattle</option>
-                  </CFormSelect>
+                  <CFormInput placeholder="Filter by Ship To" />
                 </CCol>
               </CRow>
             </CCardHeader>
@@ -200,103 +111,6 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
-
-      <CModal visible={modalVisible} onClose={handleCancel} size="lg">
-        <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {legs.map((leg, index) => (
-            <div key={index} className="mb-4">
-              <h5>Leg {index + 1}</h5>
-              <CFormInput
-                label="Ship From Address"
-                placeholder="Enter Ship From Address"
-                value={leg.from}
-                onChange={(e) => handleInputChange(index, 'from', e.target.value)}
-                className="mb-2"
-              />
-              <CFormInput
-                type="datetime-local"
-                label="Ship Date"
-                value={leg.shipDate || ''} // Ensure the value is in the correct format
-                onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
-                className="mb-2"
-              />
-              <CFormInput
-                label="Stop Address"
-                placeholder="Enter Stop Address"
-                value={leg.to}
-                onChange={(e) => handleInputChange(index, 'to', e.target.value)}
-                className="mb-2"
-              />
-              <CFormInput
-                type="datetime-local"
-                label="Arrival Date"
-                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
-                onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
-                className="mb-2"
-              />
-              <CFormSelect
-                label="Mode"
-                value={leg.mode}
-                onChange={(e) => handleInputChange(index, 'mode', e.target.value)}
-                className="mb-2"
-              >
-                <option value="">Select Mode</option>
-                <option value="Road">Road</option>
-                <option value="Air">Air</option>
-                <option value="Sea">Sea</option>
-              </CFormSelect>
-              {leg.mode === 'Air' && (
-                <CFormInput
-                  label="AWB (Air Waybill)"
-                  placeholder="Enter AWB Number"
-                  value={leg.awb}
-                  onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
-                  className="mb-2"
-                />
-              )}
-              <CFormInput
-                label="Carrier"
-                placeholder="Enter Carrier Name"
-                value={leg.carrier}
-                onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
-                className="mb-2"
-              />
-              <CFormSelect
-                label="Alerts"
-                multiple
-                value={leg.alerts}
-                onChange={(e) =>
-                  handleInputChange(index, 'alerts', Array.from(e.target.selectedOptions, (opt) => opt.value))
-                }
-                className="mb-2"
-              >
-                <option value="Arrival departure">Arrival departure</option>
-                <option value="Geofence outside New York">Geofence outside New York</option>
-                <option value="001 - Light Changes">001 - Light Changes</option>
-              </CFormSelect>
-              <CFormInput
-                type="datetime-local"
-                label="Departure Date"
-                value={leg.departureDate || ''} // Ensure the value is in the correct format
-                onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
-                className="mb-2"
-              />
-            </div>
-          ))}
-          <CButton color="secondary" onClick={handleAddLeg}>
-            Add Stop
-          </CButton>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="primary" onClick={handleSubmit}>
-            Submit
-          </CButton>
-          <CButton color="secondary" onClick={handleCancel}>
-            Cancel
-          </CButton>
-        </CModalFooter>
-      </CModal>
     </>
   )
 }
