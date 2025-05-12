@@ -18,6 +18,12 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
+  CModal,
+  CModalHeader,
+  CModalBody,
+  CModalFooter,
+  CForm,
+  CFormSelect,
 } from '@coreui/react'
 
 const Shipments = () => {
@@ -27,6 +33,89 @@ const Shipments = () => {
     { id: 'S002', from: 'Chicago', to: 'Houston', eta: '2023-10-06' },
     { id: 'S003', from: 'Miami', to: 'Seattle', eta: '2023-10-07' },
   ])
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [legs, setLegs] = useState([
+    {
+      legNumber: 1,
+      shipFromAddress: '',
+      shipDate: '',
+      alertPresets: [],
+      mode: '',
+      carrier: '',
+      stopAddress: '',
+      arrivalDate: '',
+      departureDate: '',
+      awb: '',
+    },
+  ])
+
+  const addLeg = () => {
+    setLegs([
+      ...legs,
+      {
+        legNumber: legs.length + 1,
+        shipFromAddress: '',
+        shipDate: '',
+        alertPresets: [],
+        mode: '',
+        carrier: '',
+        stopAddress: '',
+        arrivalDate: '',
+        departureDate: '',
+        awb: '',
+      },
+    ])
+  }
+
+  const handleInputChange = (index, field, value) => {
+    const updatedLegs = [...legs]
+    updatedLegs[index][field] = value
+    setLegs(updatedLegs)
+  }
+
+  const submitForm = async () => {
+    const isValid = legs.every((leg) =>
+      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
+        (field) => leg[field]
+      )
+    )
+    if (!isValid) {
+      alert('Please fill all required fields.')
+      return
+    }
+
+    const shipmentData = { shipment_legs: legs }
+    try {
+      const response = await fetch('/shipment_meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shipmentData),
+      })
+      if (response.ok) {
+        alert('Shipment created successfully!')
+        setIsModalOpen(false)
+        setLegs([
+          {
+            legNumber: 1,
+            shipFromAddress: '',
+            shipDate: '',
+            alertPresets: [],
+            mode: '',
+            carrier: '',
+            stopAddress: '',
+            arrivalDate: '',
+            departureDate: '',
+            awb: '',
+          },
+        ])
+      } else {
+        alert('Failed to create shipment.')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('An error occurred.')
+    }
+  }
 
   return (
     <>
@@ -111,6 +200,102 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
+      <CButton color="primary" onClick={() => setIsModalOpen(true)}>
+        Create New Shipment
+      </CButton>
+      <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <CModalHeader>Create New Shipment</CModalHeader>
+        <CModalBody>
+          <CForm>
+            {legs.map((leg, index) => (
+              <div key={index} className="mb-4">
+                <h5>Leg {leg.legNumber}</h5>
+                <CRow>
+                  <CCol>
+                    <CFormInput
+                      label="Ship From Address"
+                      value={leg.shipFromAddress}
+                      onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol>
+                    <CFormInput
+                      type="datetime-local"
+                      label="Ship Date"
+                      value={leg.shipDate}
+                      onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol>
+                    <CFormSelect
+                      label="Mode"
+                      value={leg.mode}
+                      onChange={(e) => handleInputChange(index, 'mode', e.target.value)}
+                    >
+                      <option value="">Select Mode</option>
+                      <option value="Road">Road</option>
+                      <option value="Air">Air</option>
+                      <option value="Sea">Sea</option>
+                    </CFormSelect>
+                  </CCol>
+                  <CCol>
+                    <CFormInput
+                      label="Carrier"
+                      value={leg.carrier}
+                      onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol>
+                    <CFormInput
+                      label="Stop Address"
+                      value={leg.stopAddress}
+                      onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol>
+                    <CFormInput
+                      type="datetime-local"
+                      label="Arrival Date"
+                      value={leg.arrivalDate}
+                      onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol>
+                    <CFormInput
+                      type="datetime-local"
+                      label="Departure Date"
+                      value={leg.departureDate}
+                      onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                {leg.mode === 'Air' && (
+                  <CFormInput
+                    label="AWB"
+                    value={leg.awb}
+                    onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
+                  />
+                )}
+              </div>
+            ))}
+            <CButton color="secondary" onClick={addLeg}>
+              Add Stop
+            </CButton>
+          </CForm>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="primary" onClick={submitForm}>
+            Submit
+          </CButton>
+          <CButton color="secondary" onClick={() => setIsModalOpen(false)}>
+            Cancel
+          </CButton>
+        </CModalFooter>
+      </CModal>
     </>
   )
 }
