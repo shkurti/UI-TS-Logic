@@ -74,20 +74,28 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
-    const isValid = legs.every((leg) =>
-      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field] && leg[field].trim() !== ''
-      )
-    )
+    const isValid = legs.every((leg, index) => {
+      const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
+      if (index === 0) {
+        requiredFields.push('shipFromAddress') // First leg requires Ship From Address
+      }
+      if (index === legs.length - 1) {
+        requiredFields.push('stopAddress') // Last leg requires Ship To Address
+      } else {
+        requiredFields.push('stopAddress') // Intermediate legs require Stop Address
+      }
+      return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
+    })
+
     if (!isValid) {
       alert('Please fill all required fields.')
       return
     }
 
     const shipmentData = {
-      legs: legs.map((leg) => ({
+      legs: legs.map((leg, index) => ({
         legNumber: leg.legNumber,
-        shipFromAddress: leg.shipFromAddress,
+        shipFromAddress: index === 0 ? leg.shipFromAddress : undefined,
         shipDate: leg.shipDate,
         alertPresets: leg.alertPresets,
         mode: leg.mode,
@@ -127,11 +135,11 @@ const Shipments = () => {
       } else {
         const error = await response.json()
         console.error('Error inserting shipment:', error)
-        alert('Failed to create shipment.')
+        alert(`Failed to create shipment: ${error.message || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred.')
+      alert('An error occurred while creating the shipment.')
     }
   }
 
