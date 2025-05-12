@@ -84,7 +84,21 @@ const Shipments = () => {
       return
     }
 
-    const shipmentData = { shipment_legs: legs }
+    const shipmentData = {
+      legs: legs.map((leg) => ({
+        legNumber: leg.legNumber,
+        shipFromAddress: leg.shipFromAddress,
+        shipDate: leg.shipDate,
+        alertPresets: leg.alertPresets,
+        mode: leg.mode,
+        carrier: leg.carrier,
+        stopAddress: leg.stopAddress,
+        arrivalDate: leg.arrivalDate,
+        departureDate: leg.departureDate,
+        awb: leg.mode === 'Air' ? leg.awb : undefined,
+      })),
+    }
+
     try {
       const response = await fetch('/shipment_meta', {
         method: 'POST',
