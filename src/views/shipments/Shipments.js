@@ -258,7 +258,7 @@ const Shipments = () => {
                 <CRow>
                   <CCol>
                     <CFormInput
-                      type="date"
+                      type="datetime-local" // Changed to capture both date and time
                       label="Ship Date"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
@@ -266,7 +266,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="date"
+                      type="datetime-local" // Changed to capture both date and time
                       label="Arrival Date"
                       value={leg.arrivalDate}
                       onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
@@ -274,7 +274,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="date"
+                      type="datetime-local" // Changed to capture both date and time
                       label="Departure Date"
                       value={leg.departureDate}
                       onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
