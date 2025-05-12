@@ -100,12 +100,14 @@ const Shipments = () => {
     }
 
     try {
-      const response = await fetch('/shipment_meta', {
+      const response = await fetch('http://localhost:3001/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
       })
       if (response.ok) {
+        const result = await response.json()
+        console.log('Shipment inserted successfully:', result)
         alert('Shipment created successfully!')
         setIsModalOpen(false)
         setLegs([
@@ -123,6 +125,8 @@ const Shipments = () => {
           },
         ])
       } else {
+        const error = await response.json()
+        console.error('Error inserting shipment:', error)
         alert('Failed to create shipment.')
       }
     } catch (error) {
