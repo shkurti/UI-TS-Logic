@@ -74,45 +74,14 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
-    const isValid = legs.every((leg, index) => {
-      // Validate fields based on the leg's position
-      if (index === 0) {
-        // First leg requires "Ship From Address" and "Stop Address"
-        return (
-          leg.shipFromAddress?.trim() &&
-          leg.stopAddress?.trim() &&
-          leg.shipDate?.trim() &&
-          leg.arrivalDate?.trim() &&
-          leg.departureDate?.trim() &&
-          leg.mode?.trim() &&
-          leg.carrier?.trim()
-        );
-      } else if (index === legs.length - 1) {
-        // Last leg requires "Ship To Address" (mapped to "stopAddress")
-        return (
-          leg.stopAddress?.trim() &&
-          leg.shipDate?.trim() &&
-          leg.arrivalDate?.trim() &&
-          leg.departureDate?.trim() &&
-          leg.mode?.trim() &&
-          leg.carrier?.trim()
-        );
-      } else {
-        // Intermediate legs require "Stop Address"
-        return (
-          leg.stopAddress?.trim() &&
-          leg.shipDate?.trim() &&
-          leg.arrivalDate?.trim() &&
-          leg.departureDate?.trim() &&
-          leg.mode?.trim() &&
-          leg.carrier?.trim()
-        );
-      }
-    });
-
+    const isValid = legs.every((leg) =>
+      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
+        (field) => leg[field] && leg[field].trim() !== ''
+      )
+    )
     if (!isValid) {
-      alert('Please fill all required fields.');
-      return;
+      alert('Please fill all required fields.')
+      return
     }
 
     const shipmentData = {
@@ -128,22 +97,19 @@ const Shipments = () => {
         departureDate: leg.departureDate,
         awb: leg.mode === 'Air' ? leg.awb : undefined,
       })),
-    };
-
-    console.log('Sending shipment data:', shipmentData); // Debugging log
+    }
 
     try {
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
-      });
-      console.log(`Response status: ${response.status}`); // Debugging log
+      })
       if (response.ok) {
-        const result = await response.json();
-        console.log('Shipment inserted successfully:', result); // Debugging log
-        alert('Shipment created successfully!');
-        setIsModalOpen(false);
+        const result = await response.json()
+        console.log('Shipment inserted successfully:', result)
+        alert('Shipment created successfully!')
+        setIsModalOpen(false)
         setLegs([
           {
             legNumber: 1,
@@ -157,15 +123,15 @@ const Shipments = () => {
             departureDate: '',
             awb: '',
           },
-        ]);
+        ])
       } else {
-        const error = await response.json();
-        console.error('Error inserting shipment:', error); // Debugging log
-        alert('Failed to create shipment.');
+        const error = await response.json()
+        console.error('Error inserting shipment:', error)
+        alert('Failed to create shipment.')
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred.');
+      console.error('Error:', error)
+      alert('An error occurred.')
     }
   }
 
@@ -263,15 +229,14 @@ const Shipments = () => {
               <div key={index} className="mb-4">
                 <h5>Leg {leg.legNumber}</h5>
                 <CRow>
-                  {index === 0 && ( // Render "Ship From Address" only for the first leg
-                    <CCol>
-                      <CFormInput
-                        label="Ship From Address"
-                        value={leg.shipFromAddress}
-                        onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
-                      />
-                    </CCol>
-                  )}
+                  <CCol>
+                    <CFormInput
+                      label="Ship From Address"
+                      value={leg.shipFromAddress}
+                      onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                      disabled={index !== 0} // Only the first leg has "Ship From Address"
+                    />
+                  </CCol>
                   {index === legs.length - 1 ? ( // Last leg has "Ship To Address"
                     <CCol>
                       <CFormInput
@@ -293,7 +258,7 @@ const Shipments = () => {
                 <CRow>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Ship Date"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
@@ -301,7 +266,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Arrival Date"
                       value={leg.arrivalDate}
                       onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
@@ -309,7 +274,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local"
+                      type="date"
                       label="Departure Date"
                       value={leg.departureDate}
                       onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
