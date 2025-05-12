@@ -83,7 +83,12 @@ const Shipments = () => {
 
       requiredFields.push('stopAddress') // All legs require Stop Address (or Ship To Address for the last leg)
 
-      return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
+      const missingFields = requiredFields.filter((field) => !leg[field] || leg[field].trim() === '')
+      if (missingFields.length > 0) {
+        console.error(`Validation failed for leg ${index + 1}. Missing fields:`, missingFields)
+      }
+
+      return missingFields.length === 0
     })
 
     if (!isValid) {
