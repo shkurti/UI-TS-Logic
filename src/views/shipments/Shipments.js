@@ -67,7 +67,7 @@ const Shipments = () => {
   const handleInputChange = (index, field, value) => {
     console.log(`Updating leg ${index}, field ${field}, with value: ${value}`); // Debugging log
     const updatedLegs = [...legs];
-    updatedLegs[index][field] = value;
+    updatedLegs[index][field] = value.trim(); // Ensure no leading/trailing spaces
     setLegs(updatedLegs);
   };
 
