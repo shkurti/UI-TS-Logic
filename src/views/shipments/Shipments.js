@@ -76,7 +76,7 @@ const Shipments = () => {
   const submitForm = async () => {
     const isValid = legs.every((leg) =>
       ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field] && String(leg[field]).trim() !== '' // Ensure all fields are non-empty strings
+        (field) => leg[field] !== undefined && leg[field] !== null && String(leg[field]).trim() !== '' // Ensure all fields are non-empty and defined
       )
     )
 
@@ -233,14 +233,15 @@ const Shipments = () => {
               <div key={index} className="mb-4">
                 <h5>Leg {leg.legNumber}</h5>
                 <CRow>
-                  <CCol>
-                    <CFormInput
-                      label="Ship From Address"
-                      value={leg.shipFromAddress}
-                      onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
-                      disabled={index !== 0} // Only the first leg has "Ship From Address"
-                    />
-                  </CCol>
+                  {index === 0 && ( // Render "Ship From Address" only for the first leg
+                    <CCol>
+                      <CFormInput
+                        label="Ship From Address"
+                        value={leg.shipFromAddress}
+                        onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                      />
+                    </CCol>
+                  )}
                   {index === legs.length - 1 ? ( // Last leg has "Ship To Address"
                     <CCol>
                       <CFormInput
@@ -262,7 +263,7 @@ const Shipments = () => {
                 <CRow>
                   <CCol>
                     <CFormInput
-                      type="datetime-local" // Changed to capture both date and time
+                      type="datetime-local"
                       label="Ship Date"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
@@ -270,7 +271,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local" // Changed to capture both date and time
+                      type="datetime-local"
                       label="Arrival Date"
                       value={leg.arrivalDate}
                       onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
@@ -278,7 +279,7 @@ const Shipments = () => {
                   </CCol>
                   <CCol>
                     <CFormInput
-                      type="datetime-local" // Changed to capture both date and time
+                      type="datetime-local"
                       label="Departure Date"
                       value={leg.departureDate}
                       onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
