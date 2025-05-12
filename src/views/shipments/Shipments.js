@@ -74,28 +74,39 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
-    const isValid = legs.every((leg) =>
-      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field] && leg[field].trim() !== ''
-      )
-    )
+    const isValid = legs.every((leg, index) => {
+      const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
+
+      if (index === 0) {
+        requiredFields.push('shipFromAddress') // First leg requires Ship From Address
+      }
+
+      if (index === legs.length - 1) {
+        requiredFields.push('stopAddress') // Last leg requires Ship To Address
+      } else {
+        requiredFields.push('stopAddress') // Intermediate legs require Stop Address
+      }
+
+      return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
+    })
+
     if (!isValid) {
       alert('Please fill all required fields.')
       return
     }
 
     const shipmentData = {
-      legs: legs.map((leg) => ({
+      legs: legs.map((leg, index) => ({
         legNumber: leg.legNumber,
-        shipFromAddress: leg.shipFromAddress,
+        shipFromAddress: index === 0 ? leg.shipFromAddress : undefined, // Include only for the first leg
         shipDate: leg.shipDate,
         alertPresets: leg.alertPresets,
         mode: leg.mode,
         carrier: leg.carrier,
-        stopAddress: leg.stopAddress,
+        stopAddress: leg.stopAddress, // Stop Address for intermediate and last legs
         arrivalDate: leg.arrivalDate,
         departureDate: leg.departureDate,
-        awb: leg.mode === 'Air' ? leg.awb : undefined,
+        awb: leg.mode === 'Air' ? leg.awb : undefined, // Include AWB only for Air mode
       })),
     }
 
@@ -105,6 +116,7 @@ const Shipments = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
       })
+
       if (response.ok) {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
@@ -223,19 +235,41 @@ const Shipments = () => {
       </CButton>
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
+        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4">
                 <h5>Leg {leg.legNumber}</h5>
                 <CRow>
-                  <CCol>
-                    <CFormInput
-                      label="Ship From Address"
-                      value={leg.shipFromAddress}
-                      onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
-                    />
-                  </CCol>
+                  {index === 0 && (
+                    <CCol>
+                      <CFormInput
+                        label="Ship From Address"
+                        value={leg.shipFromAddress}
+                        onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                      />
+                    </CCol>
+                  )}
+                  {index < legs.length - 1 && (
+                    <CCol>
+                      <CFormInput
+                        label="Stop Address"
+                        value={leg.stopAddress}
+                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
+                      />
+                    </CCol>
+                  )}
+                  {index === legs.length - 1 && (
+                    <CCol>
+                      <CFormInput
+                        label="Ship To Address"
+                        value={leg.stopAddress}
+                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
+                      />
+                    </CCol>
+                  )}
+                </CRow>
+                <CRow>
                   <CCol>
                     <CFormInput
                       type="date"
@@ -244,8 +278,6 @@ const Shipments = () => {
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                     />
                   </CCol>
-                </CRow>
-                <CRow>
                   <CCol>
                     <CFormSelect
                       label="Mode"
@@ -258,20 +290,13 @@ const Shipments = () => {
                       <option value="Sea">Sea</option>
                     </CFormSelect>
                   </CCol>
+                </CRow>
+                <CRow>
                   <CCol>
                     <CFormInput
                       label="Carrier"
                       value={leg.carrier}
                       onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
-                    />
-                  </CCol>
-                </CRow>
-                <CRow>
-                  <CCol>
-                    <CFormInput
-                      label="Stop Address"
-                      value={leg.stopAddress}
-                      onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
                     />
                   </CCol>
                   <CCol>
