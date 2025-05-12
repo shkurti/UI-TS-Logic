@@ -76,14 +76,17 @@ const Shipments = () => {
   const submitForm = async () => {
     const isValid = legs.every((leg, index) => {
       const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
+
       if (index === 0) {
         requiredFields.push('shipFromAddress') // First leg requires Ship From Address
       }
+
       if (index === legs.length - 1) {
         requiredFields.push('stopAddress') // Last leg requires Ship To Address
-      } else {
+      } else if (index > 0) {
         requiredFields.push('stopAddress') // Intermediate legs require Stop Address
       }
+
       return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
     })
 
