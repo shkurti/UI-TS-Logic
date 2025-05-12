@@ -107,6 +107,7 @@ const Shipments = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
       })
+      console.log(`Response status: ${response.status}`) // Debugging log
       if (response.ok) {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result) // Debugging log
