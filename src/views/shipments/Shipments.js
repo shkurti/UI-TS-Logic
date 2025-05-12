@@ -74,15 +74,24 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
-    const isValid = legs.every((leg) =>
-      ['shipFromAddress', 'shipDate', 'mode', 'carrier', 'stopAddress', 'arrivalDate', 'departureDate'].every(
-        (field) => leg[field] !== undefined && leg[field] !== null && String(leg[field]).trim() !== '' // Ensure all fields are non-empty and defined
-      )
-    )
+    const isValid = legs.every((leg, index) => {
+      // Validate fields based on the leg's position
+      const requiredFields = ['shipDate', 'arrivalDate', 'departureDate', 'mode', 'carrier'];
+      if (index === 0) {
+        requiredFields.push('shipFromAddress', 'stopAddress'); // First leg requires "Ship From Address" and "Stop Address"
+      } else if (index === legs.length - 1) {
+        requiredFields.push('stopAddress'); // Last leg requires "Ship To Address" (mapped to "stopAddress")
+      } else {
+        requiredFields.push('stopAddress'); // Intermediate legs require "Stop Address"
+      }
+
+      // Check that all required fields are non-empty and defined
+      return requiredFields.every((field) => leg[field] !== undefined && leg[field] !== null && String(leg[field]).trim() !== '');
+    });
 
     if (!isValid) {
-      alert('Please fill all required fields.')
-      return
+      alert('Please fill all required fields.');
+      return;
     }
 
     const shipmentData = {
@@ -98,22 +107,22 @@ const Shipments = () => {
         departureDate: leg.departureDate,
         awb: leg.mode === 'Air' ? leg.awb : undefined,
       })),
-    }
+    };
 
-    console.log('Sending shipment data:', shipmentData) // Debugging log
+    console.log('Sending shipment data:', shipmentData); // Debugging log
 
     try {
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
-      })
-      console.log(`Response status: ${response.status}`) // Debugging log
+      });
+      console.log(`Response status: ${response.status}`); // Debugging log
       if (response.ok) {
-        const result = await response.json()
-        console.log('Shipment inserted successfully:', result) // Debugging log
-        alert('Shipment created successfully!')
-        setIsModalOpen(false)
+        const result = await response.json();
+        console.log('Shipment inserted successfully:', result); // Debugging log
+        alert('Shipment created successfully!');
+        setIsModalOpen(false);
         setLegs([
           {
             legNumber: 1,
@@ -127,15 +136,15 @@ const Shipments = () => {
             departureDate: '',
             awb: '',
           },
-        ])
+        ]);
       } else {
-        const error = await response.json()
-        console.error('Error inserting shipment:', error) // Debugging log
-        alert('Failed to create shipment.')
+        const error = await response.json();
+        console.error('Error inserting shipment:', error); // Debugging log
+        alert('Failed to create shipment.');
       }
     } catch (error) {
-      console.error('Error:', error)
-      alert('An error occurred.')
+      console.error('Error:', error);
+      alert('An error occurred.');
     }
   }
 
