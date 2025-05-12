@@ -223,7 +223,7 @@ const Shipments = () => {
       </CButton>
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody>
+        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4">
