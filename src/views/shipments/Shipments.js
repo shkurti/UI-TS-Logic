@@ -100,7 +100,7 @@ const Shipments = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/shipment_meta', {
+      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
