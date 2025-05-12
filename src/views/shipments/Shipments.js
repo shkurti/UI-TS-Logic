@@ -75,18 +75,39 @@ const Shipments = () => {
 
   const submitForm = async () => {
     const isValid = legs.every((leg, index) => {
-      // Determine required fields based on the leg's position
-      const requiredFields = ['shipDate', 'arrivalDate', 'departureDate', 'mode', 'carrier'];
+      // Validate fields based on the leg's position
       if (index === 0) {
-        requiredFields.push('shipFromAddress', 'stopAddress'); // First leg requires "Ship From Address" and "Stop Address"
+        // First leg requires "Ship From Address" and "Stop Address"
+        return (
+          leg.shipFromAddress?.trim() &&
+          leg.stopAddress?.trim() &&
+          leg.shipDate?.trim() &&
+          leg.arrivalDate?.trim() &&
+          leg.departureDate?.trim() &&
+          leg.mode?.trim() &&
+          leg.carrier?.trim()
+        );
       } else if (index === legs.length - 1) {
-        requiredFields.push('stopAddress'); // Last leg requires "Ship To Address" (mapped to "stopAddress")
+        // Last leg requires "Ship To Address" (mapped to "stopAddress")
+        return (
+          leg.stopAddress?.trim() &&
+          leg.shipDate?.trim() &&
+          leg.arrivalDate?.trim() &&
+          leg.departureDate?.trim() &&
+          leg.mode?.trim() &&
+          leg.carrier?.trim()
+        );
       } else {
-        requiredFields.push('stopAddress'); // Intermediate legs require "Stop Address"
+        // Intermediate legs require "Stop Address"
+        return (
+          leg.stopAddress?.trim() &&
+          leg.shipDate?.trim() &&
+          leg.arrivalDate?.trim() &&
+          leg.departureDate?.trim() &&
+          leg.mode?.trim() &&
+          leg.carrier?.trim()
+        );
       }
-
-      // Validate that all required fields are non-empty and defined
-      return requiredFields.every((field) => leg[field] && String(leg[field]).trim() !== '');
     });
 
     if (!isValid) {
