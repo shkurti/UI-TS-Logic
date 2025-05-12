@@ -86,10 +86,7 @@ const Shipments = () => {
       }
 
       // Validate that all required fields are non-empty and defined
-      return requiredFields.every((field) => {
-        const value = leg[field];
-        return value !== undefined && value !== null && String(value).trim() !== '';
-      });
+      return requiredFields.every((field) => leg[field] && String(leg[field]).trim() !== '');
     });
 
     if (!isValid) {
