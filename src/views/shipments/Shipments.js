@@ -67,7 +67,15 @@ const Shipments = () => {
   const handleInputChange = (index, field, value) => {
     console.log(`Updating leg ${index}, field ${field}, with value: ${value}`); // Debugging log
     const updatedLegs = [...legs];
-    updatedLegs[index][field] = value.trim(); // Ensure no leading/trailing spaces
+
+    // Handle string fields with trim
+    if (typeof value === "string") {
+      updatedLegs[index][field] = value.trim();
+    } else {
+      // Directly assign non-string values (e.g., arrays, numbers)
+      updatedLegs[index][field] = value;
+    }
+
     setLegs(updatedLegs);
   };
 
