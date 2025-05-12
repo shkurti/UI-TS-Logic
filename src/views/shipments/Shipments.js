@@ -78,10 +78,10 @@ const Shipments = () => {
         console.log(`Processing leg: ${JSON.stringify(leg)}`); // Debugging log
 
         // Ensure shipDate and arrivalDate are properly formatted
-        const shipDate = leg.shipDate && !isNaN(Date.parse(leg.shipDate)) 
+        const shipDate = leg.shipDate && leg.shipDate.trim() !== "" && !isNaN(Date.parse(leg.shipDate)) 
           ? new Date(leg.shipDate).toISOString() 
           : null;
-        const arrivalDate = leg.arrivalDate && !isNaN(Date.parse(leg.arrivalDate)) 
+        const arrivalDate = leg.arrivalDate && leg.arrivalDate.trim() !== "" && !isNaN(Date.parse(leg.arrivalDate)) 
           ? new Date(leg.arrivalDate).toISOString() 
           : null;
 
@@ -233,7 +233,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Ship Date"
-                value={leg.shipDate} // Ensure the value is in the correct format
+                value={leg.shipDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
                 className="mb-2"
               />
@@ -246,7 +246,7 @@ const Shipments = () => {
               <CFormInput
                 type="datetime-local"
                 placeholder="Arrival Date"
-                value={leg.arrivalDate} // Ensure the value is in the correct format
+                value={leg.arrivalDate || ''} // Ensure the value is in the correct format
                 onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
                 className="mb-2"
               />
