@@ -223,7 +223,7 @@ const Shipments = () => {
       </CButton>
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
+        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4">
@@ -234,34 +234,44 @@ const Shipments = () => {
                       label="Ship From Address"
                       value={leg.shipFromAddress}
                       onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
-                      disabled={index !== 0} // Only the first leg has "Ship From Address"
                     />
                   </CCol>
-                  {index === legs.length - 1 ? ( // Last leg has "Ship To Address"
-                    <CCol>
-                      <CFormInput
-                        label="Ship To Address"
-                        value={leg.stopAddress}
-                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
-                      />
-                    </CCol>
-                  ) : (
-                    <CCol>
-                      <CFormInput
-                        label="Stop Address"
-                        value={leg.stopAddress}
-                        onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
-                      />
-                    </CCol>
-                  )}
-                </CRow>
-                <CRow>
                   <CCol>
                     <CFormInput
                       type="date"
                       label="Ship Date"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol>
+                    <CFormSelect
+                      label="Mode"
+                      value={leg.mode}
+                      onChange={(e) => handleInputChange(index, 'mode', e.target.value)}
+                    >
+                      <option value="">Select Mode</option>
+                      <option value="Road">Road</option>
+                      <option value="Air">Air</option>
+                      <option value="Sea">Sea</option>
+                    </CFormSelect>
+                  </CCol>
+                  <CCol>
+                    <CFormInput
+                      label="Carrier"
+                      value={leg.carrier}
+                      onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
+                    />
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol>
+                    <CFormInput
+                      label="Stop Address"
+                      value={leg.stopAddress}
+                      onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
                     />
                   </CCol>
                   <CCol>
