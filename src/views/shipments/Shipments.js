@@ -81,11 +81,7 @@ const Shipments = () => {
         requiredFields.push('shipFromAddress') // First leg requires Ship From Address
       }
 
-      if (index === legs.length - 1) {
-        requiredFields.push('stopAddress') // Last leg requires Ship To Address
-      } else if (index > 0) {
-        requiredFields.push('stopAddress') // Intermediate legs require Stop Address
-      }
+      requiredFields.push('stopAddress') // All legs require Stop Address (or Ship To Address for the last leg)
 
       return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
     })
@@ -98,17 +94,19 @@ const Shipments = () => {
     const shipmentData = {
       legs: legs.map((leg, index) => ({
         legNumber: leg.legNumber,
-        shipFromAddress: index === 0 ? leg.shipFromAddress : undefined,
+        shipFromAddress: index === 0 ? leg.shipFromAddress : '', // Ensure shipFromAddress is included for the first leg
         shipDate: leg.shipDate,
         alertPresets: leg.alertPresets,
         mode: leg.mode,
         carrier: leg.carrier,
-        stopAddress: leg.stopAddress,
+        stopAddress: leg.stopAddress, // Ensure stopAddress is included for all legs
         arrivalDate: leg.arrivalDate,
         departureDate: leg.departureDate,
-        awb: leg.mode === 'Air' ? leg.awb : undefined,
+        awb: leg.mode === 'Air' ? leg.awb : '', // Include AWB only for Air mode
       })),
     }
+
+    console.log('Submitting shipment data:', shipmentData) // Debugging log
 
     try {
       const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
@@ -116,6 +114,7 @@ const Shipments = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
       })
+
       if (response.ok) {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
@@ -138,7 +137,7 @@ const Shipments = () => {
       } else {
         const error = await response.json()
         console.error('Error inserting shipment:', error)
-        alert(`Failed to create shipment: ${error.message || 'Unknown error'}`)
+        alert(`Failed to create shipment: ${error.detail || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error:', error)
