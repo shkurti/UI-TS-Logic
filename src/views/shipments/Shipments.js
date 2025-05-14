@@ -55,9 +55,7 @@ const Shipments = () => {
     // Fetch registered trackers from the backend
     const fetchTrackers = async () => {
       try {
-        const response = await fetch(
-          'https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers',
-        )
+        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers')
         if (response.ok) {
           const data = await response.json()
           setTrackers(data)
