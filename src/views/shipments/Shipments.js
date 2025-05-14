@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { MapContainer, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
@@ -48,6 +48,29 @@ const Shipments = () => {
       awb: '',
     },
   ])
+  const [trackers, setTrackers] = useState([]) // State to store registered trackers
+  const [selectedTracker, setSelectedTracker] = useState('') // State for selected tracker
+
+  useEffect(() => {
+    // Fetch registered trackers from the backend
+    const fetchTrackers = async () => {
+      try {
+        const response = await fetch(
+          'https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers',
+        )
+        if (response.ok) {
+          const data = await response.json()
+          setTrackers(data)
+        } else {
+          console.error('Failed to fetch trackers')
+        }
+      } catch (error) {
+        console.error('Error fetching trackers:', error)
+      }
+    }
+
+    fetchTrackers()
+  }, [])
 
   const addLeg = () => {
     setLegs([
@@ -74,6 +97,11 @@ const Shipments = () => {
   }
 
   const submitForm = async () => {
+    if (!selectedTracker) {
+      alert('Please select a tracker.')
+      return
+    }
+
     const isValid = legs.every((leg, index) => {
       const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
 
@@ -96,6 +124,7 @@ const Shipments = () => {
     }
 
     const shipmentData = {
+      trackerId: selectedTracker, // Include the selected tracker ID
       legs: legs.map((leg, index) => ({
         legNumber: leg.legNumber,
         shipFromAddress: index === 0 ? leg.shipFromAddress : undefined, // Include only for the first leg
@@ -237,6 +266,22 @@ const Shipments = () => {
         <CModalHeader>Create New Shipment</CModalHeader>
         <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <CForm>
+            <CRow className="mb-3">
+              <CCol>
+                <CFormSelect
+                  label="Select Tracker"
+                  value={selectedTracker}
+                  onChange={(e) => setSelectedTracker(e.target.value)}
+                >
+                  <option value="">Select a Tracker</option>
+                  {trackers.map((tracker) => (
+                    <option key={tracker.tracker_id} value={tracker.tracker_id}>
+                      {tracker.tracker_name}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            </CRow>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4">
                 <h5>Leg {leg.legNumber}</h5>
