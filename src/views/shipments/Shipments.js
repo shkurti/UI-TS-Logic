@@ -28,11 +28,7 @@ import {
 
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
-  const [shipments, setShipments] = useState([
-    { id: 'S001', from: 'New York', to: 'Los Angeles', eta: '2023-10-05' },
-    { id: 'S002', from: 'Chicago', to: 'Houston', eta: '2023-10-06' },
-    { id: 'S003', from: 'Miami', to: 'Seattle', eta: '2023-10-07' },
-  ])
+  const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [legs, setLegs] = useState([
     {
@@ -48,11 +44,26 @@ const Shipments = () => {
       awb: '',
     },
   ])
-  const [trackers, setTrackers] = useState([]) // State to store registered trackers
-  const [selectedTracker, setSelectedTracker] = useState('') // State for selected tracker
+  const [trackers, setTrackers] = useState([])
+  const [selectedTracker, setSelectedTracker] = useState('')
 
   useEffect(() => {
-    // Fetch registered trackers from the backend
+    // Fetch shipments from the backend
+    const fetchShipments = async () => {
+      try {
+        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta')
+        if (response.ok) {
+          const data = await response.json()
+          setShipments(data) // Populate the shipment list
+        } else {
+          console.error('Failed to fetch shipments')
+        }
+      } catch (error) {
+        console.error('Error fetching shipments:', error)
+      }
+    }
+
+    // Fetch registered trackers
     const fetchTrackers = async () => {
       try {
         const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers')
@@ -67,6 +78,7 @@ const Shipments = () => {
       }
     }
 
+    fetchShipments()
     fetchTrackers()
   }, [])
 
@@ -148,6 +160,7 @@ const Shipments = () => {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
         alert('Shipment created successfully!')
+        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
         setIsModalOpen(false)
         setLegs([
           {
@@ -187,7 +200,7 @@ const Shipments = () => {
                     active={activeTab === 'In Transit'}
                     onClick={() => setActiveTab('In Transit')}
                   >
-                    In Transit (123)
+                    In Transit ({shipments.length})
                   </CNavLink>
                 </CNavItem>
                 <CNavItem>
@@ -229,10 +242,14 @@ const Shipments = () => {
                 <CTableBody>
                   {shipments.map((shipment, index) => (
                     <CTableRow key={index}>
-                      <CTableDataCell>{shipment.id}</CTableDataCell>
-                      <CTableDataCell>{shipment.from}</CTableDataCell>
-                      <CTableDataCell>{shipment.to}</CTableDataCell>
-                      <CTableDataCell>{shipment.eta}</CTableDataCell>
+                      <CTableDataCell>{shipment.trackerId}</CTableDataCell>
+                      <CTableDataCell>{shipment.legs[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>
+                        {shipment.legs[shipment.legs.length - 1]?.stopAddress || 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {shipment.legs[shipment.legs.length - 1]?.arrivalDate || 'N/A'}
+                      </CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
