@@ -229,7 +229,7 @@ const Shipments = () => {
                 </CCol>
               </CRow>
             </CCardHeader>
-            <CCardBody>
+            <CCardBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
               <CTable hover responsive>
                 <CTableHead>
                   <CTableRow>
