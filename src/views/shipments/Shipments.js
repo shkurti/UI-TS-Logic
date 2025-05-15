@@ -242,14 +242,10 @@ const Shipments = () => {
                 <CTableBody>
                   {shipments.map((shipment, index) => (
                     <CTableRow key={index}>
-                      <CTableDataCell>{shipment.trackerId}</CTableDataCell>
-                      <CTableDataCell>{shipment.legs[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
-                      <CTableDataCell>
-                        {shipment.legs[shipment.legs.length - 1]?.stopAddress || 'N/A'}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {shipment.legs[shipment.legs.length - 1]?.arrivalDate || 'N/A'}
-                      </CTableDataCell>
+                      <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.arrivalDate || 'N/A'}</CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
