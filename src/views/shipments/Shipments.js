@@ -236,7 +236,8 @@ const Shipments = () => {
                     <CTableHeaderCell>Shipment ID</CTableHeaderCell>
                     <CTableHeaderCell>Ship From</CTableHeaderCell>
                     <CTableHeaderCell>Ship To</CTableHeaderCell>
-                    <CTableHeaderCell>ETA</CTableHeaderCell>
+                    <CTableHeaderCell>Arrival Date</CTableHeaderCell>
+                    <CTableHeaderCell>Departure Date</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
@@ -246,6 +247,7 @@ const Shipments = () => {
                       <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
                       <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
                       <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.arrivalDate || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.departureDate || 'N/A'}</CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>
