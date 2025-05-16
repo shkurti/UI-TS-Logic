@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
 import {
   CButton,
   CCard,
@@ -26,6 +27,25 @@ import {
   CFormSelect,
 } from '@coreui/react'
 
+const customIcon = L.icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+})
+
+function FitBounds({ route }) {
+  const map = useMap()
+  useEffect(() => {
+    if (route.length > 0) {
+      map.fitBounds(route)
+    }
+  }, [route, map])
+  return null
+}
+
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -46,6 +66,8 @@ const Shipments = () => {
   ])
   const [trackers, setTrackers] = useState([])
   const [selectedTracker, setSelectedTracker] = useState('')
+  const [selectedShipment, setSelectedShipment] = useState(null)
+  const [routeData, setRouteData] = useState([])
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -187,6 +209,39 @@ const Shipments = () => {
     }
   }
 
+  const handleShipmentClick = async (shipment) => {
+    setSelectedShipment(shipment)
+    // Get trackerId and date range from shipment
+    const trackerId = shipment.trackerId
+    const legs = shipment.legs || []
+    const firstLeg = legs[0] || {}
+    const lastLeg = legs[legs.length - 1] || {}
+    const shipDate = firstLeg.shipDate
+    const arrivalDate = lastLeg.arrivalDate
+
+    if (!trackerId || !shipDate || !arrivalDate) {
+      setRouteData([])
+      return
+    }
+
+    try {
+      const params = new URLSearchParams({
+        tracker_id: trackerId,
+        start: shipDate,
+        end: arrivalDate,
+      })
+      const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setRouteData(data)
+      } else {
+        setRouteData([])
+      }
+    } catch (e) {
+      setRouteData([])
+    }
+  }
+
   return (
     <>
       <CRow>
@@ -229,7 +284,7 @@ const Shipments = () => {
                 </CCol>
               </CRow>
             </CCardHeader>
-            <CCardBody style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Added scrollable styles */}
+            <CCardBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <CTable hover responsive>
                 <CTableHead>
                   <CTableRow>
@@ -242,7 +297,11 @@ const Shipments = () => {
                 </CTableHead>
                 <CTableBody>
                   {shipments.map((shipment, index) => (
-                    <CTableRow key={index}>
+                    <CTableRow
+                      key={index}
+                      style={{ cursor: 'pointer', background: selectedShipment === shipment ? '#f0f0f0' : undefined }}
+                      onClick={() => handleShipmentClick(shipment)}
+                    >
                       <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
                       <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
                       <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
@@ -267,6 +326,25 @@ const Shipments = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
+                {/* Show route if available */}
+                {routeData.length > 0 && (
+                  <>
+                    <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
+                    <Polyline
+                      positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
+                      color="blue"
+                    />
+                    <Marker
+                      position={[
+                        parseFloat(routeData[routeData.length - 1].latitude),
+                        parseFloat(routeData[routeData.length - 1].longitude),
+                      ]}
+                      icon={customIcon}
+                    >
+                      <Popup>Last Point</Popup>
+                    </Marker>
+                  </>
+                )}
               </MapContainer>
             </CCardBody>
           </CCard>
