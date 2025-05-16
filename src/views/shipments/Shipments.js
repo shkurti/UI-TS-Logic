@@ -284,42 +284,38 @@ const Shipments = () => {
         <CCol xs={12}>
           <CCard>
             <CCardHeader>
-              <CFormInput placeholder="Search Shipments" className="mb-3" />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <CNav variant="tabs" role="tablist" className="mb-3" style={{ flex: 1 }}>
-                  <CNavItem>
-                    <CNavLink
-                      active={activeTab === 'In Transit'}
-                      onClick={() => setActiveTab('In Transit')}
-                    >
-                      In Transit ({shipments.length})
-                    </CNavLink>
-                  </CNavItem>
-                  <CNavItem>
-                    <CNavLink
-                      active={activeTab === 'Upcoming'}
-                      onClick={() => setActiveTab('Upcoming')}
-                    >
-                      Upcoming (8)
-                    </CNavLink>
-                  </CNavItem>
-                  <CNavItem>
-                    <CNavLink
-                      active={activeTab === 'Completed'}
-                      onClick={() => setActiveTab('Completed')}
-                    >
-                      Completed (23)
-                    </CNavLink>
-                  </CNavItem>
-                </CNav>
-                <CButton
-                  color="primary"
-                  style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
-                  onClick={() => setIsModalOpen(true)}
-                >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <CFormInput placeholder="Search Shipments" className="mb-3" style={{ flex: 1, marginBottom: 0 }} />
+                <CButton color="primary" onClick={() => setIsModalOpen(true)}>
                   Create New Shipment
                 </CButton>
               </div>
+              <CNav variant="tabs" role="tablist" className="mb-3">
+                <CNavItem>
+                  <CNavLink
+                    active={activeTab === 'In Transit'}
+                    onClick={() => setActiveTab('In Transit')}
+                  >
+                    In Transit ({shipments.length})
+                  </CNavLink>
+                </CNavItem>
+                <CNavItem>
+                  <CNavLink
+                    active={activeTab === 'Upcoming'}
+                    onClick={() => setActiveTab('Upcoming')}
+                  >
+                    Upcoming (8)
+                  </CNavLink>
+                </CNavItem>
+                <CNavItem>
+                  <CNavLink
+                    active={activeTab === 'Completed'}
+                    onClick={() => setActiveTab('Completed')}
+                  >
+                    Completed (23)
+                  </CNavLink>
+                </CNavItem>
+              </CNav>
               <CRow className="mb-3">
                 <CCol>
                   <CFormInput placeholder="Filter by Ship From" />
