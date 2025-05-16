@@ -358,9 +358,6 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
-      <CButton color="primary" onClick={() => setIsModalOpen(true)}>
-        Create New Shipment
-      </CButton>
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
         <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
