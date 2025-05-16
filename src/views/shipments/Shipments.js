@@ -245,7 +245,43 @@ const Shipments = () => {
   return (
     <>
       <CRow>
-        <CCol xs={12} lg={4}>
+        <CCol xs={12} lg={12}>
+          <CCard>
+            <CCardBody>
+              <MapContainer
+                center={[42.798939, -74.658409]}
+                zoom={5}
+                style={{ height: '600px', width: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {routeData.length > 0 && (
+                  <>
+                    <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
+                    <Polyline
+                      positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
+                      color="blue"
+                    />
+                    <Marker
+                      position={[
+                        parseFloat(routeData[routeData.length - 1].latitude),
+                        parseFloat(routeData[routeData.length - 1].longitude),
+                      ]}
+                      icon={customIcon}
+                    >
+                      <Popup>Last Point</Popup>
+                    </Marker>
+                  </>
+                )}
+              </MapContainer>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+      <CRow>
+        <CCol xs={12}>
           <CCard>
             <CCardHeader>
               <CFormInput placeholder="Search Shipments" className="mb-3" />
@@ -284,67 +320,35 @@ const Shipments = () => {
                 </CCol>
               </CRow>
             </CCardHeader>
-            <CCardBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <CTable hover responsive>
-                <CTableHead>
-                  <CTableRow>
-                    <CTableHeaderCell>Shipment ID</CTableHeaderCell>
-                    <CTableHeaderCell>Ship From</CTableHeaderCell>
-                    <CTableHeaderCell>Ship To</CTableHeaderCell>
-                    <CTableHeaderCell>Arrival Date</CTableHeaderCell>
-                    <CTableHeaderCell>Departure Date</CTableHeaderCell>
-                  </CTableRow>
-                </CTableHead>
-                <CTableBody>
-                  {shipments.map((shipment, index) => (
-                    <CTableRow
-                      key={index}
-                      style={{ cursor: 'pointer', background: selectedShipment === shipment ? '#f0f0f0' : undefined }}
-                      onClick={() => handleShipmentClick(shipment)}
-                    >
-                      <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
-                      <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
-                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
-                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.arrivalDate || 'N/A'}</CTableDataCell>
-                      <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.departureDate || 'N/A'}</CTableDataCell>
+            <CCardBody style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <div style={{ minWidth: 900 }}>
+                <CTable hover responsive>
+                  <CTableHead>
+                    <CTableRow>
+                      <CTableHeaderCell>Shipment ID</CTableHeaderCell>
+                      <CTableHeaderCell>Ship From</CTableHeaderCell>
+                      <CTableHeaderCell>Ship To</CTableHeaderCell>
+                      <CTableHeaderCell>Arrival Date</CTableHeaderCell>
+                      <CTableHeaderCell>Departure Date</CTableHeaderCell>
                     </CTableRow>
-                  ))}
-                </CTableBody>
-              </CTable>
-            </CCardBody>
-          </CCard>
-        </CCol>
-        <CCol xs={12} lg={8}>
-          <CCard>
-            <CCardBody>
-              <MapContainer
-                center={[42.798939, -74.658409]}
-                zoom={5}
-                style={{ height: '600px', width: '100%' }}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                {routeData.length > 0 && (
-                  <>
-                    <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
-                    <Polyline
-                      positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
-                      color="blue"
-                    />
-                    <Marker
-                      position={[
-                        parseFloat(routeData[routeData.length - 1].latitude),
-                        parseFloat(routeData[routeData.length - 1].longitude),
-                      ]}
-                      icon={customIcon}
-                    >
-                      <Popup>Last Point</Popup>
-                    </Marker>
-                  </>
-                )}
-              </MapContainer>
+                  </CTableHead>
+                  <CTableBody>
+                    {shipments.map((shipment, index) => (
+                      <CTableRow
+                        key={index}
+                        style={{ cursor: 'pointer', background: selectedShipment === shipment ? '#f0f0f0' : undefined }}
+                        onClick={() => handleShipmentClick(shipment)}
+                      >
+                        <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.arrivalDate || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.departureDate || 'N/A'}</CTableDataCell>
+                      </CTableRow>
+                    ))}
+                  </CTableBody>
+                </CTable>
+              </div>
             </CCardBody>
           </CCard>
         </CCol>
