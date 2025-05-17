@@ -25,7 +25,7 @@ import {
   CForm,
   CFormSelect,
 } from '@coreui/react'
-import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSun } from 'react-icons/bs'
+import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2 } from 'react-icons/bs' // Changed BsSun to BsSpeedometer2
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const customIcon = window.L
@@ -520,7 +520,7 @@ const Shipments = () => {
                         className={`sensor-icon-wrapper ${activeSensor === 'Speed' ? 'active' : ''}`}
                         onClick={() => setActiveSensor('Speed')}
                       >
-                        <BsSun size={30} className="sensor-icon" />
+                        <BsSpeedometer2 size={30} className="sensor-icon" /> {/* Changed icon */}
                         <p className="sensor-label">Speed</p>
                       </div>
                     </div>
