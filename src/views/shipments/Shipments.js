@@ -496,33 +496,77 @@ const Shipments = () => {
                   <>
                     <div className="sensor-icons d-flex justify-content-around mb-4">
                       <div
-                        className={`sensor-icon-wrapper ${activeSensor === 'Temperature' ? 'active' : ''}`}
+                        className={`sensor-icon-wrapper${activeSensor === 'Temperature' ? ' bg-primary text-white' : ''}`}
                         onClick={() => setActiveSensor('Temperature')}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          background: activeSensor === 'Temperature' ? '#0d6efd' : 'transparent',
+                          color: activeSensor === 'Temperature' ? '#fff' : undefined,
+                          transition: 'background 0.2s, color 0.2s',
+                        }}
                       >
                         <BsThermometerHalf size={16} className="sensor-icon" />
                         <span className="sensor-label" style={{ fontSize: 12 }}>Temperature</span>
                       </div>
                       <div
-                        className={`sensor-icon-wrapper ${activeSensor === 'Humidity' ? 'active' : ''}`}
+                        className={`sensor-icon-wrapper${activeSensor === 'Humidity' ? ' bg-primary text-white' : ''}`}
                         onClick={() => setActiveSensor('Humidity')}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          background: activeSensor === 'Humidity' ? '#0d6efd' : 'transparent',
+                          color: activeSensor === 'Humidity' ? '#fff' : undefined,
+                          transition: 'background 0.2s, color 0.2s',
+                        }}
                       >
                         <BsDroplet size={16} className="sensor-icon" />
                         <span className="sensor-label" style={{ fontSize: 12 }}>Humidity</span>
                       </div>
                       <div
-                        className={`sensor-icon-wrapper ${activeSensor === 'Battery' ? 'active' : ''}`}
+                        className={`sensor-icon-wrapper${activeSensor === 'Battery' ? ' bg-primary text-white' : ''}`}
                         onClick={() => setActiveSensor('Battery')}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          background: activeSensor === 'Battery' ? '#0d6efd' : 'transparent',
+                          color: activeSensor === 'Battery' ? '#fff' : undefined,
+                          transition: 'background 0.2s, color 0.2s',
+                        }}
                       >
                         <BsBatteryHalf size={16} className="sensor-icon" />
                         <span className="sensor-label" style={{ fontSize: 12 }}>Battery</span>
                       </div>
                       <div
-                        className={`sensor-icon-wrapper ${activeSensor === 'Speed' ? 'active' : ''}`}
+                        className={`sensor-icon-wrapper${activeSensor === 'Speed' ? ' bg-primary text-white' : ''}`}
                         onClick={() => setActiveSensor('Speed')}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          background: activeSensor === 'Speed' ? '#0d6efd' : 'transparent',
+                          color: activeSensor === 'Speed' ? '#fff' : undefined,
+                          transition: 'background 0.2s, color 0.2s',
+                        }}
                       >
                         <BsSpeedometer2 size={16} className="sensor-icon" />
                         <span className="sensor-label" style={{ fontSize: 12 }}>Speed</span>
