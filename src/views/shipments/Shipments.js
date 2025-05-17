@@ -310,8 +310,7 @@ const Shipments = () => {
         <CCol xs={12}>
           <CCard>
             <CCardHeader>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <CFormInput placeholder="Search Shipments" className="mb-3" style={{ flex: 1, marginBottom: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <CButton color="primary" onClick={() => setIsModalOpen(true)}>
                   Create New Shipment
                 </CButton>
@@ -323,6 +322,7 @@ const Shipments = () => {
                   Delete Selected Shipment
                 </CButton>
               </div>
+              <CFormInput placeholder="Search Shipments" className="mb-3" />
               <CNav variant="tabs" role="tablist" className="mb-3">
                 <CNavItem>
                   <CNavLink
