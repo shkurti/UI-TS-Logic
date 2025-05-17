@@ -310,14 +310,15 @@ const Shipments = () => {
 
   return (
     <>
-      <CRow>
-        <CCol xs={12} lg={12}>
+      {/* MAP SECTION */}
+      <CRow className="mb-4">
+        <CCol xs={12}>
           <CCard>
-            <CCardBody>
+            <CCardBody style={{ padding: 0 }}>
               <MapContainer
                 center={[42.798939, -74.658409]}
                 zoom={5}
-                style={{ height: '600px', width: '100%' }}
+                style={{ height: '400px', width: '100%', borderRadius: '8px' }}
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -346,24 +347,34 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
-      <CRow>
+
+      {/* SHIPMENT LIST & FILTERS */}
+      <CRow className="mb-4">
         <CCol xs={12}>
           <CCard>
-            <CCardHeader>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <CButton color="primary" onClick={() => setIsModalOpen(true)}>
-                  Create New Shipment
-                </CButton>
-                <CButton
-                  color="danger"
-                  disabled={!selectedShipment}
-                  onClick={deleteShipment}
-                >
-                  Delete Selected Shipment
-                </CButton>
+            <CCardHeader style={{ background: '#f8f9fa', borderBottom: '1px solid #e3e3e3' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', marginBottom: 12 }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <CButton color="primary" onClick={() => setIsModalOpen(true)}>
+                    Create New Shipment
+                  </CButton>
+                  <CButton
+                    color="danger"
+                    disabled={!selectedShipment}
+                    onClick={deleteShipment}
+                  >
+                    Delete Selected Shipment
+                  </CButton>
+                </div>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <CFormInput placeholder="Search Shipments" />
+                </div>
               </div>
-              <CFormInput placeholder="Search Shipments" className="mb-3" />
-              <CNav variant="tabs" role="tablist" className="mb-3">
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: 12 }}>
+                <CFormInput placeholder="Filter by Ship From" style={{ maxWidth: 250 }} />
+                <CFormInput placeholder="Filter by Ship To" style={{ maxWidth: 250 }} />
+              </div>
+              <CNav variant="tabs" role="tablist" className="mb-2">
                 <CNavItem>
                   <CNavLink
                     active={activeTab === 'In Transit'}
@@ -389,18 +400,10 @@ const Shipments = () => {
                   </CNavLink>
                 </CNavItem>
               </CNav>
-              <CRow className="mb-3">
-                <CCol>
-                  <CFormInput placeholder="Filter by Ship From" />
-                </CCol>
-                <CCol>
-                  <CFormInput placeholder="Filter by Ship To" />
-                </CCol>
-              </CRow>
             </CCardHeader>
-            <CCardBody style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-              <div style={{ minWidth: 900 }}>
-                <CTable hover responsive>
+            <CCardBody style={{ overflowX: 'auto', padding: 0 }}>
+              <div style={{ minWidth: 900, padding: 16 }}>
+                <CTable hover responsive bordered align="middle">
                   <CTableHead>
                     <CTableRow>
                       <CTableHeaderCell>Shipment ID</CTableHeaderCell>
@@ -414,7 +417,11 @@ const Shipments = () => {
                     {shipments.map((shipment, index) => (
                       <CTableRow
                         key={index}
-                        style={{ cursor: 'pointer', background: selectedShipment === shipment ? '#f0f0f0' : undefined }}
+                        style={{
+                          cursor: 'pointer',
+                          background: selectedShipment === shipment ? '#e9f5ff' : undefined,
+                          transition: 'background 0.2s'
+                        }}
                         onClick={() => handleShipmentClick(shipment)}
                       >
                         <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
@@ -431,12 +438,13 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
-      {/* Shipment Details/Sensors/Alerts/Reports Tabs */}
+
+      {/* DETAILS/SENSORS/ALERTS/REPORTS TABS */}
       {selectedShipment && (
         <CRow>
           <CCol xs={12}>
             <CCard className="mb-4">
-              <CCardHeader>
+              <CCardHeader style={{ background: '#f8f9fa', borderBottom: '1px solid #e3e3e3' }}>
                 <CNav variant="tabs" role="tablist">
                   <CNavItem>
                     <CNavLink
@@ -472,9 +480,9 @@ const Shipments = () => {
                   </CNavItem>
                 </CNav>
               </CCardHeader>
-              <CCardBody>
+              <CCardBody style={{ background: '#fcfcfc' }}>
                 {shipmentTab === 'Details' && (
-                  <>
+                  <div style={{ maxWidth: 500, margin: '0 auto' }}>
                     <p>
                       <strong>Shipment ID:</strong> {selectedShipment.trackerId}
                     </p>
@@ -490,11 +498,11 @@ const Shipments = () => {
                     <p>
                       <strong>Departure Date:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.departureDate || 'N/A'}
                     </p>
-                  </>
+                  </div>
                 )}
                 {shipmentTab === 'Sensors' && (
                   <>
-                    <div className="sensor-icons d-flex justify-content-around mb-4">
+                    <div className="sensor-icons d-flex justify-content-center mb-4" style={{ gap: 16 }}>
                       <div
                         className={`sensor-icon-wrapper${activeSensor === 'Temperature' ? ' bg-primary text-white' : ''}`}
                         onClick={() => setActiveSensor('Temperature')}
@@ -509,6 +517,7 @@ const Shipments = () => {
                           background: activeSensor === 'Temperature' ? '#0d6efd' : 'transparent',
                           color: activeSensor === 'Temperature' ? '#fff' : undefined,
                           transition: 'background 0.2s, color 0.2s',
+                          minWidth: 70
                         }}
                       >
                         <BsThermometerHalf size={16} className="sensor-icon" />
@@ -528,6 +537,7 @@ const Shipments = () => {
                           background: activeSensor === 'Humidity' ? '#0d6efd' : 'transparent',
                           color: activeSensor === 'Humidity' ? '#fff' : undefined,
                           transition: 'background 0.2s, color 0.2s',
+                          minWidth: 70
                         }}
                       >
                         <BsDroplet size={16} className="sensor-icon" />
@@ -547,6 +557,7 @@ const Shipments = () => {
                           background: activeSensor === 'Battery' ? '#0d6efd' : 'transparent',
                           color: activeSensor === 'Battery' ? '#fff' : undefined,
                           transition: 'background 0.2s, color 0.2s',
+                          minWidth: 70
                         }}
                       >
                         <BsBatteryHalf size={16} className="sensor-icon" />
@@ -566,6 +577,7 @@ const Shipments = () => {
                           background: activeSensor === 'Speed' ? '#0d6efd' : 'transparent',
                           color: activeSensor === 'Speed' ? '#fff' : undefined,
                           transition: 'background 0.2s, color 0.2s',
+                          minWidth: 70
                         }}
                       >
                         <BsSpeedometer2 size={16} className="sensor-icon" />
@@ -642,37 +654,23 @@ const Shipments = () => {
                     )}
                   </>
                 )}
-                {shipmentTab === 'Alerts' && <div>Alerts content</div>}
-                {shipmentTab === 'Reports' && <div>Reports content</div>}
+                {shipmentTab === 'Alerts' && <div style={{ minHeight: 100 }}>Alerts content</div>}
+                {shipmentTab === 'Reports' && <div style={{ minHeight: 100 }}>Reports content</div>}
               </CCardBody>
             </CCard>
           </CCol>
         </CRow>
       )}
+
+      {/* MODAL */}
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
         <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <CForm>
-            <CRow className="mb-3">
-              <CCol>
-                <CFormSelect
-                  label="Select Tracker"
-                  value={selectedTracker}
-                  onChange={(e) => setSelectedTracker(e.target.value)}
-                >
-                  <option value="">Select a Tracker</option>
-                  {trackers.map((tracker) => (
-                    <option key={tracker.tracker_id} value={tracker.tracker_id}>
-                      {tracker.tracker_name}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </CCol>
-            </CRow>
             {legs.map((leg, index) => (
-              <div key={index} className="mb-4">
-                <h5>Leg {leg.legNumber}</h5>
-                <CRow>
+              <div key={index} className="mb-4" style={{ borderBottom: '1px solid #eee', paddingBottom: 12 }}>
+                <h5 style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Leg {leg.legNumber}</h5>
+                <CRow className="mb-2">
                   {index === 0 && (
                     <CCol>
                       <CFormInput
@@ -701,7 +699,7 @@ const Shipments = () => {
                     </CCol>
                   )}
                 </CRow>
-                <CRow>
+                <CRow className="mb-2">
                   <CCol>
                     <CFormInput
                       type="datetime-local"
@@ -723,7 +721,7 @@ const Shipments = () => {
                     </CFormSelect>
                   </CCol>
                 </CRow>
-                <CRow>
+                <CRow className="mb-2">
                   <CCol>
                     <CFormInput
                       label="Carrier"
@@ -757,9 +755,27 @@ const Shipments = () => {
                 )}
               </div>
             ))}
-            <CButton color="secondary" onClick={addLeg}>
-              Add Stop
-            </CButton>
+            <CRow className="mb-3">
+              <CCol>
+                <CFormSelect
+                  label="Select Tracker"
+                  value={selectedTracker}
+                  onChange={(e) => setSelectedTracker(e.target.value)}
+                >
+                  <option value="">Select a Tracker</option>
+                  {trackers.map((tracker) => (
+                    <option key={tracker.tracker_id} value={tracker.tracker_id}>
+                      {tracker.tracker_name}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+              <CCol xs="auto" className="d-flex align-items-end">
+                <CButton color="secondary" onClick={addLeg}>
+                  Add Stop
+                </CButton>
+              </CCol>
+            </CRow>
           </CForm>
         </CModalBody>
         <CModalFooter>
