@@ -498,30 +498,34 @@ const Shipments = () => {
                       <div
                         className={`sensor-icon-wrapper ${activeSensor === 'Temperature' ? 'active' : ''}`}
                         onClick={() => setActiveSensor('Temperature')}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 14, cursor: 'pointer' }}
                       >
-                        <BsThermometerHalf size={30} className="sensor-icon" />
-                        <p className="sensor-label">Temperature</p>
+                        <BsThermometerHalf size={22} className="sensor-icon" />
+                        <span className="sensor-label" style={{ fontSize: 14 }}>Temperature</span>
                       </div>
                       <div
                         className={`sensor-icon-wrapper ${activeSensor === 'Humidity' ? 'active' : ''}`}
                         onClick={() => setActiveSensor('Humidity')}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 14, cursor: 'pointer' }}
                       >
-                        <BsDroplet size={30} className="sensor-icon" />
-                        <p className="sensor-label">Humidity</p>
+                        <BsDroplet size={22} className="sensor-icon" />
+                        <span className="sensor-label" style={{ fontSize: 14 }}>Humidity</span>
                       </div>
                       <div
                         className={`sensor-icon-wrapper ${activeSensor === 'Battery' ? 'active' : ''}`}
                         onClick={() => setActiveSensor('Battery')}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 14, cursor: 'pointer' }}
                       >
-                        <BsBatteryHalf size={30} className="sensor-icon" />
-                        <p className="sensor-label">Battery</p>
+                        <BsBatteryHalf size={22} className="sensor-icon" />
+                        <span className="sensor-label" style={{ fontSize: 14 }}>Battery</span>
                       </div>
                       <div
                         className={`sensor-icon-wrapper ${activeSensor === 'Speed' ? 'active' : ''}`}
                         onClick={() => setActiveSensor('Speed')}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 14, cursor: 'pointer' }}
                       >
-                        <BsSpeedometer2 size={30} className="sensor-icon" /> {/* Changed icon */}
-                        <p className="sensor-label">Speed</p>
+                        <BsSpeedometer2 size={22} className="sensor-icon" />
+                        <span className="sensor-label" style={{ fontSize: 14 }}>Speed</span>
                       </div>
                     </div>
                     {activeSensor === 'Temperature' && (
