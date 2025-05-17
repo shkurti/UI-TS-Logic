@@ -25,6 +25,8 @@ import {
   CForm,
   CFormSelect,
 } from '@coreui/react'
+import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSun } from 'react-icons/bs'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const customIcon = window.L
   ? window.L.icon({
@@ -69,6 +71,13 @@ const Shipments = () => {
   const [selectedTracker, setSelectedTracker] = useState('')
   const [selectedShipment, setSelectedShipment] = useState(null)
   const [routeData, setRouteData] = useState([])
+  // Add sensor tab state
+  const [shipmentTab, setShipmentTab] = useState('Details')
+  const [activeSensor, setActiveSensor] = useState('Temperature')
+  const [temperatureData, setTemperatureData] = useState([])
+  const [humidityData, setHumidityData] = useState([])
+  const [batteryData, setBatteryData] = useState([])
+  const [speedData, setSpeedData] = useState([])
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -212,6 +221,12 @@ const Shipments = () => {
 
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
+    setShipmentTab('Details')
+    setActiveSensor('Temperature')
+    setTemperatureData([])
+    setHumidityData([])
+    setBatteryData([])
+    setSpeedData([])
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
@@ -234,6 +249,31 @@ const Shipments = () => {
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
+        // Populate sensor data for tabs
+        setTemperatureData(
+          data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null,
+          }))
+        )
+        setHumidityData(
+          data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null,
+          }))
+        )
+        setBatteryData(
+          data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            battery: record.battery !== undefined ? parseFloat(record.battery) : null,
+          }))
+        )
+        setSpeedData(
+          data.map((record) => ({
+            timestamp: record.timestamp || 'N/A',
+            speed: record.speed !== undefined ? parseFloat(record.speed) : null,
+          }))
+        )
       } else {
         setRouteData([])
       }
@@ -391,6 +431,176 @@ const Shipments = () => {
           </CCard>
         </CCol>
       </CRow>
+      {/* Shipment Details/Sensors/Alerts/Reports Tabs */}
+      {selectedShipment && (
+        <CRow>
+          <CCol xs={12}>
+            <CCard className="mb-4">
+              <CCardHeader>
+                <CNav variant="tabs" role="tablist">
+                  <CNavItem>
+                    <CNavLink
+                      active={shipmentTab === 'Details'}
+                      onClick={() => setShipmentTab('Details')}
+                    >
+                      Details
+                    </CNavLink>
+                  </CNavItem>
+                  <CNavItem>
+                    <CNavLink
+                      active={shipmentTab === 'Sensors'}
+                      onClick={() => setShipmentTab('Sensors')}
+                    >
+                      Sensors
+                    </CNavLink>
+                  </CNavItem>
+                  <CNavItem>
+                    <CNavLink
+                      active={shipmentTab === 'Alerts'}
+                      onClick={() => setShipmentTab('Alerts')}
+                    >
+                      Alerts
+                    </CNavLink>
+                  </CNavItem>
+                  <CNavItem>
+                    <CNavLink
+                      active={shipmentTab === 'Reports'}
+                      onClick={() => setShipmentTab('Reports')}
+                    >
+                      Reports
+                    </CNavLink>
+                  </CNavItem>
+                </CNav>
+              </CCardHeader>
+              <CCardBody>
+                {shipmentTab === 'Details' && (
+                  <>
+                    <p>
+                      <strong>Shipment ID:</strong> {selectedShipment.trackerId}
+                    </p>
+                    <p>
+                      <strong>Ship From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress || 'N/A'}
+                    </p>
+                    <p>
+                      <strong>Ship To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress || 'N/A'}
+                    </p>
+                    <p>
+                      <strong>Arrival Date:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate || 'N/A'}
+                    </p>
+                    <p>
+                      <strong>Departure Date:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.departureDate || 'N/A'}
+                    </p>
+                  </>
+                )}
+                {shipmentTab === 'Sensors' && (
+                  <>
+                    <div className="sensor-icons d-flex justify-content-around mb-4">
+                      <div
+                        className={`sensor-icon-wrapper ${activeSensor === 'Temperature' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Temperature')}
+                      >
+                        <BsThermometerHalf size={30} className="sensor-icon" />
+                        <p className="sensor-label">Temperature</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${activeSensor === 'Humidity' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Humidity')}
+                      >
+                        <BsDroplet size={30} className="sensor-icon" />
+                        <p className="sensor-label">Humidity</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${activeSensor === 'Battery' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Battery')}
+                      >
+                        <BsBatteryHalf size={30} className="sensor-icon" />
+                        <p className="sensor-label">Battery</p>
+                      </div>
+                      <div
+                        className={`sensor-icon-wrapper ${activeSensor === 'Speed' ? 'active' : ''}`}
+                        onClick={() => setActiveSensor('Speed')}
+                      >
+                        <BsSun size={30} className="sensor-icon" />
+                        <p className="sensor-label">Speed</p>
+                      </div>
+                    </div>
+                    {activeSensor === 'Temperature' && (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={temperatureData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'temperature' ? 'Temperature' : ''}: ${value}°C`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="temperature" stroke="#8884d8" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                    {activeSensor === 'Humidity' && (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={humidityData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'humidity' ? 'Humidity' : ''}: ${value}%`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="humidity" stroke="#82ca9d" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                    {activeSensor === 'Battery' && (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={batteryData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'battery' ? 'Battery Level' : ''}: ${value}%`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                    {activeSensor === 'Speed' && (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={speedData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="timestamp" tick={false} />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              `${name === 'speed' ? 'Speed' : ''}: ${value} km/h`,
+                              null,
+                            ]}
+                            labelFormatter={(label) => `Timestamp: ${label}`}
+                          />
+                          <Line type="monotone" dataKey="speed" stroke="#ff7300" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </>
+                )}
+                {shipmentTab === 'Alerts' && <div>Alerts content</div>}
+                {shipmentTab === 'Reports' && <div>Reports content</div>}
+              </CCardBody>
+            </CCard>
+          </CCol>
+        </CRow>
+      )}
       <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <CModalHeader>Create New Shipment</CModalHeader>
         <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
