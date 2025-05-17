@@ -242,6 +242,32 @@ const Shipments = () => {
     }
   }
 
+  const deleteShipment = async () => {
+    if (!selectedShipment) {
+      alert('Please select a shipment to delete.')
+      return
+    }
+    if (!window.confirm('Are you sure you want to delete this shipment?')) {
+      return
+    }
+    try {
+      const response = await fetch(
+        `https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta/${selectedShipment._id}`,
+        { method: 'DELETE' }
+      )
+      if (response.ok) {
+        setShipments((prev) => prev.filter((s) => s._id !== selectedShipment._id))
+        setSelectedShipment(null)
+        setRouteData([])
+        alert('Shipment deleted successfully.')
+      } else {
+        alert('Failed to delete shipment.')
+      }
+    } catch (e) {
+      alert('Error deleting shipment.')
+    }
+  }
+
   return (
     <>
       <CRow>
@@ -288,6 +314,13 @@ const Shipments = () => {
                 <CFormInput placeholder="Search Shipments" className="mb-3" style={{ flex: 1, marginBottom: 0 }} />
                 <CButton color="primary" onClick={() => setIsModalOpen(true)}>
                   Create New Shipment
+                </CButton>
+                <CButton
+                  color="danger"
+                  disabled={!selectedShipment}
+                  onClick={deleteShipment}
+                >
+                  Delete Selected Shipment
                 </CButton>
               </div>
               <CNav variant="tabs" role="tablist" className="mb-3">
