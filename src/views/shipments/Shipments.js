@@ -27,6 +27,7 @@ import {
 } from '@coreui/react'
 import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2 } from 'react-icons/bs' // Changed BsSun to BsSpeedometer2
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import axios from 'axios';
 
 const customIcon = window.L
   ? window.L.icon({
@@ -78,6 +79,8 @@ const Shipments = () => {
   const [humidityData, setHumidityData] = useState([])
   const [batteryData, setBatteryData] = useState([])
   const [speedData, setSpeedData] = useState([])
+  // Add state for new shipment preview polyline
+  const [newShipmentPreview, setNewShipmentPreview] = useState(null);
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -308,6 +311,50 @@ const Shipments = () => {
     }
   }
 
+  // Helper: Geocode an address to [lat, lng] using Nominatim
+  const geocodeAddress = async (address) => {
+    if (!address) return null;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+      const res = await axios.get(url, { headers: { 'Accept-Language': 'en' } });
+      if (res.data && res.data.length > 0) {
+        return [parseFloat(res.data[0].lat), parseFloat(res.data[0].lon)];
+      }
+    } catch (e) {
+      // Ignore geocode errors
+    }
+    return null;
+  };
+
+  // When modal is open and addresses are filled, preview the line
+  useEffect(() => {
+    const showPreview = async () => {
+      if (!isModalOpen) {
+        setNewShipmentPreview(null);
+        return;
+      }
+      const firstLeg = legs[0];
+      const lastLeg = legs[legs.length - 1];
+      const from = firstLeg?.shipFromAddress;
+      const to = lastLeg?.stopAddress;
+      if (from && to) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
+        } else {
+          setNewShipmentPreview(null);
+        }
+      } else {
+        setNewShipmentPreview(null);
+      }
+    };
+    showPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, legs]);
+
   return (
     <>
       {/* MAP SECTION */}
@@ -324,6 +371,7 @@ const Shipments = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
+                {/* Show shipment route if selected */}
                 {routeData.length > 0 && (
                   <>
                     <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
@@ -341,6 +389,14 @@ const Shipments = () => {
                       <Popup>Last Point</Popup>
                     </Marker>
                   </>
+                )}
+                {/* Show preview line for new shipment */}
+                {isModalOpen && newShipmentPreview && (
+                  <Polyline
+                    positions={newShipmentPreview}
+                    color="orange"
+                    dashArray="8"
+                  />
                 )}
               </MapContainer>
             </CCardBody>
