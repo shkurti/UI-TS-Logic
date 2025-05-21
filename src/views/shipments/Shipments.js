@@ -427,17 +427,15 @@ const Shipments = () => {
         border-radius: 50%;
         width: 28px;
         height: 28px;
-        line-height: 28px;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: bold;
         font-size: 16px;
         border: 2px solid #fff;
         box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         pointer-events: auto;
         z-index: 10000;
-        position: relative;
-        margin-top: -14px;
-        margin-left: -14px;
         user-select: none;
       ">${number}</div>`,
       iconSize: [28, 28],
@@ -516,16 +514,6 @@ const Shipments = () => {
                       }
                       return null;
                     })()}
-                    {/* Markers for 1 (start) and 2 (end) */}
-                    {previewMarkers.map((marker, idx) => (
-                      <Marker
-                        key={idx}
-                        position={marker.position}
-                        icon={numberIcon(marker.label)}
-                      >
-                        <Popup>{marker.popup}</Popup>
-                      </Marker>
-                    ))}
                     {/* Marker for current GPS location */}
                     <Marker
                       position={[
@@ -536,6 +524,16 @@ const Shipments = () => {
                     >
                       <Popup>Last Point</Popup>
                     </Marker>
+                    {/* Markers for 1 (start) and 2 (end) */}
+                    {previewMarkers.map((marker, idx) => (
+                      <Marker
+                        key={idx}
+                        position={marker.position}
+                        icon={numberIcon(marker.label)}
+                      >
+                        <Popup>{marker.popup}</Popup>
+                      </Marker>
+                    ))}
                   </>
                 ) : (
                   // Show preview line for new shipment or for selected shipment with no routeData
