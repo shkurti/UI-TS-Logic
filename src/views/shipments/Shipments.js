@@ -27,7 +27,6 @@ import {
 } from '@coreui/react'
 import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2 } from 'react-icons/bs' // Changed BsSun to BsSpeedometer2
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import axios from 'axios';
 
 const customIcon = window.L
   ? window.L.icon({
