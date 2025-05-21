@@ -457,51 +457,26 @@ const Shipments = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 {/* Show shipment route if selected */}
-                {routeData.length > 0 && newShipmentPreview && (
+                {routeData.length > 0 && (
                   <>
-                    {/* Fit bounds to the actual route */}
                     <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
-                    {/* Actual route: solid line */}
                     <Polyline
                       positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
                       color="blue"
                     />
-                    {/* Remaining planned route: dashed line from last GPS point to planned destination */}
-                    {(() => {
-                      const actualEnd = [
+                    <Marker
+                      position={[
                         parseFloat(routeData[routeData.length - 1].latitude),
                         parseFloat(routeData[routeData.length - 1].longitude),
-                      ];
-                      const plannedEnd = newShipmentPreview[1];
-                      // Only draw if actualEnd and plannedEnd are different
-                      if (
-                        actualEnd[0] !== plannedEnd[0] ||
-                        actualEnd[1] !== plannedEnd[1]
-                      ) {
-                        return (
-                          <Polyline
-                            positions={[actualEnd, plannedEnd]}
-                            color="blue"
-                            dashArray="8"
-                          />
-                        );
-                      }
-                      return null;
-                    })()}
-                    {/* Numbered markers for start and end */}
-                    {previewMarkers.map((marker, idx) => (
-                      <Marker
-                        key={idx}
-                        position={marker.position}
-                        icon={numberIcon(marker.label)}
-                      >
-                        <Popup>{marker.popup}</Popup>
-                      </Marker>
-                    ))}
+                      ]}
+                      icon={customIcon}
+                    >
+                      <Popup>Last Point</Popup>
+                    </Marker>
                   </>
                 )}
-                {/* If no GPS data, show only planned dashed line and markers */}
-                {routeData.length === 0 && newShipmentPreview && (
+                {/* Show preview line for new shipment or for selected shipment with no routeData */}
+                {newShipmentPreview && (
                   <>
                     <Polyline
                       positions={newShipmentPreview}
