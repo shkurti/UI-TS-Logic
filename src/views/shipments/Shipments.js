@@ -315,7 +315,7 @@ const Shipments = () => {
     if (!address) return null;
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
       const data = await res.json();
       if (data && data.length > 0) {
         return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
@@ -333,17 +333,23 @@ const Shipments = () => {
         setNewShipmentPreview(null);
         return;
       }
+      // Always use the first leg's shipFromAddress and last leg's stopAddress
       const firstLeg = legs[0];
       const lastLeg = legs[legs.length - 1];
       const from = firstLeg?.shipFromAddress;
       const to = lastLeg?.stopAddress;
       if (from && to) {
-        const [fromCoord, toCoord] = await Promise.all([
-          geocodeAddress(from),
-          geocodeAddress(to),
-        ]);
-        if (fromCoord && toCoord) {
-          setNewShipmentPreview([fromCoord, toCoord]);
+        // Only geocode if both addresses are non-empty and not identical
+        if (from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+          } else {
+            setNewShipmentPreview(null);
+          }
         } else {
           setNewShipmentPreview(null);
         }
