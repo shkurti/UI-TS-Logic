@@ -404,7 +404,7 @@ const Shipments = () => {
 
   // Also update preview markers for modal preview
   useEffect(() => {
-    // Ensure previewMarkers are always set for both preview and routeData cases
+    // Always set previewMarkers for both preview and routeData cases
     if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
       const from = legs[0]?.shipFromAddress;
       const to = legs[legs.length - 1]?.stopAddress;
@@ -438,13 +438,12 @@ const Shipments = () => {
         pointer-events: auto;
         z-index: 10000;
         user-select: none;
-        position: relative;
       ">${number}</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
       popupAnchor: [0, -14],
-      shadowUrl: undefined,
-      iconUrl: undefined,
+      shadowUrl: null,
+      iconUrl: null,
     });
 
   // Helper to check if routeData is valid and has at least two points
