@@ -316,9 +316,10 @@ const Shipments = () => {
     if (!address) return null;
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-      const res = await axios.get(url, { headers: { 'Accept-Language': 'en' } });
-      if (res.data && res.data.length > 0) {
-        return [parseFloat(res.data[0].lat), parseFloat(res.data[0].lon)];
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
       }
     } catch (e) {
       // Ignore geocode errors
