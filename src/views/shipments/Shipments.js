@@ -440,6 +440,18 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     });
 
+  // Helper to check if routeData is valid and has at least two points
+  const hasValidRoute = (routeData) =>
+    Array.isArray(routeData) &&
+    routeData.length > 1 &&
+    routeData.every(
+      (r) =>
+        r.latitude !== undefined &&
+        r.longitude !== undefined &&
+        !isNaN(parseFloat(r.latitude)) &&
+        !isNaN(parseFloat(r.longitude))
+    );
+
   return (
     <>
       {/* MAP SECTION */}
@@ -457,13 +469,57 @@ const Shipments = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 {/* Show shipment route if selected */}
-                {routeData.length > 0 && (
+                {hasValidRoute(routeData) ? (
                   <>
+                    {/* Fit to the actual route */}
                     <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
+                    {/* Draw the traveled route as a solid blue line */}
                     <Polyline
                       positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
                       color="blue"
                     />
+                    {/* Draw the remaining route as a dashed blue line */}
+                    {(() => {
+                      // If we have a preview line and routeData, draw the remaining segment
+                      if (
+                        newShipmentPreview &&
+                        newShipmentPreview.length === 2 &&
+                        routeData.length > 0
+                      ) {
+                        // Start: first point of preview (origin)
+                        // End: last point of routeData (current GPS)
+                        const start = newShipmentPreview[0];
+                        const gpsLast = [
+                          parseFloat(routeData[routeData.length - 1].latitude),
+                          parseFloat(routeData[routeData.length - 1].longitude),
+                        ];
+                        const end = newShipmentPreview[1];
+                        // Only draw if GPS hasn't reached the destination
+                        // (distance between gpsLast and end is significant)
+                        const dist = Math.abs(gpsLast[0] - end[0]) + Math.abs(gpsLast[1] - end[1]);
+                        if (dist > 0.01) {
+                          return (
+                            <Polyline
+                              positions={[gpsLast, end]}
+                              color="blue"
+                              dashArray="8"
+                            />
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                    {/* Markers for 1 (start) and 2 (end) */}
+                    {previewMarkers.map((marker, idx) => (
+                      <Marker
+                        key={idx}
+                        position={marker.position}
+                        icon={numberIcon(marker.label)}
+                      >
+                        <Popup>{marker.popup}</Popup>
+                      </Marker>
+                    ))}
+                    {/* Marker for current GPS location */}
                     <Marker
                       position={[
                         parseFloat(routeData[routeData.length - 1].latitude),
@@ -474,25 +530,26 @@ const Shipments = () => {
                       <Popup>Last Point</Popup>
                     </Marker>
                   </>
-                )}
-                {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {newShipmentPreview && (
-                  <>
-                    <Polyline
-                      positions={newShipmentPreview}
-                      color="blue"
-                      dashArray="8"
-                    />
-                    {previewMarkers.map((marker, idx) => (
-                      <Marker
-                        key={idx}
-                        position={marker.position}
-                        icon={numberIcon(marker.label)}
-                      >
-                        <Popup>{marker.popup}</Popup>
-                      </Marker>
-                    ))}
-                  </>
+                ) : (
+                  // Show preview line for new shipment or for selected shipment with no routeData
+                  newShipmentPreview && (
+                    <>
+                      <Polyline
+                        positions={newShipmentPreview}
+                        color="blue"
+                        dashArray="8"
+                      />
+                      {previewMarkers.map((marker, idx) => (
+                        <Marker
+                          key={idx}
+                          position={marker.position}
+                          icon={numberIcon(marker.label)}
+                        >
+                          <Popup>{marker.popup}</Popup>
+                        </Marker>
+                      ))}
+                    </>
+                  )
                 )}
               </MapContainer>
             </CCardBody>
