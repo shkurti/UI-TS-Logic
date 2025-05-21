@@ -434,10 +434,14 @@ const Shipments = () => {
         font-size: 16px;
         border: 2px solid #fff;
         box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        pointer-events: auto;
       ">${number}</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
       popupAnchor: [0, -14],
+      // Remove shadow and iconUrl so only the div is rendered
+      shadowUrl: null,
+      iconUrl: null,
     });
 
   // Helper to check if routeData is valid and has at least two points
@@ -515,6 +519,7 @@ const Shipments = () => {
                         key={idx}
                         position={marker.position}
                         icon={numberIcon(marker.label)}
+                        interactive={true}
                       >
                         <Popup>{marker.popup}</Popup>
                       </Marker>
@@ -544,6 +549,7 @@ const Shipments = () => {
                           key={idx}
                           position={marker.position}
                           icon={numberIcon(marker.label)}
+                          interactive={true}
                         >
                           <Popup>{marker.popup}</Popup>
                         </Marker>
