@@ -361,6 +361,39 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
+  // Add this effect to show a line between cities when a shipment is selected and there is no routeData
+  useEffect(() => {
+    const showSelectedShipmentLine = async () => {
+      // Only show if a shipment is selected and there is no routeData (no tracker data)
+      if (
+        selectedShipment &&
+        (!routeData || routeData.length === 0) &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            return;
+          }
+        }
+      }
+      // Otherwise, clear the preview
+      setNewShipmentPreview(null);
+    };
+    showSelectedShipmentLine();
+    // Only run when selectedShipment or routeData changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
   return (
     <>
       {/* MAP SECTION */}
@@ -396,8 +429,8 @@ const Shipments = () => {
                     </Marker>
                   </>
                 )}
-                {/* Show preview line for new shipment */}
-                {isModalOpen && newShipmentPreview && (
+                {/* Show preview line for new shipment or for selected shipment with no routeData */}
+                {newShipmentPreview && (
                   <Polyline
                     positions={newShipmentPreview}
                     color="orange"
