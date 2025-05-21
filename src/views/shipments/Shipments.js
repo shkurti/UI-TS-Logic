@@ -27,6 +27,7 @@ import {
 } from '@coreui/react'
 import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2 } from 'react-icons/bs' // Changed BsSun to BsSpeedometer2
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import L from 'leaflet'
 
 const customIcon = window.L
   ? window.L.icon({
@@ -416,6 +417,29 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
+  // Helper to create a number marker icon
+  const numberIcon = (number) =>
+    L.divIcon({
+      className: 'number-marker',
+      html: `<div style="
+        background: #1976d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      ">${number}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14],
+    });
+
   return (
     <>
       {/* MAP SECTION */}
@@ -460,31 +484,12 @@ const Shipments = () => {
                       dashArray="8"
                     />
                     {previewMarkers.map((marker, idx) => (
-                      <Marker key={idx} position={marker.position}>
+                      <Marker
+                        key={idx}
+                        position={marker.position}
+                        icon={numberIcon(marker.label)}
+                      >
                         <Popup>{marker.popup}</Popup>
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: '-12px',
-                            top: '-32px',
-                            background: '#1976d2',
-                            color: '#fff',
-                            borderRadius: '50%',
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            fontSize: 14,
-                            border: '2px solid #fff',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                            pointerEvents: 'none',
-                            zIndex: 1000
-                          }}
-                        >
-                          {marker.label}
-                        </div>
                       </Marker>
                     ))}
                   </>
