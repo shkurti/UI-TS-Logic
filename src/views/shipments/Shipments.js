@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   CButton,
@@ -80,6 +80,7 @@ const Shipments = () => {
   const [speedData, setSpeedData] = useState([])
   // Add state for new shipment preview polyline
   const [newShipmentPreview, setNewShipmentPreview] = useState(null);
+  const [previewMarkers, setPreviewMarkers] = useState([]); // New state for preview markers
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -382,17 +383,38 @@ const Shipments = () => {
           ]);
           if (fromCoord && toCoord) {
             setNewShipmentPreview([fromCoord, toCoord]);
+            // Save marker positions for numbers
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
             return;
           }
         }
       }
       // Otherwise, clear the preview
       setNewShipmentPreview(null);
+      setPreviewMarkers([]);
     };
     showSelectedShipmentLine();
     // Only run when selectedShipment or routeData changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
+
+  // Also update preview markers for modal preview
+  useEffect(() => {
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+      setPreviewMarkers([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
   return (
     <>
@@ -431,11 +453,41 @@ const Shipments = () => {
                 )}
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
                 {newShipmentPreview && (
-                  <Polyline
-                    positions={newShipmentPreview}
-                    color="orange"
-                    dashArray="8"
-                  />
+                  <>
+                    <Polyline
+                      positions={newShipmentPreview}
+                      color="blue"
+                      dashArray="8"
+                    />
+                    {previewMarkers.map((marker, idx) => (
+                      <Marker key={idx} position={marker.position}>
+                        <Popup>{marker.popup}</Popup>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '-12px',
+                            top: '-32px',
+                            background: '#1976d2',
+                            color: '#fff',
+                            borderRadius: '50%',
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: 14,
+                            border: '2px solid #fff',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                            pointerEvents: 'none',
+                            zIndex: 1000
+                          }}
+                        >
+                          {marker.label}
+                        </div>
+                      </Marker>
+                    ))}
+                  </>
                 )}
               </MapContainer>
             </CCardBody>
