@@ -440,6 +440,47 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     });
 
+  // Helper: Calculate distance between two [lat, lng] points (Haversine)
+  function haversineDistance([lat1, lon1], [lat2, lon2]) {
+    function toRad(x) { return (x * Math.PI) / 180; }
+    const R = 6371e3; // meters
+    const φ1 = toRad(lat1), φ2 = toRad(lat2);
+    const Δφ = toRad(lat2 - lat1);
+    const Δλ = toRad(lon2 - lon1);
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  // --- MAP RENDER LOGIC ---
+  // Compute planned and actual route segments for rendering
+  let plannedStart = null, plannedEnd = null;
+  if (newShipmentPreview && newShipmentPreview.length === 2) {
+    plannedStart = newShipmentPreview[0];
+    plannedEnd = newShipmentPreview[1];
+  }
+
+  // For actual route
+  const actualRoute = routeData && routeData.length > 0
+    ? routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])
+    : [];
+
+  // Compute remaining planned segment (from last actual point to destination)
+  let remainingPlannedSegment = null;
+  let hidePlanned = false;
+  if (plannedStart && plannedEnd && actualRoute.length > 0) {
+    const lastActual = actualRoute[actualRoute.length - 1];
+    const distToDest = haversineDistance(lastActual, plannedEnd);
+    // If last actual point is within 200m of destination, hide planned segment
+    if (distToDest < 200) {
+      hidePlanned = true;
+    } else {
+      remainingPlannedSegment = [lastActual, plannedEnd];
+    }
+  }
+
   return (
     <>
       {/* MAP SECTION */}
@@ -456,42 +497,68 @@ const Shipments = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {/* Show shipment route if selected */}
-                {routeData.length > 0 && (
+                {/* Show actual shipment route if available */}
+                {actualRoute.length > 0 && (
                   <>
-                    <FitBounds route={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])} />
+                    <FitBounds route={actualRoute} />
                     <Polyline
-                      positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
+                      positions={actualRoute}
                       color="blue"
                     />
                     <Marker
-                      position={[
-                        parseFloat(routeData[routeData.length - 1].latitude),
-                        parseFloat(routeData[routeData.length - 1].longitude),
-                      ]}
+                      position={actualRoute[actualRoute.length - 1]}
                       icon={customIcon}
                     >
                       <Popup>Last Point</Popup>
                     </Marker>
                   </>
                 )}
-                {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {newShipmentPreview && (
+                {/* Show planned route (dashed) if no actual route, or show remaining planned segment */}
+                {plannedStart && plannedEnd && (
                   <>
-                    <Polyline
-                      positions={newShipmentPreview}
-                      color="blue"
-                      dashArray="8"
-                    />
-                    {previewMarkers.map((marker, idx) => (
-                      <Marker
-                        key={idx}
-                        position={marker.position}
-                        icon={numberIcon(marker.label)}
-                      >
-                        <Popup>{marker.popup}</Popup>
-                      </Marker>
-                    ))}
+                    {/* If no actual route, show full planned dashed line and markers */}
+                    {actualRoute.length === 0 && (
+                      <>
+                        <Polyline
+                          positions={[plannedStart, plannedEnd]}
+                          color="blue"
+                          dashArray="8"
+                        />
+                        {previewMarkers.map((marker, idx) => (
+                          <Marker
+                            key={idx}
+                            position={marker.position}
+                            icon={numberIcon(marker.label)}
+                          >
+                            <Popup>{marker.popup}</Popup>
+                          </Marker>
+                        ))}
+                      </>
+                    )}
+                    {/* If actual route exists, show only remaining planned segment (dashed) and markers */}
+                    {actualRoute.length > 0 && !hidePlanned && remainingPlannedSegment && (
+                      <>
+                        <Polyline
+                          positions={remainingPlannedSegment}
+                          color="blue"
+                          dashArray="8"
+                        />
+                        {/* Start marker (number 1) at plannedStart */}
+                        <Marker
+                          position={plannedStart}
+                          icon={numberIcon('1')}
+                        >
+                          <Popup>Start: {legs[0]?.shipFromAddress || previewMarkers[0]?.popup}</Popup>
+                        </Marker>
+                        {/* End marker (number 2) at plannedEnd */}
+                        <Marker
+                          position={plannedEnd}
+                          icon={numberIcon('2')}
+                        >
+                          <Popup>End: {legs[legs.length - 1]?.stopAddress || previewMarkers[1]?.popup}</Popup>
+                        </Marker>
+                      </>
+                    )}
                   </>
                 )}
               </MapContainer>
