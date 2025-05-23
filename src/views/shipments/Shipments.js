@@ -238,8 +238,26 @@ const Shipments = () => {
     const shipDate = firstLeg.shipDate
     const arrivalDate = lastLeg.arrivalDate
 
+    // Always clear preview first
+    setNewShipmentPreview(null)
+    setPreviewMarkers([])
+
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
+      // If shipment has legs, try to show planned preview
+      if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
+        const from = firstLeg.shipFromAddress
+        const to = lastLeg.stopAddress
+        Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord])
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ])
+          }
+        })
+      }
       return
     }
 
@@ -278,11 +296,59 @@ const Shipments = () => {
             speed: record.speed !== undefined ? parseFloat(record.speed) : null,
           }))
         )
+        // If no GPS data, show planned preview
+        if (!data || data.length === 0) {
+          if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
+            const from = firstLeg.shipFromAddress
+            const to = lastLeg.stopAddress
+            Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
+              if (fromCoord && toCoord) {
+                setNewShipmentPreview([fromCoord, toCoord])
+                setPreviewMarkers([
+                  { position: fromCoord, label: '1', popup: `Start: ${from}` },
+                  { position: toCoord, label: '2', popup: `End: ${to}` }
+                ])
+              }
+            })
+          }
+        } else {
+          // If GPS data exists, clear preview
+          setNewShipmentPreview(null)
+          setPreviewMarkers([])
+        }
       } else {
         setRouteData([])
+        // If shipment has legs, try to show planned preview
+        if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
+          const from = firstLeg.shipFromAddress
+          const to = lastLeg.stopAddress
+          Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
+            if (fromCoord && toCoord) {
+              setNewShipmentPreview([fromCoord, toCoord])
+              setPreviewMarkers([
+                { position: fromCoord, label: '1', popup: `Start: ${from}` },
+                { position: toCoord, label: '2', popup: `End: ${to}` }
+              ])
+            }
+          })
+        }
       }
     } catch (e) {
       setRouteData([])
+      // If shipment has legs, try to show planned preview
+      if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
+        const from = firstLeg.shipFromAddress
+        const to = lastLeg.stopAddress
+        Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord])
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ])
+          }
+        })
+      }
     }
   }
 
@@ -362,45 +428,6 @@ const Shipments = () => {
     showPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
-
-  // Add this effect to show a line between cities when a shipment is selected and there is no routeData
-  useEffect(() => {
-    const showSelectedShipmentLine = async () => {
-      // Only show if a shipment is selected and there is no routeData (no tracker data)
-      if (
-        selectedShipment &&
-        (!routeData || routeData.length === 0) &&
-        selectedShipment.legs &&
-        selectedShipment.legs.length > 0
-      ) {
-        const firstLeg = selectedShipment.legs[0];
-        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
-        const from = firstLeg?.shipFromAddress;
-        const to = lastLeg?.stopAddress;
-        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
-          const [fromCoord, toCoord] = await Promise.all([
-            geocodeAddress(from),
-            geocodeAddress(to),
-          ]);
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord]);
-            // Save marker positions for numbers
-            setPreviewMarkers([
-              { position: fromCoord, label: '1', popup: `Start: ${from}` },
-              { position: toCoord, label: '2', popup: `End: ${to}` }
-            ]);
-            return;
-          }
-        }
-      }
-      // Otherwise, clear the preview
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-    };
-    showSelectedShipmentLine();
-    // Only run when selectedShipment or routeData changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
 
   // Also update preview markers for modal preview
   useEffect(() => {
