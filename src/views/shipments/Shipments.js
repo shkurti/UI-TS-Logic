@@ -458,12 +458,20 @@ const Shipments = () => {
   let hidePlanned = false;
   if (plannedStart && plannedEnd && actualRoute.length > 0) {
     const lastActual = actualRoute[actualRoute.length - 1];
-    const distToDest = haversineDistance(lastActual, plannedEnd);
-    // If last actual point is within 200m of destination, hide planned segment
-    if (distToDest < 200) {
+
+    // Only connect the broken polyline if the first GPS point is close to the planned start
+    const firstActual = actualRoute[0];
+    const distToStart = haversineDistance(firstActual, plannedStart);
+    // If the first GPS point is more than 10km from the planned start, do not show the broken polyline
+    if (distToStart > 10000) {
       hidePlanned = true;
     } else {
-      remainingPlannedSegment = [lastActual, plannedEnd];
+      const distToDest = haversineDistance(lastActual, plannedEnd);
+      if (distToDest < 200) {
+        hidePlanned = true;
+      } else {
+        remainingPlannedSegment = [lastActual, plannedEnd];
+      }
     }
   }
 
