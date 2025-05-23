@@ -231,45 +231,21 @@ const Shipments = () => {
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
+    const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
     const lastLeg = legs[legs.length - 1] || {}
     const shipDate = firstLeg.shipDate
     const arrivalDate = lastLeg.arrivalDate
 
-    // Always clear preview first
-    setNewShipmentPreview(null)
-    setPreviewMarkers([])
-
-    // Always show planned preview if legs are valid (regardless of GPS data)
-    let plannedPreviewPromise = Promise.resolve()
-    if (
-      legs.length > 0 &&
-      firstLeg.shipFromAddress &&
-      lastLeg.stopAddress &&
-      firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()
-    ) {
-      const from = firstLeg.shipFromAddress
-      const to = lastLeg.stopAddress
-      plannedPreviewPromise = Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
-        if (fromCoord && toCoord) {
-          setNewShipmentPreview([fromCoord, toCoord])
-          setPreviewMarkers([
-            { position: fromCoord, label: '1', popup: `Start: ${from}` },
-            { position: toCoord, label: '2', popup: `End: ${to}` }
-          ])
-        }
-      })
-    }
-
-    if (!shipment.trackerId || !shipDate || !arrivalDate) {
+    if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
       return
     }
 
     try {
       const params = new URLSearchParams({
-        tracker_id: shipment.trackerId,
+        tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
       })
@@ -302,7 +278,6 @@ const Shipments = () => {
             speed: record.speed !== undefined ? parseFloat(record.speed) : null,
           }))
         )
-        // If GPS data exists, keep planned preview for broken line logic (do not clear here)
       } else {
         setRouteData([])
       }
@@ -388,6 +363,45 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
+  // Add this effect to show a line between cities when a shipment is selected and there is no routeData
+  useEffect(() => {
+    const showSelectedShipmentLine = async () => {
+      // Only show if a shipment is selected and there is no routeData (no tracker data)
+      if (
+        selectedShipment &&
+        (!routeData || routeData.length === 0) &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            // Save marker positions for numbers
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+            return;
+          }
+        }
+      }
+      // Otherwise, clear the preview
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+    };
+    showSelectedShipmentLine();
+    // Only run when selectedShipment or routeData changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
   // Also update preview markers for modal preview
   useEffect(() => {
     if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
@@ -426,7 +440,7 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     });
 
-  // Helper: Calculate distance between two [lat, lon] points (Haversine)
+  // Helper: Calculate distance between two [lat, lng] points (Haversine)
   function haversineDistance([lat1, lon1], [lat2, lon2]) {
     function toRad(x) { return (x * Math.PI) / 180; }
     const R = 6371e3; // meters
@@ -458,20 +472,12 @@ const Shipments = () => {
   let hidePlanned = false;
   if (plannedStart && plannedEnd && actualRoute.length > 0) {
     const lastActual = actualRoute[actualRoute.length - 1];
-
-    // Only connect the broken polyline if the first GPS point is close to the planned start
-    const firstActual = actualRoute[0];
-    const distToStart = haversineDistance(firstActual, plannedStart);
-    // If the first GPS point is more than 10km from the planned start, do not show the broken polyline
-    if (distToStart > 10000) {
+    const distToDest = haversineDistance(lastActual, plannedEnd);
+    // If last actual point is within 200m of destination, hide planned segment
+    if (distToDest < 200) {
       hidePlanned = true;
     } else {
-      const distToDest = haversineDistance(lastActual, plannedEnd);
-      if (distToDest < 200) {
-        hidePlanned = true;
-      } else {
-        remainingPlannedSegment = [lastActual, plannedEnd];
-      }
+      remainingPlannedSegment = [lastActual, plannedEnd];
     }
   }
 
