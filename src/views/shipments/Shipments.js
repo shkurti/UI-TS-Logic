@@ -231,7 +231,6 @@ const Shipments = () => {
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
-    const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
     const lastLeg = legs[legs.length - 1] || {}
@@ -242,28 +241,35 @@ const Shipments = () => {
     setNewShipmentPreview(null)
     setPreviewMarkers([])
 
-    if (!trackerId || !shipDate || !arrivalDate) {
+    // Always show planned preview if legs are valid (regardless of GPS data)
+    let plannedPreviewPromise = Promise.resolve()
+    if (
+      legs.length > 0 &&
+      firstLeg.shipFromAddress &&
+      lastLeg.stopAddress &&
+      firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()
+    ) {
+      const from = firstLeg.shipFromAddress
+      const to = lastLeg.stopAddress
+      plannedPreviewPromise = Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord])
+          setPreviewMarkers([
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
+          ])
+        }
+      })
+    }
+
+    if (!shipment.trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      // If shipment has legs, try to show planned preview
-      if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
-        const from = firstLeg.shipFromAddress
-        const to = lastLeg.stopAddress
-        Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord])
-            setPreviewMarkers([
-              { position: fromCoord, label: '1', popup: `Start: ${from}` },
-              { position: toCoord, label: '2', popup: `End: ${to}` }
-            ])
-          }
-        })
-      }
       return
     }
 
     try {
       const params = new URLSearchParams({
-        tracker_id: trackerId,
+        tracker_id: shipment.trackerId,
         start: shipDate,
         end: arrivalDate,
       })
@@ -296,59 +302,12 @@ const Shipments = () => {
             speed: record.speed !== undefined ? parseFloat(record.speed) : null,
           }))
         )
-        // If no GPS data, show planned preview
-        if (!data || data.length === 0) {
-          if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
-            const from = firstLeg.shipFromAddress
-            const to = lastLeg.stopAddress
-            Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
-              if (fromCoord && toCoord) {
-                setNewShipmentPreview([fromCoord, toCoord])
-                setPreviewMarkers([
-                  { position: fromCoord, label: '1', popup: `Start: ${from}` },
-                  { position: toCoord, label: '2', popup: `End: ${to}` }
-                ])
-              }
-            })
-          }
-        } else {
-          // If GPS data exists, clear preview
-          setNewShipmentPreview(null)
-          setPreviewMarkers([])
-        }
+        // If GPS data exists, keep planned preview for broken line logic (do not clear here)
       } else {
         setRouteData([])
-        // If shipment has legs, try to show planned preview
-        if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
-          const from = firstLeg.shipFromAddress
-          const to = lastLeg.stopAddress
-          Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
-            if (fromCoord && toCoord) {
-              setNewShipmentPreview([fromCoord, toCoord])
-              setPreviewMarkers([
-                { position: fromCoord, label: '1', popup: `Start: ${from}` },
-                { position: toCoord, label: '2', popup: `End: ${to}` }
-              ])
-            }
-          })
-        }
       }
     } catch (e) {
       setRouteData([])
-      // If shipment has legs, try to show planned preview
-      if (legs.length > 0 && firstLeg.shipFromAddress && lastLeg.stopAddress && firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()) {
-        const from = firstLeg.shipFromAddress
-        const to = lastLeg.stopAddress
-        Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord])
-            setPreviewMarkers([
-              { position: fromCoord, label: '1', popup: `Start: ${from}` },
-              { position: toCoord, label: '2', popup: `End: ${to}` }
-            ])
-          }
-        })
-      }
     }
   }
 
@@ -467,7 +426,7 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     });
 
-  // Helper: Calculate distance between two [lat, lng] points (Haversine)
+  // Helper: Calculate distance between two [lat, lon] points (Haversine)
   function haversineDistance([lat1, lon1], [lat2, lon2]) {
     function toRad(x) { return (x * Math.PI) / 180; }
     const R = 6371e3; // meters
