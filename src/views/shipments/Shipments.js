@@ -312,15 +312,21 @@ const Shipments = () => {
     }
   }
 
-  // Helper: Geocode an address to [lat, lng] using Nominatim
+  // Address geocode cache to avoid redundant lookups
+  const addressCache = {};
+
+  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache
   const geocodeAddress = async (address) => {
     if (!address) return null;
+    if (addressCache[address]) return addressCache[address];
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
       const data = await res.json();
       if (data && data.length > 0) {
-        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        addressCache[address] = coords;
+        return coords;
       }
     } catch (e) {
       // Ignore geocode errors
@@ -333,40 +339,41 @@ const Shipments = () => {
     const showPreview = async () => {
       if (!isModalOpen) {
         setNewShipmentPreview(null);
+        setPreviewMarkers([]);
         return;
       }
-      // Always use the first leg's shipFromAddress and last leg's stopAddress
+      // Use full address for both start and end
       const firstLeg = legs[0];
       const lastLeg = legs[legs.length - 1];
       const from = firstLeg?.shipFromAddress;
       const to = lastLeg?.stopAddress;
-      if (from && to) {
-        // Only geocode if both addresses are non-empty and not identical
-        if (from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
-          const [fromCoord, toCoord] = await Promise.all([
-            geocodeAddress(from),
-            geocodeAddress(to),
+      if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
+          setPreviewMarkers([
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
           ]);
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord]);
-          } else {
-            setNewShipmentPreview(null);
-          }
         } else {
           setNewShipmentPreview(null);
+          setPreviewMarkers([]);
         }
       } else {
         setNewShipmentPreview(null);
+        setPreviewMarkers([]);
       }
     };
     showPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
-  // Add this effect to show a line between cities when a shipment is selected and there is no routeData
+  // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
-      // Only show if a shipment is selected and there is no routeData (no tracker data)
       if (
         selectedShipment &&
         (!routeData || routeData.length === 0) &&
@@ -384,7 +391,6 @@ const Shipments = () => {
           ]);
           if (fromCoord && toCoord) {
             setNewShipmentPreview([fromCoord, toCoord]);
-            // Save marker positions for numbers
             setPreviewMarkers([
               { position: fromCoord, label: '1', popup: `Start: ${from}` },
               { position: toCoord, label: '2', popup: `End: ${to}` }
@@ -393,16 +399,14 @@ const Shipments = () => {
           }
         }
       }
-      // Otherwise, clear the preview
       setNewShipmentPreview(null);
       setPreviewMarkers([]);
     };
     showSelectedShipmentLine();
-    // Only run when selectedShipment or routeData changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
 
-  // Also update preview markers for modal preview
+  // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
     if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
       const from = legs[0]?.shipFromAddress;
