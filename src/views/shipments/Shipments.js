@@ -249,15 +249,14 @@ const Shipments = () => {
       lastLeg.stopAddress &&
       firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()
     ) {
-      // Use the full address string for geocoding
-      const from = { full: firstLeg.shipFromAddress };
-      const to = { full: lastLeg.stopAddress };
+      const from = { city: firstLeg.shipFromCity, state: firstLeg.shipFromState };
+      const to = { city: lastLeg.stopCity, state: lastLeg.stopState };
       plannedPreviewPromise = Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
         if (fromCoord && toCoord) {
           setNewShipmentPreview([fromCoord, toCoord])
           setPreviewMarkers([
-            { position: fromCoord, label: '1', popup: `Start: ${from.full}` },
-            { position: toCoord, label: '2', popup: `End: ${to.full}` }
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
           ])
         }
       })
@@ -339,15 +338,14 @@ const Shipments = () => {
   }
 
   // Helper: Geocode an address to [lat, lng] using Nominatim
-  // Accepts either a string or an object { full }
+  // Accepts either a string or an object { city, state }
   const geocodeAddress = async (address) => {
     if (!address) return null;
     let query = '';
-    if (typeof address === 'object' && address.full) {
-      // Add ", USA" to bias results to the United States
-      query = `${address.full}, USA`;
+    if (typeof address === 'object' && address.city && address.state) {
+      query = `${address.city}, ${address.state}`;
     } else {
-      query = `${address}, USA`;
+      query = address;
     }
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
@@ -369,17 +367,23 @@ const Shipments = () => {
         setNewShipmentPreview(null);
         return;
       }
+      // Always use the first leg's shipFromAddress and last leg's stopAddress
       const firstLeg = legs[0];
       const lastLeg = legs[legs.length - 1];
-      const from = { full: firstLeg?.shipFromAddress };
-      const to = { full: lastLeg?.stopAddress };
-      if (from.full && to.full && from.full.trim() !== '' && to.full.trim() !== '' && from.full !== to.full) {
-        const [fromCoord, toCoord] = await Promise.all([
-          geocodeAddress(from),
-          geocodeAddress(to),
-        ]);
-        if (fromCoord && toCoord) {
-          setNewShipmentPreview([fromCoord, toCoord]);
+      const from = { city: firstLeg?.shipFromCity, state: firstLeg?.shipFromState };
+      const to = { city: lastLeg?.stopCity, state: lastLeg?.stopState };
+      if (from.city && from.state && to.city && to.state) {
+        // Only geocode if both addresses are non-empty and not identical
+        if (from.city.trim() !== '' && to.city.trim() !== '' && (from.city !== to.city || from.state !== to.state)) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+          } else {
+            setNewShipmentPreview(null);
+          }
         } else {
           setNewShipmentPreview(null);
         }
