@@ -249,14 +249,15 @@ const Shipments = () => {
       lastLeg.stopAddress &&
       firstLeg.shipFromAddress.trim() !== lastLeg.stopAddress.trim()
     ) {
-      const from = { city: firstLeg.shipFromCity, state: firstLeg.shipFromState };
-      const to = { city: lastLeg.stopCity, state: lastLeg.stopState };
+      // Use the full address string for geocoding
+      const from = { full: firstLeg.shipFromAddress };
+      const to = { full: lastLeg.stopAddress };
       plannedPreviewPromise = Promise.all([geocodeAddress(from), geocodeAddress(to)]).then(([fromCoord, toCoord]) => {
         if (fromCoord && toCoord) {
           setNewShipmentPreview([fromCoord, toCoord])
           setPreviewMarkers([
-            { position: fromCoord, label: '1', popup: `Start: ${from}` },
-            { position: toCoord, label: '2', popup: `End: ${to}` }
+            { position: fromCoord, label: '1', popup: `Start: ${from.full}` },
+            { position: toCoord, label: '2', popup: `End: ${to.full}` }
           ])
         }
       })
@@ -342,8 +343,15 @@ const Shipments = () => {
   const geocodeAddress = async (address) => {
     if (!address) return null;
     let query = '';
-    if (typeof address === 'object' && address.city && address.state) {
-      query = `${address.city}, ${address.state}`;
+    // If address is an object with city/state, join them; otherwise, use as string
+    if (typeof address === 'object' && (address.city || address.state)) {
+      // Prefer full address if available
+      if (address.full) {
+        query = address.full;
+      } else {
+        // Compose from available fields
+        query = [address.street, address.city, address.state, address.country].filter(Boolean).join(', ');
+      }
     } else {
       query = address;
     }
@@ -367,23 +375,17 @@ const Shipments = () => {
         setNewShipmentPreview(null);
         return;
       }
-      // Always use the first leg's shipFromAddress and last leg's stopAddress
       const firstLeg = legs[0];
       const lastLeg = legs[legs.length - 1];
-      const from = { city: firstLeg?.shipFromCity, state: firstLeg?.shipFromState };
-      const to = { city: lastLeg?.stopCity, state: lastLeg?.stopState };
-      if (from.city && from.state && to.city && to.state) {
-        // Only geocode if both addresses are non-empty and not identical
-        if (from.city.trim() !== '' && to.city.trim() !== '' && (from.city !== to.city || from.state !== to.state)) {
-          const [fromCoord, toCoord] = await Promise.all([
-            geocodeAddress(from),
-            geocodeAddress(to),
-          ]);
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord]);
-          } else {
-            setNewShipmentPreview(null);
-          }
+      const from = { full: firstLeg?.shipFromAddress };
+      const to = { full: lastLeg?.stopAddress };
+      if (from.full && to.full && from.full.trim() !== '' && to.full.trim() !== '' && from.full !== to.full) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
         } else {
           setNewShipmentPreview(null);
         }
