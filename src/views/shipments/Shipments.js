@@ -490,30 +490,31 @@ const Shipments = () => {
                         Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
                       </Popup>
                     </Marker>
-                    {/* Marker 2: Destination */}
+                    {/* Always show destination marker and dashed line if destinationCoord is available */}
                     {destinationCoord && (
-                      <Marker
-                        position={destinationCoord}
-                        icon={numberIcon('2')}
-                      >
-                        <Popup>
-                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                        </Popup>
-                      </Marker>
-                    )}
-                    {/* Draw dashed line from last GPS point to destination marker if available */}
-                    {destinationCoord && (
-                      <Polyline
-                        positions={[
-                          [
-                            parseFloat(routeData[routeData.length - 1].latitude),
-                            parseFloat(routeData[routeData.length - 1].longitude)
-                          ],
-                          destinationCoord
-                        ]}
-                        color="blue"
-                        dashArray="8"
-                      />
+                      <>
+                        {/* Marker 2: Destination */}
+                        <Marker
+                          position={destinationCoord}
+                          icon={numberIcon('2')}
+                        >
+                          <Popup>
+                            End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                          </Popup>
+                        </Marker>
+                        {/* Dashed line from last GPS point to destination */}
+                        <Polyline
+                          positions={[
+                            [
+                              parseFloat(routeData[routeData.length - 1].latitude),
+                              parseFloat(routeData[routeData.length - 1].longitude)
+                            ],
+                            destinationCoord
+                          ]}
+                          color="blue"
+                          dashArray="8"
+                        />
+                      </>
                     )}
                     {/* Last GPS point marker (optional, can use default icon) */}
                     <Marker
