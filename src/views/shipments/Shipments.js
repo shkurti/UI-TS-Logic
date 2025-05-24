@@ -339,21 +339,15 @@ const Shipments = () => {
   }
 
   // Helper: Geocode an address to [lat, lng] using Nominatim
-  // Accepts either a string or an object { city, state }
+  // Accepts either a string or an object { full }
   const geocodeAddress = async (address) => {
     if (!address) return null;
     let query = '';
-    // If address is an object with city/state, join them; otherwise, use as string
-    if (typeof address === 'object' && (address.city || address.state)) {
-      // Prefer full address if available
-      if (address.full) {
-        query = address.full;
-      } else {
-        // Compose from available fields
-        query = [address.street, address.city, address.state, address.country].filter(Boolean).join(', ');
-      }
+    if (typeof address === 'object' && address.full) {
+      // Add ", USA" to bias results to the United States
+      query = `${address.full}, USA`;
     } else {
-      query = address;
+      query = `${address}, USA`;
     }
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
@@ -475,153 +469,6 @@ const Shipments = () => {
       remainingPlannedSegment = [lastActual, plannedEnd];
     }
   }
-
-  // Add WebSocket state for real-time updates
-  const [ws, setWs] = useState(null);
-
-  // Real-time GPS updates for selected shipment
-  useEffect(() => {
-    if (!selectedShipment || !selectedShipment.trackerId) return;
-
-    // Open WebSocket connection
-    const wsInstance = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    setWs(wsInstance);
-
-    wsInstance.onopen = () => {
-      // Optionally log or authenticate
-      // console.log('WebSocket connection established for shipments');
-    };
-
-    wsInstance.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        // Only process messages for the selected shipment's tracker
-        if (
-          message.operationType === 'insert' &&
-          (
-            String(message.tracker_id) === String(selectedShipment.trackerId) ||
-            String(message.trackerID) === String(selectedShipment.trackerId)
-          )
-        ) {
-          // Support both new_record/geolocation and data array from Mongo
-          if (Array.isArray(message.data)) {
-            // If the message contains a data array (bulk GPS points)
-            setRouteData((prev) => {
-              // Convert each data point to the expected format
-              const newPoints = message.data.map((d) => ({
-                latitude: d.Lat,
-                longitude: d.Lng,
-                tracker_id: message.tracker_id ?? message.trackerID,
-                trackerID: message.tracker_id ?? message.trackerID,
-                timestamp: d.DT,
-                temperature: d.Temp,
-                humidity: d.Hum,
-                battery: d.Batt,
-                speed: d.Speed,
-              }));
-              // Only deduplicate, do not filter out all previous points (to preserve planned polyline)
-              const updated = [...prev, ...newPoints];
-              return deduplicateRoute(updated, undefined); // Do not filter by trackerId here
-            });
-          } else {
-            // Single point update (new_record/geo)
-            const { new_record, geolocation } = message;
-            const lat = parseFloat(geolocation?.Lat);
-            const lng = parseFloat(geolocation?.Lng);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-              setRouteData((prev) => {
-                // Only deduplicate, do not filter out all previous points (to preserve planned polyline)
-                const updated = [
-                  ...prev,
-                  {
-                    ...new_record,
-                    latitude: lat,
-                    longitude: lng,
-                    tracker_id: selectedShipment.trackerId,
-                    trackerID: selectedShipment.trackerId,
-                    timestamp: new_record?.timestamp || new Date().toISOString(),
-                    temperature: new_record?.temperature ?? new_record?.Temp,
-                    humidity: new_record?.humidity ?? new_record?.Hum,
-                    battery: new_record?.battery ?? new_record?.Batt,
-                    speed: new_record?.speed ?? new_record?.Speed,
-                  },
-                ];
-                return deduplicateRoute(updated, undefined); // Do not filter by trackerId here
-              });
-            }
-          }
-
-          // Optionally update sensor data in real time
-          if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.battery !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.timestamp && new_record.speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    };
-
-    wsInstance.onerror = (error) => {
-      // Optionally log error
-      // console.error('WebSocket error:', error);
-    };
-
-    wsInstance.onclose = () => {
-      // Optionally log close
-      // console.log('WebSocket closed for shipments');
-    };
-
-    // Cleanup on unmount or tracker change
-    return () => {
-      wsInstance.close();
-    };
-    // Only re-run when selectedShipment.trackerId changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment?.trackerId]);
 
   return (
     <>
@@ -1153,19 +1000,3 @@ const Shipments = () => {
 }
 
 export default Shipments
-
-// Helper to deduplicate route points (lat/lon) in order, but only for the current shipment
-function deduplicateRoute(route, trackerId) {
-  const seen = new Set();
-  // Only filter by tracker if trackerId is provided, otherwise keep all
-  return route.filter((point) => {
-    if (trackerId !== undefined && trackerId !== null) {
-      const pid = String(point.tracker_id ?? point.trackerID);
-      if (pid !== String(trackerId)) return false;
-    }
-    const key = `${parseFloat(point.latitude)},${parseFloat(point.longitude)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
