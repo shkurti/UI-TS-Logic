@@ -257,44 +257,44 @@ const Shipments = () => {
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
-        // Use Dashboard.js logic: always use .Temp, .Hum, .Batt, .Speed, .timestamp (or .DT)
+        // Populate sensor data for tabs using the correct field names from backend
         setTemperatureData(
           data.map((record) => ({
             timestamp: record.timestamp || record.DT || 'N/A',
-            temperature: record.Temp !== undefined
-              ? parseFloat(record.Temp)
-              : record.temperature !== undefined
-                ? parseFloat(record.temperature)
+            temperature: record.temperature !== undefined
+              ? parseFloat(record.temperature)
+              : record.Temp !== undefined
+                ? parseFloat(record.Temp)
                 : null,
           }))
         )
         setHumidityData(
           data.map((record) => ({
             timestamp: record.timestamp || record.DT || 'N/A',
-            humidity: record.Hum !== undefined
-              ? parseFloat(record.Hum)
-              : record.humidity !== undefined
-                ? parseFloat(record.humidity)
+            humidity: record.humidity !== undefined
+              ? parseFloat(record.humidity)
+              : record.Hum !== undefined
+                ? parseFloat(record.Hum)
                 : null,
           }))
         )
         setBatteryData(
           data.map((record) => ({
             timestamp: record.timestamp || record.DT || 'N/A',
-            battery: record.Batt !== undefined
-              ? parseFloat(record.Batt)
-              : record.battery !== undefined
-                ? parseFloat(record.battery)
+            battery: record.battery !== undefined
+              ? parseFloat(record.battery)
+              : record.Batt !== undefined
+                ? parseFloat(record.Batt)
                 : null,
           }))
         )
         setSpeedData(
           data.map((record) => ({
             timestamp: record.timestamp || record.DT || 'N/A',
-            speed: record.Speed !== undefined
-              ? parseFloat(record.Speed)
-              : record.speed !== undefined
-                ? parseFloat(record.speed)
+            speed: record.speed !== undefined
+              ? parseFloat(record.speed)
+              : record.Speed !== undefined
+                ? parseFloat(record.Speed)
                 : null,
           }))
         )
