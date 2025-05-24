@@ -454,6 +454,37 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     });
 
+  // Ensure destinationCoord is always set when GPS data is loaded
+  useEffect(() => {
+    const setDestinationFromShipment = async () => {
+      if (
+        selectedShipment &&
+        routeData.length > 0 &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const to = lastLeg?.stopAddress;
+        if (to && to.trim() !== '') {
+          const toCoord = await geocodeAddress(to);
+          if (
+            Array.isArray(toCoord) &&
+            toCoord.length === 2 &&
+            !isNaN(toCoord[0]) &&
+            !isNaN(toCoord[1])
+          ) {
+            setDestinationCoord(toCoord);
+            return;
+          }
+        }
+      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
+    };
+    setDestinationFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
   return (
     <>
       {/* MAP SECTION */}
