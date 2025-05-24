@@ -339,21 +339,15 @@ const Shipments = () => {
   }
 
   // Helper: Geocode an address to [lat, lng] using Nominatim
-  // Accepts either a string or an object { city, state }
+  // Accepts either a string or an object { full }
   const geocodeAddress = async (address) => {
     if (!address) return null;
     let query = '';
-    // If address is an object with city/state, join them; otherwise, use as string
-    if (typeof address === 'object' && (address.city || address.state)) {
-      // Prefer full address if available
-      if (address.full) {
-        query = address.full;
-      } else {
-        // Compose from available fields
-        query = [address.street, address.city, address.state, address.country].filter(Boolean).join(', ');
-      }
+    if (typeof address === 'object' && address.full) {
+      // Add ", USA" to bias results to the United States
+      query = `${address.full}, USA`;
     } else {
-      query = address;
+      query = `${address}, USA`;
     }
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
