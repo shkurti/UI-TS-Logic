@@ -82,6 +82,8 @@ const Shipments = () => {
   // Add state for new shipment preview polyline
   const [newShipmentPreview, setNewShipmentPreview] = useState(null);
   const [previewMarkers, setPreviewMarkers] = useState([]); // New state for preview markers
+  // Add state for destination coordinate (for efficient access)
+  const [destinationCoord, setDestinationCoord] = useState(null);
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -340,6 +342,7 @@ const Shipments = () => {
       if (!isModalOpen) {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
+        setDestinationCoord(null);
         return;
       }
       // Use full address for both start and end
@@ -354,6 +357,7 @@ const Shipments = () => {
         ]);
         if (fromCoord && toCoord) {
           setNewShipmentPreview([fromCoord, toCoord]);
+          setDestinationCoord(toCoord);
           setPreviewMarkers([
             { position: fromCoord, label: '1', popup: `Start: ${from}` },
             { position: toCoord, label: '2', popup: `End: ${to}` }
@@ -361,10 +365,12 @@ const Shipments = () => {
         } else {
           setNewShipmentPreview(null);
           setPreviewMarkers([]);
+          setDestinationCoord(null);
         }
       } else {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
+        setDestinationCoord(null);
       }
     };
     showPreview();
@@ -391,6 +397,7 @@ const Shipments = () => {
           ]);
           if (fromCoord && toCoord) {
             setNewShipmentPreview([fromCoord, toCoord]);
+            setDestinationCoord(toCoord);
             setPreviewMarkers([
               { position: fromCoord, label: '1', popup: `Start: ${from}` },
               { position: toCoord, label: '2', popup: `End: ${to}` }
@@ -401,6 +408,7 @@ const Shipments = () => {
       }
       setNewShipmentPreview(null);
       setPreviewMarkers([]);
+      setDestinationCoord(null);
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -415,8 +423,10 @@ const Shipments = () => {
         { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
         { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
       ]);
+      setDestinationCoord(newShipmentPreview[1]);
     } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
       setPreviewMarkers([]);
+      setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
@@ -477,10 +487,49 @@ const Shipments = () => {
                     >
                       <Popup>Last Point</Popup>
                     </Marker>
+                    {/* Draw dashed line from last GPS point to destination marker if available */}
+                    {destinationCoord && (
+                      <Polyline
+                        positions={[
+                          [
+                            parseFloat(routeData[routeData.length - 1].latitude),
+                            parseFloat(routeData[routeData.length - 1].longitude)
+                          ],
+                          destinationCoord
+                        ]}
+                        color="blue"
+                        dashArray="8"
+                      />
+                    )}
+                    {/* Draw marker 2 at destination if not already covered by GPS */}
+                    {destinationCoord && (
+                      <Marker
+                        position={destinationCoord}
+                        icon={numberIcon('2')}
+                      >
+                        <Popup>
+                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                        </Popup>
+                      </Marker>
+                    )}
+                    {/* Draw marker 1 at start if available */}
+                    {routeData.length > 0 && (
+                      <Marker
+                        position={[
+                          parseFloat(routeData[0].latitude),
+                          parseFloat(routeData[0].longitude)
+                        ]}
+                        icon={numberIcon('1')}
+                      >
+                        <Popup>
+                          Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
+                        </Popup>
+                      </Marker>
+                    )}
                   </>
                 )}
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {newShipmentPreview && (
+                {!routeData.length && newShipmentPreview && (
                   <>
                     <Polyline
                       positions={newShipmentPreview}
