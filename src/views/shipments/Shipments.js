@@ -500,16 +500,8 @@ const Shipments = () => {
 
           if (!isNaN(lat) && !isNaN(lng)) {
             setRouteData((prev) => {
-              // Avoid duplicate points
-              if (
-                prev.length > 0 &&
-                parseFloat(prev[prev.length - 1].latitude) === lat &&
-                parseFloat(prev[prev.length - 1].longitude) === lng
-              ) {
-                return prev;
-              }
-              // Append new GPS point
-              return [
+              // Always deduplicate and keep order
+              const updated = [
                 ...prev,
                 {
                   ...new_record,
@@ -522,6 +514,8 @@ const Shipments = () => {
                   speed: new_record?.speed,
                 },
               ];
+              // Remove duplicates by lat/lon (keep first occurrence)
+              return deduplicateRoute(updated);
             });
 
             // Optionally update sensor data in real time
@@ -1126,3 +1120,14 @@ const Shipments = () => {
 }
 
 export default Shipments
+
+// Helper to deduplicate route points (lat/lon) in order
+function deduplicateRoute(route) {
+  const seen = new Set();
+  return route.filter((point) => {
+    const key = `${parseFloat(point.latitude)},${parseFloat(point.longitude)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
