@@ -500,13 +500,17 @@ const Shipments = () => {
 
           if (!isNaN(lat) && !isNaN(lng)) {
             setRouteData((prev) => {
-              // Always deduplicate and keep order
+              // Filter out any points that do not belong to the current tracker
+              const filtered = prev.filter(
+                (p) => String(p.tracker_id) === String(selectedShipment.trackerId)
+              );
               const updated = [
-                ...prev,
+                ...filtered,
                 {
                   ...new_record,
                   latitude: lat,
                   longitude: lng,
+                  tracker_id: selectedShipment.trackerId,
                   timestamp: new_record?.timestamp || new Date().toISOString(),
                   temperature: new_record?.temperature,
                   humidity: new_record?.humidity,
@@ -515,7 +519,7 @@ const Shipments = () => {
                 },
               ];
               // Remove duplicates by lat/lon (keep first occurrence)
-              return deduplicateRoute(updated);
+              return deduplicateRoute(updated, selectedShipment.trackerId);
             });
 
             // Optionally update sensor data in real time
@@ -1121,10 +1125,12 @@ const Shipments = () => {
 
 export default Shipments
 
-// Helper to deduplicate route points (lat/lon) in order
-function deduplicateRoute(route) {
+// Helper to deduplicate route points (lat/lon) in order, but only for the current shipment
+function deduplicateRoute(route, trackerId) {
   const seen = new Set();
   return route.filter((point) => {
+    // Only keep points that belong to the current shipment's tracker
+    if (String(point.tracker_id) !== String(trackerId)) return false;
     const key = `${parseFloat(point.latitude)},${parseFloat(point.longitude)}`;
     if (seen.has(key)) return false;
     seen.add(key);
