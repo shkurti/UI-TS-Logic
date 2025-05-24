@@ -492,82 +492,113 @@ const Shipments = () => {
         // Only process messages for the selected shipment's tracker
         if (
           message.operationType === 'insert' &&
-          String(message.tracker_id) === String(selectedShipment.trackerId)
+          (
+            String(message.tracker_id) === String(selectedShipment.trackerId) ||
+            String(message.trackerID) === String(selectedShipment.trackerId)
+          )
         ) {
-          const { new_record, geolocation } = message;
-          const lat = parseFloat(geolocation?.Lat);
-          const lng = parseFloat(geolocation?.Lng);
-
-          if (!isNaN(lat) && !isNaN(lng)) {
+          // Support both new_record/geolocation and data array from Mongo
+          if (Array.isArray(message.data)) {
+            // If the message contains a data array (bulk GPS points)
             setRouteData((prev) => {
-              // Filter out any points that do not belong to the current tracker
+              // Convert each data point to the expected format
+              const newPoints = message.data.map((d) => ({
+                latitude: d.Lat,
+                longitude: d.Lng,
+                tracker_id: message.tracker_id ?? message.trackerID,
+                trackerID: message.tracker_id ?? message.trackerID,
+                timestamp: d.DT,
+                temperature: d.Temp,
+                humidity: d.Hum,
+                battery: d.Batt,
+                speed: d.Speed,
+              }));
+              // Only keep points for this tracker
               const filtered = prev.filter(
-                (p) => String(p.tracker_id) === String(selectedShipment.trackerId)
+                (p) =>
+                  String(p.tracker_id ?? p.trackerID) === String(selectedShipment.trackerId)
               );
-              const updated = [
-                ...filtered,
-                {
-                  ...new_record,
-                  latitude: lat,
-                  longitude: lng,
-                  tracker_id: selectedShipment.trackerId,
-                  timestamp: new_record?.timestamp || new Date().toISOString(),
-                  temperature: new_record?.temperature,
-                  humidity: new_record?.humidity,
-                  battery: new_record?.battery,
-                  speed: new_record?.speed,
-                },
-              ];
-              // Remove duplicates by lat/lon (keep first occurrence)
+              const updated = [...filtered, ...newPoints];
               return deduplicateRoute(updated, selectedShipment.trackerId);
             });
+          } else {
+            // Single point update (new_record/geo)
+            const { new_record, geolocation } = message;
+            const lat = parseFloat(geolocation?.Lat);
+            const lng = parseFloat(geolocation?.Lng);
 
-            // Optionally update sensor data in real time
-            if (new_record) {
-              if (new_record.timestamp && new_record.temperature !== undefined) {
-                setTemperatureData((prevData) => {
-                  if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                    return [
-                      ...prevData,
-                      { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
-                    ];
-                  }
-                  return prevData;
-                });
-              }
-              if (new_record.timestamp && new_record.humidity !== undefined) {
-                setHumidityData((prevData) => {
-                  if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                    return [
-                      ...prevData,
-                      { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
-                    ];
-                  }
-                  return prevData;
-                });
-              }
-              if (new_record.timestamp && new_record.battery !== undefined) {
-                setBatteryData((prevData) => {
-                  if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                    return [
-                      ...prevData,
-                      { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
-                    ];
-                  }
-                  return prevData;
-                });
-              }
-              if (new_record.timestamp && new_record.speed !== undefined) {
-                setSpeedData((prevData) => {
-                  if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
-                    return [
-                      ...prevData,
-                      { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
-                    ];
-                  }
-                  return prevData;
-                });
-              }
+            if (!isNaN(lat) && !isNaN(lng)) {
+              setRouteData((prev) => {
+                // Filter out any points that do not belong to the current tracker
+                const filtered = prev.filter(
+                  (p) =>
+                    String(p.tracker_id ?? p.trackerID) === String(selectedShipment.trackerId)
+                );
+                const updated = [
+                  ...filtered,
+                  {
+                    ...new_record,
+                    latitude: lat,
+                    longitude: lng,
+                    tracker_id: selectedShipment.trackerId,
+                    trackerID: selectedShipment.trackerId,
+                    timestamp: new_record?.timestamp || new Date().toISOString(),
+                    temperature: new_record?.temperature ?? new_record?.Temp,
+                    humidity: new_record?.humidity ?? new_record?.Hum,
+                    battery: new_record?.battery ?? new_record?.Batt,
+                    speed: new_record?.speed ?? new_record?.Speed,
+                  },
+                ];
+                return deduplicateRoute(updated, selectedShipment.trackerId);
+              });
+            }
+          }
+
+          // Optionally update sensor data in real time
+          if (new_record) {
+            if (new_record.timestamp && new_record.temperature !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.humidity !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.battery !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.timestamp && new_record.speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((d) => d.timestamp === new_record.timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
+                  ];
+                }
+                return prevData;
+              });
             }
           }
         }
@@ -1129,8 +1160,9 @@ export default Shipments
 function deduplicateRoute(route, trackerId) {
   const seen = new Set();
   return route.filter((point) => {
-    // Only keep points that belong to the current shipment's tracker
-    if (String(point.tracker_id) !== String(trackerId)) return false;
+    // Only keep points that belong to the current shipment's tracker (support both tracker_id and trackerID)
+    const pid = String(point.tracker_id ?? point.trackerID);
+    if (pid !== String(trackerId)) return false;
     const key = `${parseFloat(point.latitude)},${parseFloat(point.longitude)}`;
     if (seen.has(key)) return false;
     seen.add(key);
