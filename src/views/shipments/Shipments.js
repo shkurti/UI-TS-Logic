@@ -513,13 +513,9 @@ const Shipments = () => {
                 battery: d.Batt,
                 speed: d.Speed,
               }));
-              // Only keep points for this tracker
-              const filtered = prev.filter(
-                (p) =>
-                  String(p.tracker_id ?? p.trackerID) === String(selectedShipment.trackerId)
-              );
-              const updated = [...filtered, ...newPoints];
-              return deduplicateRoute(updated, selectedShipment.trackerId);
+              // Only deduplicate, do not filter out all previous points (to preserve planned polyline)
+              const updated = [...prev, ...newPoints];
+              return deduplicateRoute(updated, undefined); // Do not filter by trackerId here
             });
           } else {
             // Single point update (new_record/geo)
@@ -529,13 +525,9 @@ const Shipments = () => {
 
             if (!isNaN(lat) && !isNaN(lng)) {
               setRouteData((prev) => {
-                // Filter out any points that do not belong to the current tracker
-                const filtered = prev.filter(
-                  (p) =>
-                    String(p.tracker_id ?? p.trackerID) === String(selectedShipment.trackerId)
-                );
+                // Only deduplicate, do not filter out all previous points (to preserve planned polyline)
                 const updated = [
-                  ...filtered,
+                  ...prev,
                   {
                     ...new_record,
                     latitude: lat,
@@ -549,7 +541,7 @@ const Shipments = () => {
                     speed: new_record?.speed ?? new_record?.Speed,
                   },
                 ];
-                return deduplicateRoute(updated, selectedShipment.trackerId);
+                return deduplicateRoute(updated, undefined); // Do not filter by trackerId here
               });
             }
           }
@@ -1159,10 +1151,12 @@ export default Shipments
 // Helper to deduplicate route points (lat/lon) in order, but only for the current shipment
 function deduplicateRoute(route, trackerId) {
   const seen = new Set();
+  // Only filter by tracker if trackerId is provided, otherwise keep all
   return route.filter((point) => {
-    // Only keep points that belong to the current shipment's tracker (support both tracker_id and trackerID)
-    const pid = String(point.tracker_id ?? point.trackerID);
-    if (pid !== String(trackerId)) return false;
+    if (trackerId !== undefined && trackerId !== null) {
+      const pid = String(point.tracker_id ?? point.trackerID);
+      if (pid !== String(trackerId)) return false;
+    }
     const key = `${parseFloat(point.latitude)},${parseFloat(point.longitude)}`;
     if (seen.has(key)) return false;
     seen.add(key);
