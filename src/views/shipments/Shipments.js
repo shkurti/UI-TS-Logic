@@ -491,7 +491,7 @@ const Shipments = () => {
                       </Popup>
                     </Marker>
                     {/* Always show destination marker and dashed line if destinationCoord is available */}
-                    {destinationCoord && (
+                    {destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && !isNaN(destinationCoord[0]) && !isNaN(destinationCoord[1]) && (
                       <>
                         {/* Marker 2: Destination */}
                         <Marker
