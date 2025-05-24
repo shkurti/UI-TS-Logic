@@ -257,36 +257,60 @@ const Shipments = () => {
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
-        // Populate sensor data for tabs
+        // Use Dashboard.js logic: always use .Temp, .Hum, .Batt, .Speed, .timestamp (or .DT)
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            temperature: record.temperature !== undefined ? parseFloat(record.temperature) : null,
+            timestamp: record.timestamp || record.DT || 'N/A',
+            temperature: record.Temp !== undefined
+              ? parseFloat(record.Temp)
+              : record.temperature !== undefined
+                ? parseFloat(record.temperature)
+                : null,
           }))
         )
         setHumidityData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            humidity: record.humidity !== undefined ? parseFloat(record.humidity) : null,
+            timestamp: record.timestamp || record.DT || 'N/A',
+            humidity: record.Hum !== undefined
+              ? parseFloat(record.Hum)
+              : record.humidity !== undefined
+                ? parseFloat(record.humidity)
+                : null,
           }))
         )
         setBatteryData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined ? parseFloat(record.battery) : null,
+            timestamp: record.timestamp || record.DT || 'N/A',
+            battery: record.Batt !== undefined
+              ? parseFloat(record.Batt)
+              : record.battery !== undefined
+                ? parseFloat(record.battery)
+                : null,
           }))
         )
         setSpeedData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            speed: record.speed !== undefined ? parseFloat(record.speed) : null,
+            timestamp: record.timestamp || record.DT || 'N/A',
+            speed: record.Speed !== undefined
+              ? parseFloat(record.Speed)
+              : record.speed !== undefined
+                ? parseFloat(record.speed)
+                : null,
           }))
         )
       } else {
         setRouteData([])
+        setTemperatureData([])
+        setHumidityData([])
+        setBatteryData([])
+        setSpeedData([])
       }
     } catch (e) {
       setRouteData([])
+      setTemperatureData([])
+      setHumidityData([])
+      setBatteryData([])
+      setSpeedData([])
     }
   }
 
