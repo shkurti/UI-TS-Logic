@@ -188,50 +188,51 @@ const Dashboard = () => {
             console.warn('Invalid geolocation data received:', geolocation);
           }
 
-          // Update the chart data
+          // Update the chart data in real time using new_record fields (Temp, Hum, Batt, Speed, DT)
           if (new_record) {
-            if (new_record.timestamp && new_record.temperature !== undefined) {
+            const timestamp = new_record.DT || new_record.timestamp || 'N/A';
+            if (new_record.Temp !== undefined) {
               setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
                     ...prevData,
-                    { timestamp: new_record.timestamp, temperature: parseFloat(new_record.temperature) },
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
                   ];
                 }
-                return prevData; // Avoid duplicates
+                return prevData;
               });
             }
-            if (new_record.timestamp && new_record.humidity !== undefined) {
+            if (new_record.Hum !== undefined) {
               setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
                     ...prevData,
-                    { timestamp: new_record.timestamp, humidity: parseFloat(new_record.humidity) },
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
                   ];
                 }
-                return prevData; // Avoid duplicates
+                return prevData;
               });
             }
-            if (new_record.timestamp && new_record.battery !== undefined) {
+            if (new_record.Batt !== undefined) {
               setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
                     ...prevData,
-                    { timestamp: new_record.timestamp, battery: parseFloat(new_record.battery) },
+                    { timestamp, battery: parseFloat(new_record.Batt) },
                   ];
                 }
-                return prevData; // Avoid duplicates
+                return prevData;
               });
             }
-            if (new_record.timestamp && new_record.speed !== undefined) {
+            if (new_record.Speed !== undefined) {
               setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === new_record.timestamp)) {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
                     ...prevData,
-                    { timestamp: new_record.timestamp, speed: parseFloat(new_record.speed) },
+                    { timestamp, speed: parseFloat(new_record.Speed) },
                   ];
                 }
-                return prevData; // Avoid duplicates
+                return prevData;
               });
             }
           }

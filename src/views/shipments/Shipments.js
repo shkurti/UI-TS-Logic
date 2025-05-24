@@ -508,7 +508,7 @@ const Shipments = () => {
           message.operationType === 'insert' &&
           String(message.tracker_id) === String(selectedShipment.trackerId)
         ) {
-          const { geolocation } = message;
+          const { geolocation, new_record } = message;
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
           if (!isNaN(lat) && !isNaN(lng)) {
@@ -520,6 +520,54 @@ const Shipments = () => {
               }
               return prevRoute;
             });
+          }
+          // Update sensor data in real time using new_record fields (Temp, Hum, Batt, Speed, DT)
+          if (new_record) {
+            const timestamp = new_record.DT || new_record.timestamp || 'N/A';
+            if (new_record.Temp !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Hum !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Batt !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, battery: parseFloat(new_record.Batt) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, speed: parseFloat(new_record.Speed) },
+                  ];
+                }
+                return prevData;
+              });
+            }
           }
         }
       } catch (e) {
