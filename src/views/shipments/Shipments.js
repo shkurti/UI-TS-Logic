@@ -478,15 +478,29 @@ const Shipments = () => {
                       positions={routeData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])}
                       color="blue"
                     />
+                    {/* Marker 1: Start of GPS route */}
                     <Marker
                       position={[
-                        parseFloat(routeData[routeData.length - 1].latitude),
-                        parseFloat(routeData[routeData.length - 1].longitude),
+                        parseFloat(routeData[0].latitude),
+                        parseFloat(routeData[0].longitude)
                       ]}
-                      icon={customIcon}
+                      icon={numberIcon('1')}
                     >
-                      <Popup>Last Point</Popup>
+                      <Popup>
+                        Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
+                      </Popup>
                     </Marker>
+                    {/* Marker 2: Destination */}
+                    {destinationCoord && (
+                      <Marker
+                        position={destinationCoord}
+                        icon={numberIcon('2')}
+                      >
+                        <Popup>
+                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                        </Popup>
+                      </Marker>
+                    )}
                     {/* Draw dashed line from last GPS point to destination marker if available */}
                     {destinationCoord && (
                       <Polyline
@@ -501,31 +515,16 @@ const Shipments = () => {
                         dashArray="8"
                       />
                     )}
-                    {/* Draw marker 2 at destination if not already covered by GPS */}
-                    {destinationCoord && (
-                      <Marker
-                        position={destinationCoord}
-                        icon={numberIcon('2')}
-                      >
-                        <Popup>
-                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                        </Popup>
-                      </Marker>
-                    )}
-                    {/* Draw marker 1 at start if available */}
-                    {routeData.length > 0 && (
-                      <Marker
-                        position={[
-                          parseFloat(routeData[0].latitude),
-                          parseFloat(routeData[0].longitude)
-                        ]}
-                        icon={numberIcon('1')}
-                      >
-                        <Popup>
-                          Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
-                        </Popup>
-                      </Marker>
-                    )}
+                    {/* Last GPS point marker (optional, can use default icon) */}
+                    <Marker
+                      position={[
+                        parseFloat(routeData[routeData.length - 1].latitude),
+                        parseFloat(routeData[routeData.length - 1].longitude),
+                      ]}
+                      icon={customIcon}
+                    >
+                      <Popup>Last Point</Popup>
+                    </Marker>
                   </>
                 )}
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
@@ -536,15 +535,24 @@ const Shipments = () => {
                       color="blue"
                       dashArray="8"
                     />
-                    {previewMarkers.map((marker, idx) => (
-                      <Marker
-                        key={idx}
-                        position={marker.position}
-                        icon={numberIcon(marker.label)}
-                      >
-                        <Popup>{marker.popup}</Popup>
-                      </Marker>
-                    ))}
+                    {/* Marker 1: Start of preview */}
+                    <Marker
+                      position={newShipmentPreview[0]}
+                      icon={numberIcon('1')}
+                    >
+                      <Popup>
+                        Start: {legs[0]?.shipFromAddress || selectedShipment?.legs?.[0]?.shipFromAddress}
+                      </Popup>
+                    </Marker>
+                    {/* Marker 2: End of preview */}
+                    <Marker
+                      position={newShipmentPreview[1]}
+                      icon={numberIcon('2')}
+                    >
+                      <Popup>
+                        End: {legs[legs.length - 1]?.stopAddress || selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                      </Popup>
+                    </Marker>
                   </>
                 )}
               </MapContainer>
