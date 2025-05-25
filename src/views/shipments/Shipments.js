@@ -242,10 +242,11 @@ const Shipments = () => {
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
     const lastLeg = legs[legs.length - 1] || {}
-    const shipDate = firstLeg.shipDate
-    const arrivalDate = lastLeg.arrivalDate
+    // Use Departure Date and Arrival Date from the last leg
+    const startDate = lastLeg.departureDate
+    const endDate = lastLeg.arrivalDate
 
-    if (!trackerId || !shipDate || !arrivalDate) {
+    if (!trackerId || !startDate || !endDate) {
       setRouteData([])
       setLiveRoute([])
       return
@@ -254,8 +255,8 @@ const Shipments = () => {
     try {
       const params = new URLSearchParams({
         tracker_id: trackerId,
-        start: shipDate,
-        end: arrivalDate,
+        start: startDate,
+        end: endDate,
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
