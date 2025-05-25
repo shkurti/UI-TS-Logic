@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
@@ -86,9 +86,6 @@ const Shipments = () => {
   const [destinationCoord, setDestinationCoord] = useState(null);
   // Add this state to store the live GPS route for the selected shipment
   const [liveRoute, setLiveRoute] = useState([]);
-
-  // Persist real-time GPS data per trackerId
-  const liveRouteCacheRef = useRef({}); // { [trackerId]: [[lat, lng], ...] }
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -242,105 +239,67 @@ const Shipments = () => {
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
     const lastLeg = legs[legs.length - 1] || {}
-    // Use Departure Date and Arrival Date from the last leg
-    const startDate = lastLeg.departureDate
-    const endDate = lastLeg.arrivalDate
+    const shipDate = firstLeg.shipDate
+    const arrivalDate = lastLeg.arrivalDate
 
-    if (!trackerId || !startDate || !endDate) {
+    if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      setLiveRoute([])
       return
     }
 
     try {
       const params = new URLSearchParams({
         tracker_id: trackerId,
-        start: startDate,
-        end: endDate,
+        start: shipDate,
+        end: arrivalDate,
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
-
-        // Map backend data to expected fields if needed
-        const mappedData = data.map((record) => {
-          if (record.latitude === undefined && record.Lat !== undefined) {
-            return {
-              latitude: record.Lat,
-              longitude: record.Lng,
-              temperature: record.Temp,
-              humidity: record.Hum,
-              speed: record.Speed,
-              battery: record.Batt,
-              timestamp: record.DT,
-            }
-          }
-          return record
-        });
-
-        // Filter valid records
-        const filteredData = mappedData.filter(
-          (record) =>
-            record.latitude !== undefined &&
-            record.longitude !== undefined &&
-            !isNaN(parseFloat(record.latitude)) &&
-            !isNaN(parseFloat(record.longitude)) &&
-            record.timestamp &&
-            record.timestamp !== "N/A"
-        )
-
-        // Merge historical route with any cached live points not already present
-        const historicalRoute = filteredData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-        const trackerLiveCache = liveRouteCacheRef.current[trackerId] || [];
-        // Only add live points not already in historicalRoute
-        const historicalSet = new Set(historicalRoute.map(([lat, lng]) => `${lat},${lng}`));
-        const newLivePoints = trackerLiveCache.filter(
-          ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
-        );
-        const mergedRoute = [...historicalRoute, ...newLivePoints];
-        setLiveRoute(mergedRoute);
-
-        // Sensors (Dashboard.js logic, only for filteredData)
+        // Populate sensor data for tabs using the correct field names from backend
         setTemperatureData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            temperature:
-              record.temperature !== undefined && record.temperature !== null
-                ? parseFloat(record.temperature)
+          data.map((record) => ({
+            timestamp: record.timestamp || record.DT || 'N/A',
+            temperature: record.temperature !== undefined
+              ? parseFloat(record.temperature)
+              : record.Temp !== undefined
+                ? parseFloat(record.Temp)
                 : null,
           }))
         )
         setHumidityData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            humidity:
-              record.humidity !== undefined && record.humidity !== null
-                ? parseFloat(record.humidity)
+          data.map((record) => ({
+            timestamp: record.timestamp || record.DT || 'N/A',
+            humidity: record.humidity !== undefined
+              ? parseFloat(record.humidity)
+              : record.Hum !== undefined
+                ? parseFloat(record.Hum)
                 : null,
           }))
         )
         setBatteryData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            battery:
-              record.battery !== undefined && record.battery !== null
-                ? parseFloat(record.battery)
+          data.map((record) => ({
+            timestamp: record.timestamp || record.DT || 'N/A',
+            battery: record.battery !== undefined
+              ? parseFloat(record.battery)
+              : record.Batt !== undefined
+                ? parseFloat(record.Batt)
                 : null,
           }))
         )
         setSpeedData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            speed:
-              record.speed !== undefined && record.speed !== null
-                ? parseFloat(record.speed)
+          data.map((record) => ({
+            timestamp: record.timestamp || record.DT || 'N/A',
+            speed: record.speed !== undefined
+              ? parseFloat(record.speed)
+              : record.Speed !== undefined
+                ? parseFloat(record.Speed)
                 : null,
           }))
         )
       } else {
         setRouteData([])
-        setLiveRoute([])
         setTemperatureData([])
         setHumidityData([])
         setBatteryData([])
@@ -348,7 +307,6 @@ const Shipments = () => {
       }
     } catch (e) {
       setRouteData([])
-      setLiveRoute([])
       setTemperatureData([])
       setHumidityData([])
       setBatteryData([])
@@ -559,7 +517,8 @@ const Shipments = () => {
       setLiveRoute([]);
       return;
     }
-    const trackerId = selectedShipment.trackerId;
+    // Fetch initial route data if needed (optional, since you already fetch on click)
+    // setLiveRoute([]); // Optionally clear on new selection
 
     // Open WebSocket for real-time updates
     const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
@@ -571,31 +530,20 @@ const Shipments = () => {
         const message = JSON.parse(event.data);
         if (
           message.operationType === 'insert' &&
-          String(message.tracker_id) === String(trackerId)
+          String(message.tracker_id) === String(selectedShipment.trackerId)
         ) {
           const { geolocation, new_record } = message;
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
           if (!isNaN(lat) && !isNaN(lng)) {
-            // Update persistent cache for this tracker
-            if (!liveRouteCacheRef.current[trackerId]) {
-              liveRouteCacheRef.current[trackerId] = [];
-            }
-            const cache = liveRouteCacheRef.current[trackerId];
-            const lastPoint = cache[cache.length - 1];
-            const newPoint = [lat, lng];
-            if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-              cache.push(newPoint);
-              // Also update liveRoute state for UI
-              setLiveRoute((prevRoute) => {
-                // Avoid duplicates in UI state as well
-                const prevLast = prevRoute[prevRoute.length - 1];
-                if (!prevLast || prevLast[0] !== lat || prevLast[1] !== lng) {
-                  return [...prevRoute, newPoint];
-                }
-                return prevRoute;
-              });
-            }
+            setLiveRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
           }
           // Update sensor data in real time using new_record fields (Temp, Hum, Batt, Speed, DT)
           if (new_record) {
@@ -657,29 +605,16 @@ const Shipments = () => {
     return () => ws.close();
   }, [selectedShipment]);
 
-  // When a shipment is selected, initialize liveRoute from routeData and cached live points
+  // When a shipment is selected, initialize liveRoute from routeData
   useEffect(() => {
-    if (selectedShipment && routeData && routeData.length > 0) {
-      const trackerId = selectedShipment.trackerId;
-      const historicalRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-      const trackerLiveCache = liveRouteCacheRef.current[trackerId] || [];
-      // Only add live points not already in historicalRoute
-      const historicalSet = new Set(historicalRoute.map(([lat, lng]) => `${lat},${lng}`));
-      const newLivePoints = trackerLiveCache.filter(
-        ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
       );
-      setLiveRoute([...historicalRoute, ...newLivePoints]);
-    } else if (selectedShipment) {
-      // If no historical data, show only cached live points
-      const trackerId = selectedShipment.trackerId;
-      setLiveRoute(liveRouteCacheRef.current[trackerId] || []);
     } else {
       setLiveRoute([]);
     }
-  }, [selectedShipment, routeData]);
-
-  // When switching to a different shipment, clear the cache for previous shipment if desired
-  // (Optional: If you want to keep cache for all shipments, do nothing here)
+  }, [routeData]);
 
   return (
     <>
@@ -726,18 +661,15 @@ const Shipments = () => {
                             End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
                           </Popup>
                         </Marker>
-                        {/* Dashed line from last GPS point to destination, only if not already at destination */}
-                        {(liveRoute[liveRoute.length - 1][0] !== destinationCoord[0] ||
-                          liveRoute[liveRoute.length - 1][1] !== destinationCoord[1]) && (
-                          <Polyline
-                            positions={[
-                              liveRoute[liveRoute.length - 1],
-                              destinationCoord
-                            ]}
-                            color="blue"
-                            dashArray="8"
-                          />
-                        )}
+                        {/* Dashed line from last GPS point to destination */}
+                        <Polyline
+                          positions={[
+                            liveRoute[liveRoute.length - 1],
+                            destinationCoord
+                          ]}
+                          color="blue"
+                          dashArray="8"
+                        />
                       </>
                     )}
                     {/* Last GPS point marker (optional, can use default icon) */}
@@ -752,7 +684,6 @@ const Shipments = () => {
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
                 {liveRoute.length === 0 && newShipmentPreview && (
                   <>
-                    {/* Dashed polyline from start to destination */}
                     <Polyline
                       positions={newShipmentPreview}
                       color="blue"
