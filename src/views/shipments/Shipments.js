@@ -244,6 +244,7 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
+      setLiveRoute([]) // Clear route on invalid selection
       return
     }
 
@@ -258,12 +259,23 @@ const Shipments = () => {
         const data = await response.json()
         setRouteData(data)
 
-        // Use Dashboard.js logic for sensor data extraction
-        // (Dashboard.js expects: record.temperature, record.humidity, record.battery, record.speed)
+        // Extract route for the map (latitude/longitude must be present and valid)
+        const routePoints = data
+          .filter(
+            (record) =>
+              record.latitude !== undefined &&
+              record.longitude !== undefined &&
+              !isNaN(parseFloat(record.latitude)) &&
+              !isNaN(parseFloat(record.longitude))
+          )
+          .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
+        setLiveRoute(routePoints);
+
+        // Extract sensor data (Dashboard.js logic)
         setTemperatureData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            temperature: record.temperature !== undefined
+            temperature: record.temperature !== undefined && record.temperature !== null
               ? parseFloat(record.temperature)
               : null,
           }))
@@ -271,7 +283,7 @@ const Shipments = () => {
         setHumidityData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            humidity: record.humidity !== undefined
+            humidity: record.humidity !== undefined && record.humidity !== null
               ? parseFloat(record.humidity)
               : null,
           }))
@@ -279,7 +291,7 @@ const Shipments = () => {
         setBatteryData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined
+            battery: record.battery !== undefined && record.battery !== null
               ? parseFloat(record.battery)
               : null,
           }))
@@ -287,13 +299,14 @@ const Shipments = () => {
         setSpeedData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            speed: record.speed !== undefined
+            speed: record.speed !== undefined && record.speed !== null
               ? parseFloat(record.speed)
               : null,
           }))
         )
       } else {
         setRouteData([])
+        setLiveRoute([])
         setTemperatureData([])
         setHumidityData([])
         setBatteryData([])
@@ -301,6 +314,7 @@ const Shipments = () => {
       }
     } catch (e) {
       setRouteData([])
+      setLiveRoute([])
       setTemperatureData([])
       setHumidityData([])
       setBatteryData([])
@@ -598,24 +612,6 @@ const Shipments = () => {
     // Cleanup on unmount or tracker change
     return () => ws.close();
   }, [selectedShipment]);
-
-  // When a shipment is selected, initialize liveRoute from routeData
-  useEffect(() => {
-    if (routeData && routeData.length > 0) {
-      // Always merge historical routeData with any liveRoute points not already present
-      const historicalRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-      setLiveRoute((prevLiveRoute) => {
-        // Remove duplicates: only add live points not in historicalRoute
-        const historicalSet = new Set(historicalRoute.map(([lat, lng]) => `${lat},${lng}`));
-        const newLivePoints = prevLiveRoute.filter(
-          ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
-        );
-        return [...historicalRoute, ...newLivePoints];
-      });
-    } else {
-      setLiveRoute([]);
-    }
-  }, [routeData]);
 
   return (
     <>
