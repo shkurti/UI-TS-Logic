@@ -86,6 +86,8 @@ const Shipments = () => {
   const [destinationCoord, setDestinationCoord] = useState(null);
   // Add this state to store the live GPS route for the selected shipment
   const [liveRoute, setLiveRoute] = useState([]);
+  // Add state for geocoded start coordinate
+  const [startCoord, setStartCoord] = useState(null);
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -369,9 +371,9 @@ const Shipments = () => {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
         setDestinationCoord(null);
+        setStartCoord(null);
         return;
       }
-      // Use full address for both start and end
       const firstLeg = legs[0];
       const lastLeg = legs[legs.length - 1];
       const from = firstLeg?.shipFromAddress;
@@ -383,6 +385,7 @@ const Shipments = () => {
         ]);
         if (fromCoord && toCoord) {
           setNewShipmentPreview([fromCoord, toCoord]);
+          setStartCoord(fromCoord);
           setDestinationCoord(toCoord);
           setPreviewMarkers([
             { position: fromCoord, label: '1', popup: `Start: ${from}` },
@@ -392,16 +395,50 @@ const Shipments = () => {
           setNewShipmentPreview(null);
           setPreviewMarkers([]);
           setDestinationCoord(null);
+          setStartCoord(null);
         }
       } else {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
         setDestinationCoord(null);
+        setStartCoord(null);
       }
     };
     showPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
+
+  // When a shipment is selected, geocode and store start/destination coords
+  useEffect(() => {
+    const setCoordsFromShipment = async () => {
+      if (
+        selectedShipment &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '') {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
+        } else {
+          setStartCoord(null);
+          setDestinationCoord(null);
+        }
+      } else {
+        setStartCoord(null);
+        setDestinationCoord(null);
+      }
+    };
+    setCoordsFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment]);
 
   // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
@@ -632,6 +669,21 @@ const Shipments = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
+                {/* Always show start and destination markers if available */}
+                {startCoord && (
+                  <Marker position={startCoord} icon={numberIcon('1')}>
+                    <Popup>
+                      Start: {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+                    </Popup>
+                  </Marker>
+                )}
+                {destinationCoord && (
+                  <Marker position={destinationCoord} icon={numberIcon('2')}>
+                    <Popup>
+                      End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+                    </Popup>
+                  </Marker>
+                )}
                 {/* Show shipment route if selected */}
                 {liveRoute.length > 0 && (
                   <>
@@ -640,37 +692,24 @@ const Shipments = () => {
                       positions={liveRoute}
                       color="blue"
                     />
-                    {/* Marker 1: Start of GPS route */}
-                    <Marker
-                      position={liveRoute[0]}
-                      icon={numberIcon('1')}
-                    >
-                      <Popup>
-                        Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
-                      </Popup>
-                    </Marker>
-                    {/* Always show destination marker and dashed line if destinationCoord is available */}
-                    {destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && !isNaN(destinationCoord[0]) && !isNaN(destinationCoord[1]) && (
-                      <>
-                        {/* Marker 2: Destination */}
-                        <Marker
-                          position={destinationCoord}
-                          icon={numberIcon('2')}
-                        >
-                          <Popup>
-                            End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                          </Popup>
-                        </Marker>
-                        {/* Dashed line from last GPS point to destination */}
-                        <Polyline
-                          positions={[
-                            liveRoute[liveRoute.length - 1],
-                            destinationCoord
-                          ]}
-                          color="blue"
-                          dashArray="8"
-                        />
-                      </>
+                    {/* Dashed line from last GPS point to destination, if not at destination */}
+                    {destinationCoord && liveRoute.length > 0 && (
+                      (() => {
+                        const last = liveRoute[liveRoute.length - 1];
+                        if (
+                          last[0] !== destinationCoord[0] ||
+                          last[1] !== destinationCoord[1]
+                        ) {
+                          return (
+                            <Polyline
+                              positions={[last, destinationCoord]}
+                              color="blue"
+                              dashArray="8"
+                            />
+                          );
+                        }
+                        return null;
+                      })()
                     )}
                     {/* Last GPS point marker (optional, can use default icon) */}
                     <Marker
@@ -682,31 +721,13 @@ const Shipments = () => {
                   </>
                 )}
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {liveRoute.length === 0 && newShipmentPreview && (
+                {liveRoute.length === 0 && startCoord && destinationCoord && (
                   <>
                     <Polyline
-                      positions={newShipmentPreview}
+                      positions={[startCoord, destinationCoord]}
                       color="blue"
                       dashArray="8"
                     />
-                    {/* Marker 1: Start of preview */}
-                    <Marker
-                      position={newShipmentPreview[0]}
-                      icon={numberIcon('1')}
-                    >
-                      <Popup>
-                        Start: {legs[0]?.shipFromAddress || selectedShipment?.legs?.[0]?.shipFromAddress}
-                      </Popup>
-                    </Marker>
-                    {/* Marker 2: End of preview */}
-                    <Marker
-                      position={newShipmentPreview[1]}
-                      icon={numberIcon('2')}
-                    >
-                      <Popup>
-                        End: {legs[legs.length - 1]?.stopAddress || selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                      </Popup>
-                    </Marker>
                   </>
                 )}
               </MapContainer>
