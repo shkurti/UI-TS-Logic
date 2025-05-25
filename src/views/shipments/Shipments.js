@@ -235,6 +235,7 @@ const Shipments = () => {
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
+    
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
@@ -249,101 +250,136 @@ const Shipments = () => {
     }
 
     try {
+      // Fetch historical route data
       const params = new URLSearchParams({
         tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
       })
-      const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setRouteData(data)
+      const [routeResponse, realtimeResponse] = await Promise.all([
+        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`),
+        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_realtime_data/${trackerId}`)
+      ])
 
-        // Map backend data to expected fields if needed
-        const mappedData = data.map((record) => {
-          if (record.latitude === undefined && record.Lat !== undefined) {
-            return {
-              latitude: record.Lat,
-              longitude: record.Lng,
-              temperature: record.Temp,
-              humidity: record.Hum,
-              speed: record.Speed,
-              battery: record.Batt,
-              timestamp: record.DT,
-            }
-          }
-          return record
-        });
-
-        // Filter valid records
-        const filteredData = mappedData.filter(
-          (record) =>
-            record.latitude !== undefined &&
-            record.longitude !== undefined &&
-            !isNaN(parseFloat(record.latitude)) &&
-            !isNaN(parseFloat(record.longitude)) &&
-            record.timestamp &&
-            record.timestamp !== "N/A"
-        )
-
-        // Merge historical route with any live points not already present
-        setLiveRoute((prevLiveRoute) => {
-          const historicalSet = new Set(filteredData.map(r => `${r.latitude},${r.longitude}`));
-          const newLivePoints = prevLiveRoute.filter(
-            ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
-          );
-          return [
-            ...filteredData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)]),
-            ...newLivePoints
-          ];
-        });
-
-        // Sensors (Dashboard.js logic, only for filteredData)
-        setTemperatureData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            temperature:
-              record.temperature !== undefined && record.temperature !== null
-                ? parseFloat(record.temperature)
-                : null,
-          }))
-        )
-        setHumidityData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            humidity:
-              record.humidity !== undefined && record.humidity !== null
-                ? parseFloat(record.humidity)
-                : null,
-          }))
-        )
-        setBatteryData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            battery:
-              record.battery !== undefined && record.battery !== null
-                ? parseFloat(record.battery)
-                : null,
-          }))
-        )
-        setSpeedData(
-          filteredData.map((record) => ({
-            timestamp: record.timestamp,
-            speed:
-              record.speed !== undefined && record.speed !== null
-                ? parseFloat(record.speed)
-                : null,
-          }))
-        )
-      } else {
-        setRouteData([])
-        setLiveRoute([])
-        setTemperatureData([])
-        setHumidityData([])
-        setBatteryData([])
-        setSpeedData([])
+      let combinedData = []
+      
+      // Process historical route data
+      if (routeResponse.ok) {
+        const routeData = await routeResponse.json()
+        combinedData = [...routeData]
       }
+
+      // Process and merge real-time data
+      if (realtimeResponse.ok) {
+        const realtimeData = await realtimeResponse.json()
+        const realtimeRecords = realtimeData.realtime_data || []
+        
+        // Convert real-time data to match route data format
+        const formattedRealtimeData = realtimeRecords.map(record => ({
+          timestamp: record.DT || record.received_at,
+          latitude: record.Lat,
+          longitude: record.Lng,
+          temperature: record.Temp,
+          humidity: record.Hum,
+          speed: record.Speed,
+          battery: record.Batt,
+        })).filter(record => 
+          record.latitude !== undefined && 
+          record.longitude !== undefined &&
+          !isNaN(parseFloat(record.latitude)) &&
+          !isNaN(parseFloat(record.longitude))
+        )
+
+        // Merge and deduplicate data based on timestamp and coordinates
+        const dataMap = new Map()
+        
+        // Add historical data
+        combinedData.forEach(record => {
+          const key = `${record.timestamp}_${record.latitude}_${record.longitude}`
+          dataMap.set(key, record)
+        })
+        
+        // Add real-time data (will overwrite duplicates)
+        formattedRealtimeData.forEach(record => {
+          const key = `${record.timestamp}_${record.latitude}_${record.longitude}`
+          dataMap.set(key, record)
+        })
+        
+        // Convert back to array and sort by timestamp
+        combinedData = Array.from(dataMap.values()).sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        )
+      }
+
+      setRouteData(combinedData)
+
+      // Map backend data to expected fields if needed
+      const mappedData = combinedData.map((record) => {
+        if (record.latitude === undefined && record.Lat !== undefined) {
+          return {
+            latitude: record.Lat,
+            longitude: record.Lng,
+            temperature: record.Temp,
+            humidity: record.Hum,
+            speed: record.Speed,
+            battery: record.Batt,
+            timestamp: record.DT,
+          }
+        }
+        return record
+      });
+
+      // Filter valid records
+      const filteredData = mappedData.filter(
+        (record) =>
+          record.latitude !== undefined &&
+          record.longitude !== undefined &&
+          !isNaN(parseFloat(record.latitude)) &&
+          !isNaN(parseFloat(record.longitude)) &&
+          record.timestamp &&
+          record.timestamp !== "N/A"
+      )
+
+      setLiveRoute(filteredData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)]))
+
+      setTemperatureData(
+        filteredData.map((record) => ({
+          timestamp: record.timestamp,
+          temperature:
+            record.temperature !== undefined && record.temperature !== null
+              ? parseFloat(record.temperature)
+              : null,
+        }))
+      )
+      setHumidityData(
+        filteredData.map((record) => ({
+          timestamp: record.timestamp,
+          humidity:
+            record.humidity !== undefined && record.humidity !== null
+              ? parseFloat(record.humidity)
+              : null,
+        }))
+      )
+      setBatteryData(
+        filteredData.map((record) => ({
+          timestamp: record.timestamp,
+          battery:
+            record.battery !== undefined && record.battery !== null
+              ? parseFloat(record.battery)
+              : null,
+        }))
+      )
+      setSpeedData(
+        filteredData.map((record) => ({
+          timestamp: record.timestamp,
+          speed:
+            record.speed !== undefined && record.speed !== null
+              ? parseFloat(record.speed)
+              : null,
+        }))
+      )
     } catch (e) {
+      console.error('Error fetching shipment data:', e)
       setRouteData([])
       setLiveRoute([])
       setTemperatureData([])
