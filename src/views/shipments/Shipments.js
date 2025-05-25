@@ -259,13 +259,8 @@ const Shipments = () => {
         const data = await response.json()
         setRouteData(data)
 
-        // The backend returns: { latitude, longitude, temperature, humidity, speed, battery, timestamp }
-        // But your raw MongoDB document uses: Lat, Lng, Temp, Hum, Speed, Batt, DT
-        // If the backend is not mapping these fields, you need to map them here:
-
-        // Fallback: If latitude is undefined, try to map from Lat/Lng/Temp/DT etc.
+        // Map backend data to expected fields if needed
         const mappedData = data.map((record) => {
-          // If latitude is missing but Lat is present, map accordingly
           if (record.latitude === undefined && record.Lat !== undefined) {
             return {
               latitude: record.Lat,
@@ -277,11 +272,10 @@ const Shipments = () => {
               timestamp: record.DT,
             }
           }
-          // Otherwise, use as is (backend mapped correctly)
           return record
         });
 
-        // Filter out records with missing or invalid lat/lng or timestamp
+        // Filter valid records
         const filteredData = mappedData.filter(
           (record) =>
             record.latitude !== undefined &&
@@ -292,12 +286,17 @@ const Shipments = () => {
             record.timestamp !== "N/A"
         )
 
-        // Route for the map
-        const routePoints = filteredData.map((record) => [
-          parseFloat(record.latitude),
-          parseFloat(record.longitude),
-        ])
-        setLiveRoute(routePoints)
+        // Merge historical route with any live points not already present
+        setLiveRoute((prevLiveRoute) => {
+          const historicalSet = new Set(filteredData.map(r => `${r.latitude},${r.longitude}`));
+          const newLivePoints = prevLiveRoute.filter(
+            ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
+          );
+          return [
+            ...filteredData.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)]),
+            ...newLivePoints
+          ];
+        });
 
         // Sensors (Dashboard.js logic, only for filteredData)
         setTemperatureData(
@@ -644,6 +643,17 @@ const Shipments = () => {
     // Cleanup on unmount or tracker change
     return () => ws.close();
   }, [selectedShipment]);
+
+  // When a shipment is selected, initialize liveRoute from routeData
+  useEffect(() => {
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
+    } else {
+      setLiveRoute([]);
+    }
+  }, [routeData]);
 
   return (
     <>
