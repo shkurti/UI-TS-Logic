@@ -726,15 +726,18 @@ const Shipments = () => {
                             End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
                           </Popup>
                         </Marker>
-                        {/* Dashed line from last GPS point to destination */}
-                        <Polyline
-                          positions={[
-                            liveRoute[liveRoute.length - 1],
-                            destinationCoord
-                          ]}
-                          color="blue"
-                          dashArray="8"
-                        />
+                        {/* Dashed line from last GPS point to destination, only if not already at destination */}
+                        {(liveRoute[liveRoute.length - 1][0] !== destinationCoord[0] ||
+                          liveRoute[liveRoute.length - 1][1] !== destinationCoord[1]) && (
+                          <Polyline
+                            positions={[
+                              liveRoute[liveRoute.length - 1],
+                              destinationCoord
+                            ]}
+                            color="blue"
+                            dashArray="8"
+                          />
+                        )}
                       </>
                     )}
                     {/* Last GPS point marker (optional, can use default icon) */}
@@ -749,6 +752,7 @@ const Shipments = () => {
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
                 {liveRoute.length === 0 && newShipmentPreview && (
                   <>
+                    {/* Dashed polyline from start to destination */}
                     <Polyline
                       positions={newShipmentPreview}
                       color="blue"
