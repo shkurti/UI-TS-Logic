@@ -682,7 +682,7 @@ const Shipments = () => {
                   </>
                 )}
                 {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {liveRoute.length === 0 && newShipmentPreview && (
+                {selectedShipment && liveRoute.length === 0 && newShipmentPreview && (
                   <>
                     <Polyline
                       positions={newShipmentPreview}
