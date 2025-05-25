@@ -244,7 +244,7 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      setLiveRoute([]) // Clear route on invalid selection
+      setLiveRoute([])
       return
     }
 
@@ -259,49 +259,59 @@ const Shipments = () => {
         const data = await response.json()
         setRouteData(data)
 
-        // Extract route for the map (latitude/longitude must be present and valid)
-        const routePoints = data
-          .filter(
-            (record) =>
-              record.latitude !== undefined &&
-              record.longitude !== undefined &&
-              !isNaN(parseFloat(record.latitude)) &&
-              !isNaN(parseFloat(record.longitude))
-          )
-          .map((record) => [parseFloat(record.latitude), parseFloat(record.longitude)]);
-        setLiveRoute(routePoints);
+        // Filter out records with missing or invalid lat/lng or timestamp
+        const filteredData = data.filter(
+          (record) =>
+            record.latitude !== undefined &&
+            record.longitude !== undefined &&
+            !isNaN(parseFloat(record.latitude)) &&
+            !isNaN(parseFloat(record.longitude)) &&
+            record.timestamp &&
+            record.timestamp !== "N/A"
+        )
 
-        // Extract sensor data (Dashboard.js logic)
+        // Route for the map
+        const routePoints = filteredData.map((record) => [
+          parseFloat(record.latitude),
+          parseFloat(record.longitude),
+        ])
+        setLiveRoute(routePoints)
+
+        // Sensors (Dashboard.js logic, only for filteredData)
         setTemperatureData(
-          data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            temperature: record.temperature !== undefined && record.temperature !== null
-              ? parseFloat(record.temperature)
-              : null,
+          filteredData.map((record) => ({
+            timestamp: record.timestamp,
+            temperature:
+              record.temperature !== undefined && record.temperature !== null
+                ? parseFloat(record.temperature)
+                : null,
           }))
         )
         setHumidityData(
-          data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            humidity: record.humidity !== undefined && record.humidity !== null
-              ? parseFloat(record.humidity)
-              : null,
+          filteredData.map((record) => ({
+            timestamp: record.timestamp,
+            humidity:
+              record.humidity !== undefined && record.humidity !== null
+                ? parseFloat(record.humidity)
+                : null,
           }))
         )
         setBatteryData(
-          data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined && record.battery !== null
-              ? parseFloat(record.battery)
-              : null,
+          filteredData.map((record) => ({
+            timestamp: record.timestamp,
+            battery:
+              record.battery !== undefined && record.battery !== null
+                ? parseFloat(record.battery)
+                : null,
           }))
         )
         setSpeedData(
-          data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
-            speed: record.speed !== undefined && record.speed !== null
-              ? parseFloat(record.speed)
-              : null,
+          filteredData.map((record) => ({
+            timestamp: record.timestamp,
+            speed:
+              record.speed !== undefined && record.speed !== null
+                ? parseFloat(record.speed)
+                : null,
           }))
         )
       } else {
