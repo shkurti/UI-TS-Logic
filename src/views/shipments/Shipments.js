@@ -608,9 +608,16 @@ const Shipments = () => {
   // When a shipment is selected, initialize liveRoute from routeData
   useEffect(() => {
     if (routeData && routeData.length > 0) {
-      setLiveRoute(
-        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
-      );
+      // Always merge historical routeData with any liveRoute points not already present
+      const historicalRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
+      setLiveRoute((prevLiveRoute) => {
+        // Remove duplicates: only add live points not in historicalRoute
+        const historicalSet = new Set(historicalRoute.map(([lat, lng]) => `${lat},${lng}`));
+        const newLivePoints = prevLiveRoute.filter(
+          ([lat, lng]) => !historicalSet.has(`${lat},${lng}`)
+        );
+        return [...historicalRoute, ...newLivePoints];
+      });
     } else {
       setLiveRoute([]);
     }
