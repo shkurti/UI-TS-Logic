@@ -259,8 +259,30 @@ const Shipments = () => {
         const data = await response.json()
         setRouteData(data)
 
+        // The backend returns: { latitude, longitude, temperature, humidity, speed, battery, timestamp }
+        // But your raw MongoDB document uses: Lat, Lng, Temp, Hum, Speed, Batt, DT
+        // If the backend is not mapping these fields, you need to map them here:
+
+        // Fallback: If latitude is undefined, try to map from Lat/Lng/Temp/DT etc.
+        const mappedData = data.map((record) => {
+          // If latitude is missing but Lat is present, map accordingly
+          if (record.latitude === undefined && record.Lat !== undefined) {
+            return {
+              latitude: record.Lat,
+              longitude: record.Lng,
+              temperature: record.Temp,
+              humidity: record.Hum,
+              speed: record.Speed,
+              battery: record.Batt,
+              timestamp: record.DT,
+            }
+          }
+          // Otherwise, use as is (backend mapped correctly)
+          return record
+        });
+
         // Filter out records with missing or invalid lat/lng or timestamp
-        const filteredData = data.filter(
+        const filteredData = mappedData.filter(
           (record) =>
             record.latitude !== undefined &&
             record.longitude !== undefined &&
