@@ -554,16 +554,21 @@ const Shipments = () => {
       setLiveRoute([]);
       return;
     }
-    // Track if the effect is still for the current shipment
+    // Get the expected time range for the selected shipment
+    const legs = selectedShipment.legs || [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || {};
+    const expectedStart = new Date(firstLeg.shipDate);
+    const expectedEnd = new Date(lastLeg.arrivalDate);
+
     let isCurrent = true;
 
-    // Open WebSocket for real-time updates
     const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
     ws.onopen = () => {
       // Optionally log or authenticate
     };
     ws.onmessage = (event) => {
-      if (!isCurrent) return; // Ignore messages if shipment changed
+      if (!isCurrent) return;
       try {
         const message = JSON.parse(event.data);
         if (
@@ -571,6 +576,16 @@ const Shipments = () => {
           String(message.tracker_id) === String(selectedShipment.trackerId)
         ) {
           const { geolocation, new_record } = message;
+          // Check if the new_record timestamp is within the expected range
+          const dtString = new_record?.DT || new_record?.timestamp;
+          if (dtString) {
+            const dt = new Date(dtString);
+            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
+              return; // Ignore data outside the shipment's time window
+            }
+          } else {
+            return; // Ignore if no timestamp
+          }
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
           if (!isNaN(lat) && !isNaN(lng)) {
@@ -639,7 +654,6 @@ const Shipments = () => {
     ws.onerror = () => {};
     ws.onclose = () => {};
 
-    // Cleanup on unmount or tracker change
     return () => {
       isCurrent = false;
       ws.close();
