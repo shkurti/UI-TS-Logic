@@ -257,45 +257,39 @@ const Shipments = () => {
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
-        // Populate sensor data for tabs using the correct field names from backend
+
+        // Use Dashboard.js logic for sensor data extraction
+        // (Dashboard.js expects: record.temperature, record.humidity, record.battery, record.speed)
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             temperature: record.temperature !== undefined
               ? parseFloat(record.temperature)
-              : record.Temp !== undefined
-                ? parseFloat(record.Temp)
-                : null,
+              : null,
           }))
         )
         setHumidityData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             humidity: record.humidity !== undefined
               ? parseFloat(record.humidity)
-              : record.Hum !== undefined
-                ? parseFloat(record.Hum)
-                : null,
+              : null,
           }))
         )
         setBatteryData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             battery: record.battery !== undefined
               ? parseFloat(record.battery)
-              : record.Batt !== undefined
-                ? parseFloat(record.Batt)
-                : null,
+              : null,
           }))
         )
         setSpeedData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             speed: record.speed !== undefined
               ? parseFloat(record.speed)
-              : record.Speed !== undefined
-                ? parseFloat(record.Speed)
-                : null,
+              : null,
           }))
         )
       } else {
