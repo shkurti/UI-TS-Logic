@@ -554,8 +554,8 @@ const Shipments = () => {
       setLiveRoute([]);
       return;
     }
-    // Fetch initial route data if needed (optional, since you already fetch on click)
-    // setLiveRoute([]); // Optionally clear on new selection
+    // Track if the effect is still for the current shipment
+    let isCurrent = true;
 
     // Open WebSocket for real-time updates
     const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
@@ -563,6 +563,7 @@ const Shipments = () => {
       // Optionally log or authenticate
     };
     ws.onmessage = (event) => {
+      if (!isCurrent) return; // Ignore messages if shipment changed
       try {
         const message = JSON.parse(event.data);
         if (
@@ -639,7 +640,10 @@ const Shipments = () => {
     ws.onclose = () => {};
 
     // Cleanup on unmount or tracker change
-    return () => ws.close();
+    return () => {
+      isCurrent = false;
+      ws.close();
+    };
   }, [selectedShipment]);
 
   // When a shipment is selected, initialize liveRoute from routeData
