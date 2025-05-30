@@ -31,21 +31,21 @@ const AppBreadcrumb = () => {
 
   const breadcrumbs = getBreadcrumbs(currentLocation)
 
-  return (
-    // <CBreadcrumb className="my-0">
-    //   <CBreadcrumbItem href="/">Home</CBreadcrumbItem>
-    //   {breadcrumbs.map((breadcrumb, index) => {
-    //     return (
-    //       <CBreadcrumbItem
-    //         {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
-    //         key={index}
-    //       >
-    //         {breadcrumb.name}
-    //       </CBreadcrumbItem>
-    //     )
-    //   })}
-    // </CBreadcrumb>
-  )
+  // return (
+  //   <CBreadcrumb className="my-0">
+  //     <CBreadcrumbItem href="/">Home</CBreadcrumbItem>
+  //     {breadcrumbs.map((breadcrumb, index) => {
+  //       return (
+  //         <CBreadcrumbItem
+  //           {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
+  //           key={index}
+  //         >
+  //           {breadcrumb.name}
+  //         </CBreadcrumbItem>
+  //       )
+  //     })}
+  //   </CBreadcrumb>
+  // )
 }
 
 export default React.memo(AppBreadcrumb)
