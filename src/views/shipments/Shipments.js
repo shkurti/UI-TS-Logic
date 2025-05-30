@@ -771,11 +771,11 @@ const Shipments = () => {
   return (
     <div style={{ 
       display: 'flex', 
-      height: '100vh', 
+      height: 'calc(100vh - 120px)', // Subtract navbar height
       width: '100vw',
       overflow: 'hidden',
       position: 'fixed',
-      top: 0,
+      top: '120px', // Position below navbar
       left: 0,
       margin: 0,
       padding: 0,
@@ -786,7 +786,7 @@ const Shipments = () => {
         <div 
           style={{
             position: 'fixed',
-            top: 0,
+            top: '120px', // Start below navbar
             left: 0,
             right: 0,
             bottom: 0,
@@ -811,7 +811,7 @@ const Shipments = () => {
         zIndex: 1000,
         transition: 'width 0.3s ease, box-shadow 0.3s ease',
         position: 'relative',
-        height: '100vh',
+        height: 'calc(100vh - 120px)', // Adjust for navbar
         overflow: 'hidden',
         flexShrink: 0
       }}>
@@ -1275,7 +1275,7 @@ const Shipments = () => {
       {/* Toggle Button - Always visible and properly positioned */}
       <div style={{
         position: 'fixed',
-        top: '20px',
+        top: '140px', // Position below navbar with some margin
         left: sidebarCollapsed 
           ? '20px' 
           : (isMobile 
@@ -1310,7 +1310,7 @@ const Shipments = () => {
       <div style={{ 
         flex: 1, 
         position: 'relative',
-        height: '100vh',
+        height: 'calc(100vh - 120px)', // Adjust for navbar
         overflow: 'hidden',
         margin: 0,
         padding: 0,
@@ -1320,7 +1320,7 @@ const Shipments = () => {
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
           style={{ 
-            height: '100vh', 
+            height: 'calc(100vh - 120px)', // Adjust for navbar
             width: '100%',
             position: 'absolute',
             top: 0,
@@ -1424,7 +1424,7 @@ const Shipments = () => {
         {sidebarCollapsed && selectedShipment && (
           <div style={{
             position: 'absolute',
-            top: '80px',
+            top: '20px', // Reduced from 80px since we're already below navbar
             left: '20px',
             right: '20px',
             background: 'white',

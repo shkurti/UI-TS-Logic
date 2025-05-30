@@ -56,6 +56,12 @@ body {
   min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
 }
 
+// Shipments page specific styles
+.shipments-container {
+  margin-top: calc(4rem + 1px); // Account for navbar height
+  height: calc(100vh - 4rem - 1px); // Full height minus navbar
+}
+
 @include color-mode(dark) {
   body {
     background-color: var(--cui-dark-bg-subtle);
