@@ -29,8 +29,10 @@ import {
   CSpinner,
   CInputGroup,
   CInputGroupText,
+  CListGroup,
+  CListGroupItem,
 } from '@coreui/react'
-import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2, BsSearch, BsFilter, BsPlus, BsTrash, BsMap, BsInfoCircle, BsGeoAlt } from 'react-icons/bs'
+import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2, BsSearch, BsFilter, BsPlus, BsTrash, BsMap, BsInfoCircle, BsGeoAlt, BsArrowLeft, BsExclamationTriangle, BsFileText } from 'react-icons/bs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import L from 'leaflet'
 
@@ -504,29 +506,6 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
-  // Helper to create a number marker icon
-  const numberIcon = (number) =>
-    L.divIcon({
-      className: 'number-marker',
-      html: `<div style="
-        background: #1976d2;
-        color: #fff;
-        border-radius: 50%;
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 16px;
-        border: 2px solid #fff;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-      ">${number}</div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -14],
-    });
-
   // Ensure destinationCoord is always set when GPS data is loaded
   useEffect(() => {
     const setDestinationFromShipment = async () => {
@@ -697,554 +676,422 @@ const Shipments = () => {
     return matchesSearch && matchesShipFrom && matchesShipTo
   })
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'In Transit': return 'primary'
-      case 'Upcoming': return 'warning'
-      case 'Completed': return 'success'
-      default: return 'secondary'
-    }
-  }
+  // Helper to create a number marker icon
+  const numberIcon = (number) =>
+    L.divIcon({
+      className: 'number-marker',
+      html: `<div style="
+        background: #1976d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      ">${number}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14],
+    })
 
   return (
-    <div className="shipments-page" style={{ background: '#f8f9fa', minHeight: '100vh', padding: '20px 0' }}>
-      {/* Alert Messages */}
-      {alertMessage && (
-        <CAlert color="success" dismissible onClose={() => setAlertMessage('')} className="mb-4">
-          {alertMessage}
-        </CAlert>
-      )}
-
-      {/* Enhanced Header */}
-      <CRow className="mb-4">
-        <CCol xs={12}>
-          <div style={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '16px',
-            padding: '32px',
-            color: 'white',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-          }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <BsMap size={40} />
-              Shipment Management
-            </h1>
-            <p style={{ fontSize: '1.1rem', opacity: 0.9, margin: 0 }}>
-              Track and manage your shipments in real-time with GPS monitoring and sensor data
-            </p>
-          </div>
-        </CCol>
-      </CRow>
-
-      {/* Enhanced Map Section */}
-      <CRow className="mb-4">
-        <CCol xs={12}>
-          <CCard style={{ 
-            borderRadius: '16px', 
-            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
-            border: 'none',
-            overflow: 'hidden'
-          }}>
-            <CCardHeader style={{ 
-              background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
-              border: 'none',
-              padding: '20px 24px',
-              color: 'white'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <BsGeoAlt size={20} />
-                <h5 style={{ margin: 0, fontWeight: '600' }}>Live Tracking Map</h5>
-              </div>
-            </CCardHeader>
-            <CCardBody style={{ padding: 0 }}>
-              <MapContainer
-                center={[42.798939, -74.658409]}
-                zoom={5}
-                style={{ height: '450px', width: '100%' }}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                {/* Always show start and destination markers if available */}
-                {startCoord && (
-                  <Marker position={startCoord} icon={numberIcon('1')}>
-                    <Popup>
-                      Start: {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
-                    </Popup>
-                  </Marker>
-                )}
-                {destinationCoord && (
-                  <Marker position={destinationCoord} icon={numberIcon('2')}>
-                    <Popup>
-                      End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
-                    </Popup>
-                  </Marker>
-                )}
-                {/* Show shipment route if selected */}
-                {liveRoute.length > 0 && (
-                  <>
-                    <FitBounds route={liveRoute} />
-                    <Polyline
-                      positions={liveRoute}
-                      color="blue"
-                    />
-                    {/* Dashed line from last GPS point to destination, if not at destination */}
-                    {destinationCoord && liveRoute.length > 0 && (
-                      (() => {
-                        const last = liveRoute[liveRoute.length - 1];
-                        if (
-                          last[0] !== destinationCoord[0] ||
-                          last[1] !== destinationCoord[1]
-                        ) {
-                          return (
-                            <Polyline
-                              positions={[last, destinationCoord]}
-                              color="blue"
-                              dashArray="8"
-                            />
-                          );
-                        }
-                        return null;
-                      })()
-                    )}
-                    {/* Last GPS point marker (optional, can use default icon) */}
-                    <Marker
-                      position={liveRoute[liveRoute.length - 1]}
-                      icon={customIcon}
-                    >
-                      <Popup>Last Point</Popup>
-                    </Marker>
-                  </>
-                )}
-                {/* Show preview line for new shipment or for selected shipment with no routeData */}
-                {liveRoute.length === 0 && startCoord && destinationCoord && (
-                  <>
-                    <Polyline
-                      positions={[startCoord, destinationCoord]}
-                      color="blue"
-                      dashArray="8"
-                    />
-                  </>
-                )}
-              </MapContainer>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* Enhanced Shipment List Section */}
-      <CRow className="mb-4">
-        <CCol xs={12}>
-          <CCard style={{ 
-            borderRadius: '16px', 
-            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
-            border: 'none'
-          }}>
-            <CCardHeader style={{ 
-              background: '#fff', 
-              borderBottom: '1px solid #e9ecef',
-              borderRadius: '16px 16px 0 0',
-              padding: '24px'
-            }}>
-              {/* Action Buttons Row */}
-              <div style={{ 
-                display: 'flex', 
-                flexWrap: 'wrap', 
-                alignItems: 'center', 
-                gap: '16px', 
-                marginBottom: '24px'
-              }}>
-                <CButton 
-                  color="primary" 
-                  onClick={() => setIsModalOpen(true)}
-                  style={{
-                    borderRadius: '12px',
-                    padding: '12px 24px',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
-                  }}
-                >
-                  <BsPlus size={20} />
-                  Create New Shipment
-                </CButton>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      {/* Sidebar */}
+      <div style={{
+        width: selectedShipment ? '450px' : '400px',
+        background: '#fff',
+        boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 1000,
+        transition: 'width 0.3s ease'
+      }}>
+        {/* Sidebar Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '20px',
+          color: 'white'
+        }}>
+          {!selectedShipment ? (
+            <>
+              <h4 style={{ margin: 0, marginBottom: '8px', fontWeight: '700' }}>
+                Shipment Management
+              </h4>
+              <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>
+                Track and manage shipments
+              </p>
+            </>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <CButton
-                  color="danger"
+                  color="light"
                   variant="outline"
-                  disabled={!selectedShipment}
-                  onClick={deleteShipment}
-                  style={{
-                    borderRadius: '12px',
-                    padding: '12px 24px',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
+                  size="sm"
+                  onClick={() => setSelectedShipment(null)}
+                  style={{ padding: '6px 12px' }}
                 >
-                  <BsTrash size={16} />
-                  Delete Selected
+                  <BsArrowLeft size={14} />
                 </CButton>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CBadge color="info" style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
-                    {filteredShipments.length} Shipments
-                  </CBadge>
-                  {isLoading && <CSpinner size="sm" />}
+                <h5 style={{ margin: 0, fontWeight: '600' }}>
+                  Shipment #{selectedShipment.trackerId}
+                </h5>
+              </div>
+              
+              {/* Shipment Details Summary */}
+              <div style={{
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '13px'
+              }}>
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 35) || 'N/A'}
+                  {selectedShipment.legs?.[0]?.shipFromAddress?.length > 35 ? '...' : ''}
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 35) || 'N/A'}
+                  {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 35 ? '...' : ''}
+                </div>
+                <div>
+                  <strong>Arrival:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
                 </div>
               </div>
+            </div>
+          )}
+        </div>
 
-              {/* Enhanced Search and Filter Row */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-                <CInputGroup style={{ maxWidth: '350px' }}>
-                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
-                    <BsSearch />
+        {/* Sidebar Content */}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {!selectedShipment ? (
+            <>
+              {/* Action Buttons */}
+              <div style={{ padding: '16px', borderBottom: '1px solid #e9ecef' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <CButton
+                    color="primary"
+                    onClick={() => setIsModalOpen(true)}
+                    style={{
+                      flex: 1,
+                      borderRadius: '8px',
+                      padding: '10px',
+                      fontWeight: '600',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <BsPlus size={16} style={{ marginRight: '6px' }} />
+                    New Shipment
+                  </CButton>
+                  <CButton
+                    color="danger"
+                    variant="outline"
+                    disabled={!selectedShipment}
+                    onClick={deleteShipment}
+                    style={{
+                      borderRadius: '8px',
+                      padding: '10px 16px'
+                    }}
+                  >
+                    <BsTrash size={14} />
+                  </CButton>
+                </div>
+
+                {/* Search */}
+                <CInputGroup size="sm">
+                  <CInputGroupText>
+                    <BsSearch size={14} />
                   </CInputGroupText>
                   <CFormInput
                     placeholder="Search shipments..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ borderLeft: 'none' }}
-                  />
-                </CInputGroup>
-                <CInputGroup style={{ maxWidth: '250px' }}>
-                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
-                    <BsFilter />
-                  </CInputGroupText>
-                  <CFormInput
-                    placeholder="Filter by Ship From"
-                    value={shipFromFilter}
-                    onChange={(e) => setShipFromFilter(e.target.value)}
-                    style={{ borderLeft: 'none' }}
-                  />
-                </CInputGroup>
-                <CInputGroup style={{ maxWidth: '250px' }}>
-                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
-                    <BsFilter />
-                  </CInputGroupText>
-                  <CFormInput
-                    placeholder="Filter by Ship To"
-                    value={shipToFilter}
-                    onChange={(e) => setShipToFilter(e.target.value)}
-                    style={{ borderLeft: 'none' }}
                   />
                 </CInputGroup>
               </div>
 
-              {/* Enhanced Status Tabs */}
-              <CNav variant="pills" role="tablist" style={{ gap: '8px' }}>
-                {['In Transit', 'Upcoming', 'Completed'].map((tab) => (
-                  <CNavItem key={tab}>
-                    <CNavLink
-                      active={activeTab === tab}
-                      onClick={() => setActiveTab(tab)}
+              {/* Shipments List */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <CListGroup flush>
+                  {filteredShipments.map((shipment, index) => (
+                    <CListGroupItem
+                      key={index}
+                      onClick={() => handleShipmentClick(shipment)}
                       style={{
-                        borderRadius: '12px',
-                        padding: '12px 20px',
-                        fontWeight: '600',
+                        cursor: 'pointer',
                         border: 'none',
-                        background: activeTab === tab ? `var(--cui-${getStatusColor(tab)})` : '#f8f9fa',
-                        color: activeTab === tab ? 'white' : '#6c757d',
-                        transition: 'all 0.3s ease'
+                        borderBottom: '1px solid #f0f0f0',
+                        padding: '16px',
+                        transition: 'background 0.2s'
                       }}
+                      className="hover:bg-gray-50"
                     >
-                      {tab} ({tab === 'In Transit' ? filteredShipments.length : tab === 'Upcoming' ? 8 : 23})
-                      <CBadge 
-                        color={activeTab === tab ? 'light' : getStatusColor(tab)} 
-                        style={{ marginLeft: '8px' }}
-                      >
-                        {tab === 'In Transit' ? filteredShipments.length : tab === 'Upcoming' ? 8 : 23}
-                      </CBadge>
-                    </CNavLink>
-                  </CNavItem>
-                ))}
-              </CNav>
-            </CCardHeader>
-
-            <CCardBody style={{ padding: 0 }}>
-              <div style={{ overflowX: 'auto' }}>
-                <CTable hover responsive className="mb-0" style={{ minWidth: '900px' }}>
-                  <CTableHead style={{ background: '#f8f9fa' }}>
-                    <CTableRow>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Shipment ID
-                      </CTableHeaderCell>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Ship From
-                      </CTableHeaderCell>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Ship To
-                      </CTableHeaderCell>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Status
-                      </CTableHeaderCell>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Arrival Date
-                      </CTableHeaderCell>
-                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
-                        Actions
-                      </CTableHeaderCell>
-                    </CTableRow>
-                  </CTableHead>
-                  <CTableBody>
-                    {filteredShipments.map((shipment, index) => (
-                      <CTableRow
-                        key={index}
-                        style={{
-                          cursor: 'pointer',
-                          background: selectedShipment === shipment ? '#e3f2fd' : 'white',
-                          transition: 'all 0.2s ease',
-                          borderLeft: selectedShipment === shipment ? '4px solid #2196f3' : '4px solid transparent'
-                        }}
-                        onClick={() => handleShipmentClick(shipment)}
-                      >
-                        <CTableDataCell style={{ padding: '20px 24px', fontWeight: '600', color: '#2196f3' }}>
-                          #{shipment.trackerId || 'N/A'}
-                        </CTableDataCell>
-                        <CTableDataCell style={{ padding: '20px 24px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: '500' }}>
-                              {shipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
-                              {shipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
-                            </span>
-                            <small style={{ color: '#6c757d' }}>Origin</small>
-                          </div>
-                        </CTableDataCell>
-                        <CTableDataCell style={{ padding: '20px 24px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: '500' }}>
-                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
-                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
-                            </span>
-                            <small style={{ color: '#6c757d' }}>Destination</small>
-                          </div>
-                        </CTableDataCell>
-                        <CTableDataCell style={{ padding: '20px 24px' }}>
-                          <CBadge color={getStatusColor('In Transit')} style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
+                      <div style={{ marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong style={{ color: '#2196f3', fontSize: '14px' }}>
+                            #{shipment.trackerId}
+                          </strong>
+                          <CBadge color="primary" style={{ fontSize: '10px' }}>
                             In Transit
                           </CBadge>
-                        </CTableDataCell>
-                        <CTableDataCell style={{ padding: '20px 24px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: '500' }}>
-                              {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                            </span>
-                            <small style={{ color: '#6c757d' }}>
-                              {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || ''}
-                            </small>
-                          </div>
-                        </CTableDataCell>
-                        <CTableDataCell style={{ padding: '20px 24px' }}>
-                          <CButton
-                            size="sm"
-                            color="info"
-                            variant="outline"
-                            style={{ borderRadius: '8px', padding: '6px 12px' }}
-                          >
-                            <BsInfoCircle size={14} style={{ marginRight: '4px' }} />
-                            View Details
-                          </CButton>
-                        </CTableDataCell>
-                      </CTableRow>
-                    ))}
-                    {filteredShipments.length === 0 && (
-                      <CTableRow>
-                        <CTableDataCell colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                          <BsInfoCircle size={24} style={{ marginBottom: '12px' }} />
-                          <div>No shipments found matching your criteria</div>
-                        </CTableDataCell>
-                      </CTableRow>
-                    )}
-                  </CTableBody>
-                </CTable>
+                        </div>
+                      </div>
+                      
+                      <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
+                        <div style={{ marginBottom: '4px' }}>
+                          <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, 25) || 'N/A'}
+                          {shipment.legs?.[0]?.shipFromAddress?.length > 25 ? '...' : ''}
+                        </div>
+                        <div style={{ marginBottom: '4px' }}>
+                          <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, 25) || 'N/A'}
+                          {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > 25 ? '...' : ''}
+                        </div>
+                        <div style={{ color: '#888' }}>
+                          ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                        </div>
+                      </div>
+                    </CListGroupItem>
+                  ))}
+                </CListGroup>
+                
+                {filteredShipments.length === 0 && (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px 20px', 
+                    color: '#666',
+                    fontSize: '14px'
+                  }}>
+                    <BsInfoCircle size={24} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                    <div>No shipments found</div>
+                  </div>
+                )}
               </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* Enhanced Details Panel */}
-      {selectedShipment && (
-        <CRow>
-          <CCol xs={12}>
-            <CCard style={{ 
-              borderRadius: '16px', 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
-              border: 'none'
-            }}>
-              <CCardHeader style={{ 
-                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                borderRadius: '16px 16px 0 0',
-                padding: '24px',
-                color: 'white'
-              }}>
-                <h5 style={{ margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <BsInfoCircle size={20} />
-                  Shipment Details - #{selectedShipment.trackerId}
-                </h5>
-                <CNav variant="pills" role="tablist" style={{ gap: '8px', marginTop: '16px' }}>
-                  {['Details', 'Sensors', 'Alerts', 'Reports'].map((tab) => (
+            </>
+          ) : (
+            <>
+              {/* Shipment Detail Tabs */}
+              <div style={{ borderBottom: '1px solid #e9ecef', padding: '0 16px' }}>
+                <CNav variant="pills" style={{ gap: '4px', padding: '12px 0' }}>
+                  {['Sensors', 'Alerts', 'Reports'].map((tab) => (
                     <CNavItem key={tab}>
                       <CNavLink
                         active={shipmentTab === tab}
                         onClick={() => setShipmentTab(tab)}
                         style={{
-                          borderRadius: '10px',
-                          padding: '10px 16px',
+                          borderRadius: '6px',
+                          padding: '8px 12px',
+                          fontSize: '13px',
                           fontWeight: '500',
-                          background: shipmentTab === tab ? 'rgba(255,255,255,0.2)' : 'transparent',
-                          color: 'white',
-                          border: '1px solid rgba(255,255,255,0.3)'
+                          background: shipmentTab === tab ? '#e3f2fd' : 'transparent',
+                          color: shipmentTab === tab ? '#1976d2' : '#666'
                         }}
                       >
+                        {tab === 'Sensors' && <BsThermometerHalf size={14} style={{ marginRight: '6px' }} />}
+                        {tab === 'Alerts' && <BsExclamationTriangle size={14} style={{ marginRight: '6px' }} />}
+                        {tab === 'Reports' && <BsFileText size={14} style={{ marginRight: '6px' }} />}
                         {tab}
                       </CNavLink>
                     </CNavItem>
                   ))}
                 </CNav>
-              </CCardHeader>
-              <CCardBody style={{ background: '#f8f9fa', padding: '32px' }}>
-                {shipmentTab === 'Details' && (
-                  <div style={{ maxWidth: 500, margin: '0 auto' }}>
-                    <p>
-                      <strong>Shipment ID:</strong> {selectedShipment.trackerId}
-                    </p>
-                    <p>
-                      <strong>Ship From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress || 'N/A'}
-                    </p>
-                    <p>
-                      <strong>Ship To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress || 'N/A'}
-                    </p>
-                    <p>
-                      <strong>Arrival Date:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate || 'N/A'}
-                    </p>
-                    <p>
-                      <strong>Departure Date:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.departureDate || 'N/A'}
-                    </p>
-                  </div>
-                )}
+              </div>
+
+              {/* Tab Content */}
+              <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
                 {shipmentTab === 'Sensors' && (
-                  <>
-                    <div className="sensor-icons d-flex justify-content-center mb-4" style={{ gap: 20 }}>
-                      {[
-                        { key: 'Temperature', icon: BsThermometerHalf, color: '#ff6b6b' },
-                        { key: 'Humidity', icon: BsDroplet, color: '#4ecdc4' },
-                        { key: 'Battery', icon: BsBatteryHalf, color: '#45b7d1' },
-                        { key: 'Speed', icon: BsSpeedometer2, color: '#96ceb4' }
-                      ].map(({ key, icon: Icon, color }) => (
-                        <div
-                          key={key}
-                          onClick={() => setActiveSensor(key)}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            borderRadius: '16px',
-                            padding: '16px 20px',
-                            background: activeSensor === key ? color : 'white',
-                            color: activeSensor === key ? 'white' : '#6c757d',
-                            transition: 'all 0.3s ease',
-                            minWidth: 90,
-                            boxShadow: activeSensor === key ? `0 8px 20px ${color}40` : '0 2px 8px rgba(0,0,0,0.1)',
-                            transform: activeSensor === key ? 'translateY(-2px)' : 'none'
-                          }}
-                        >
-                          <Icon size={24} style={{ marginBottom: '8px' }} />
-                          <span style={{ fontSize: '13px', fontWeight: '600' }}>{key}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Enhanced chart styling */}
-                    <div style={{ 
-                      background: 'white', 
-                      borderRadius: '16px', 
-                      padding: '24px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                    }}>
-                      {activeSensor === 'Temperature' && (
-                        <ResponsiveContainer width="100%" height={300}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Temperature Chart */}
+                    <CCard style={{ border: '1px solid #e9ecef' }}>
+                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
+                        <BsThermometerHalf style={{ marginRight: '8px', color: '#ff6b6b' }} />
+                        Temperature
+                      </CCardHeader>
+                      <CCardBody style={{ padding: '12px' }}>
+                        <ResponsiveContainer width="100%" height={180}>
                           <LineChart data={temperatureData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis />
+                            <YAxis fontSize={10} />
                             <Tooltip
-                              formatter={(value, name) => [
-                                `${name === 'temperature' ? 'Temperature' : ''}: ${value}°C`,
-                                null,
-                              ]}
-                              labelFormatter={(label) => `Timestamp: ${label}`}
+                              formatter={(value) => [`${value}°C`, 'Temperature']}
+                              labelFormatter={(label) => `Time: ${label}`}
                             />
-                            <Line type="monotone" dataKey="temperature" stroke="#8884d8" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey="temperature" stroke="#ff6b6b" strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
-                      )}
-                      {activeSensor === 'Humidity' && (
-                        <ResponsiveContainer width="100%" height={300}>
+                      </CCardBody>
+                    </CCard>
+
+                    {/* Humidity Chart */}
+                    <CCard style={{ border: '1px solid #e9ecef' }}>
+                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
+                        <BsDroplet style={{ marginRight: '8px', color: '#4ecdc4' }} />
+                        Humidity
+                      </CCardHeader>
+                      <CCardBody style={{ padding: '12px' }}>
+                        <ResponsiveContainer width="100%" height={180}>
                           <LineChart data={humidityData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis />
+                            <YAxis fontSize={10} />
                             <Tooltip
-                              formatter={(value, name) => [
-                                `${name === 'humidity' ? 'Humidity' : ''}: ${value}%`,
-                                null,
-                              ]}
-                              labelFormatter={(label) => `Timestamp: ${label}`}
+                              formatter={(value) => [`${value}%`, 'Humidity']}
+                              labelFormatter={(label) => `Time: ${label}`}
                             />
-                            <Line type="monotone" dataKey="humidity" stroke="#82ca9d" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
-                      )}
-                      {activeSensor === 'Battery' && (
-                        <ResponsiveContainer width="100%" height={300}>
+                      </CCardBody>
+                    </CCard>
+
+                    {/* Battery Chart */}
+                    <CCard style={{ border: '1px solid #e9ecef' }}>
+                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
+                        <BsBatteryHalf style={{ marginRight: '8px', color: '#45b7d1' }} />
+                        Battery Level
+                      </CCardHeader>
+                      <CCardBody style={{ padding: '12px' }}>
+                        <ResponsiveContainer width="100%" height={180}>
                           <LineChart data={batteryData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis />
+                            <YAxis fontSize={10} />
                             <Tooltip
-                              formatter={(value, name) => [
-                                `${name === 'battery' ? 'Battery Level' : ''}: ${value}%`,
-                                null,
-                              ]}
-                              labelFormatter={(label) => `Timestamp: ${label}`}
+                              formatter={(value) => [`${value}%`, 'Battery']}
+                              labelFormatter={(label) => `Time: ${label}`}
                             />
-                            <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey="battery" stroke="#45b7d1" strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
-                      )}
-                      {activeSensor === 'Speed' && (
-                        <ResponsiveContainer width="100%" height={300}>
+                      </CCardBody>
+                    </CCard>
+
+                    {/* Speed Chart */}
+                    <CCard style={{ border: '1px solid #e9ecef' }}>
+                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
+                        <BsSpeedometer2 style={{ marginRight: '8px', color: '#96ceb4' }} />
+                        Speed
+                      </CCardHeader>
+                      <CCardBody style={{ padding: '12px' }}>
+                        <ResponsiveContainer width="100%" height={180}>
                           <LineChart data={speedData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis />
+                            <YAxis fontSize={10} />
                             <Tooltip
-                              formatter={(value, name) => [
-                                `${name === 'speed' ? 'Speed' : ''}: ${value} km/h`,
-                                null,
-                              ]}
-                              labelFormatter={(label) => `Timestamp: ${label}`}
+                              formatter={(value) => [`${value} km/h`, 'Speed']}
+                              labelFormatter={(label) => `Time: ${label}`}
                             />
-                            <Line type="monotone" dataKey="speed" stroke="#ff7300" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
-                      )}
-                    </div>
-                  </>
+                      </CCardBody>
+                    </CCard>
+                  </div>
                 )}
-                {shipmentTab === 'Alerts' && <div style={{ minHeight: 100 }}>Alerts content</div>}
-                {shipmentTab === 'Reports' && <div style={{ minHeight: 100 }}>Reports content</div>}
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      )}
+                
+                {shipmentTab === 'Alerts' && (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
+                    <BsExclamationTriangle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                    <div>No alerts for this shipment</div>
+                  </div>
+                )}
+                
+                {shipmentTab === 'Reports' && (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
+                    <BsFileText size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                    <div>Reports feature coming soon</div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
-      {/* Enhanced Modal - Fixed visibility issue */}
+      {/* Full Page Map */}
+      <div style={{ flex: 1, position: 'relative' }}>
+        <MapContainer
+          center={[42.798939, -74.658409]}
+          zoom={5}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          
+          {/* Always show start and destination markers if available */}
+          {startCoord && (
+            <Marker position={startCoord} icon={numberIcon('1')}>
+              <Popup>
+                Start: {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+              </Popup>
+            </Marker>
+          )}
+          {destinationCoord && (
+            <Marker position={destinationCoord} icon={numberIcon('2')}>
+              <Popup>
+                End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+              </Popup>
+            </Marker>
+          )}
+          
+          {/* Show shipment route if selected */}
+          {liveRoute.length > 0 && (
+            <>
+              <FitBounds route={liveRoute} />
+              <Polyline
+                positions={liveRoute}
+                color="blue"
+              />
+              {/* Dashed line from last GPS point to destination, if not at destination */}
+              {destinationCoord && liveRoute.length > 0 && (
+                (() => {
+                  const last = liveRoute[liveRoute.length - 1];
+                  if (
+                    last[0] !== destinationCoord[0] ||
+                    last[1] !== destinationCoord[1]
+                  ) {
+                    return (
+                      <Polyline
+                        positions={[last, destinationCoord]}
+                        color="blue"
+                        dashArray="8"
+                      />
+                    );
+                  }
+                  return null;
+                })()
+              )}
+              {/* Last GPS point marker (optional, can use default icon) */}
+              <Marker
+                position={liveRoute[liveRoute.length - 1]}
+                icon={customIcon}
+              >
+                <Popup>Current Location</Popup>
+              </Marker>
+            </>
+          )}
+          
+          {/* Show preview line for new shipment or for selected shipment with no routeData */}
+          {liveRoute.length === 0 && startCoord && destinationCoord && (
+            <>
+              <Polyline
+                positions={[startCoord, destinationCoord]}
+                color="blue"
+                dashArray="8"
+              />
+            </>
+          )}
+        </MapContainer>
+      </div>
+
+      {/* Enhanced Modal - Keep existing modal code */}
       <CModal 
         visible={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
