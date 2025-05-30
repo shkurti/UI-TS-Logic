@@ -719,10 +719,6 @@ const Shipments = () => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
-    // If opening sidebar and there's a selected shipment, reset to show the list
-    if (sidebarCollapsed && selectedShipment) {
-      setSelectedShipment(null)
-    }
   }
 
   const openSidebarToList = () => {
@@ -771,34 +767,6 @@ const Shipments = () => {
         overflow: 'hidden',
         left: isMobile && sidebarCollapsed ? '-100vw' : '0'
       }}>
-        {/* Mobile Toggle Button - Always visible on collapsed sidebar */}
-        {(sidebarCollapsed || isMobile) && (
-          <div style={{
-            position: isMobile ? 'fixed' : 'absolute',
-            top: '20px',
-            left: sidebarCollapsed ? (isMobile ? '10px' : '10px') : (isMobile ? '20px' : '410px'),
-            zIndex: 1001,
-            transition: 'left 0.3s ease'
-          }}>
-            <CButton
-              color="primary"
-              size="sm"
-              onClick={toggleSidebar}
-              style={{
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-              }}
-            >
-              {sidebarCollapsed ? '☰' : '✕'}
-            </CButton>
-          </div>
-        )}
-
         {/* Sidebar Content - Only show when not collapsed */}
         {!sidebarCollapsed && (
           <>
@@ -1177,11 +1145,16 @@ const Shipments = () => {
         )}
       </div>
 
-      {/* Toggle Button - Always visible */}
+      {/* Toggle Button - Always visible and properly positioned */}
       <div style={{
         position: 'fixed',
         top: '20px',
-        left: sidebarCollapsed ? '20px' : (isMobile ? '20px' : selectedShipment ? '470px' : '420px'),
+        left: sidebarCollapsed 
+          ? '20px' 
+          : (isMobile 
+              ? (selectedShipment ? 'calc(100vw - 60px)' : 'calc(100vw - 60px)')
+              : (selectedShipment ? '470px' : '420px')
+            ),
         zIndex: 1001,
         transition: 'left 0.3s ease'
       }}>
@@ -1210,7 +1183,12 @@ const Shipments = () => {
       <div style={{ 
         flex: 1, 
         position: 'relative',
-        width: sidebarCollapsed ? '100%' : (isMobile ? '0%' : selectedShipment ? 'calc(100% - 450px)' : 'calc(100% - 400px)'),
+        width: sidebarCollapsed 
+          ? '100%' 
+          : (isMobile 
+              ? '0%' 
+              : (selectedShipment ? 'calc(100% - 450px)' : 'calc(100% - 400px)')
+            ),
         height: '100vh',
         transition: 'width 0.3s ease',
         overflow: 'hidden'
