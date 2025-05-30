@@ -1241,7 +1241,8 @@ const Shipments = () => {
                                 />
                                 <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                               </LineChart>
-                            </CCardBody>
+                            </ResponsiveContainer>
+                          </CCardBody>
                         </CCard>
                       </div>
                     )}
