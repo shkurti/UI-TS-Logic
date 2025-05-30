@@ -103,6 +103,22 @@ const Shipments = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
+  // Add responsive detection
+  useEffect(() => {
+    const checkIsMobile = () => {
+      const mobile = window.innerWidth <= 768
+      setIsMobile(mobile)
+      // Auto-collapse sidebar on mobile initially
+      if (mobile && !sidebarCollapsed) {
+        setSidebarCollapsed(true)
+      }
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [sidebarCollapsed])
+
   useEffect(() => {
     // Fetch shipments from the backend
     const fetchShipments = async () => {
@@ -730,16 +746,21 @@ const Shipments = () => {
 
       {/* Sidebar */}
       <div style={{
-        width: sidebarCollapsed ? (isMobile ? '0' : '60px') : (selectedShipment ? (isMobile ? '100vw' : '450px') : (isMobile ? '100vw' : '400px')),
+        width: sidebarCollapsed 
+          ? '0px' 
+          : selectedShipment 
+            ? (isMobile ? '100vw' : '450px') 
+            : (isMobile ? '100vw' : '400px'),
         background: '#fff',
-        boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
+        boxShadow: sidebarCollapsed ? 'none' : '2px 0 10px rgba(0,0,0,0.1)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
-        transition: 'width 0.3s ease',
+        transition: 'width 0.3s ease, box-shadow 0.3s ease',
         position: isMobile ? 'fixed' : 'relative',
         height: '100vh',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        left: isMobile && sidebarCollapsed ? '-100vw' : '0'
       }}>
         {/* Mobile Toggle Button - Always visible on collapsed sidebar */}
         {(sidebarCollapsed || isMobile) && (
@@ -776,8 +797,28 @@ const Shipments = () => {
             <div style={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               padding: isMobile ? '60px 20px 20px 20px' : '20px',
-              color: 'white'
+              color: 'white',
+              position: 'relative'
             }}>
+              {/* Close button for mobile */}
+              {isMobile && (
+                <CButton
+                  color="light"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSidebarCollapsed(true)}
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    padding: '6px 12px',
+                    zIndex: 1002
+                  }}
+                >
+                  ✕
+                </CButton>
+              )}
+
               {!selectedShipment ? (
                 <>
                   <h4 style={{ 
@@ -815,17 +856,6 @@ const Shipments = () => {
                     }}>
                       Shipment #{selectedShipment.trackerId}
                     </h5>
-                    {isMobile && (
-                      <CButton
-                        color="light"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSidebarCollapsed(true)}
-                        style={{ padding: '6px 12px', marginLeft: 'auto' }}
-                      >
-                        ✕
-                      </CButton>
-                    )}
                   </div>
                   
                   {/* Shipment Details Summary */}
@@ -1111,8 +1141,7 @@ const Shipments = () => {
                                 />
                                 <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                               </LineChart>
-                            </ResponsiveContainer>
-                          </CCardBody>
+                            </CCardBody>
                         </CCard>
                       </div>
                     )}
@@ -1138,17 +1167,53 @@ const Shipments = () => {
         )}
       </div>
 
+      {/* Toggle Button - Always visible */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        left: sidebarCollapsed ? '20px' : (isMobile ? '20px' : selectedShipment ? '470px' : '420px'),
+        zIndex: 1001,
+        transition: 'left 0.3s ease'
+      }}>
+        <CButton
+          color="primary"
+          size="sm"
+          onClick={toggleSidebar}
+          style={{
+            borderRadius: '50%',
+            width: '44px',
+            height: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            border: '2px solid white',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }}
+        >
+          {sidebarCollapsed ? '☰' : '✕'}
+        </CButton>
+      </div>
+
       {/* Full Page Map */}
       <div style={{ 
         flex: 1, 
         position: 'relative',
-        width: sidebarCollapsed ? '100%' : (isMobile ? '0' : 'calc(100% - 400px)'),
-        transition: 'width 0.3s ease'
+        width: sidebarCollapsed ? '100%' : (isMobile ? '0%' : selectedShipment ? 'calc(100% - 450px)' : 'calc(100% - 400px)'),
+        height: '100vh',
+        transition: 'width 0.3s ease',
+        overflow: 'hidden'
       }}>
         <MapContainer
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
-          style={{ height: '100%', width: '100%' }}
+          style={{ 
+            height: '100%', 
+            width: '100%',
+            position: 'relative',
+            zIndex: 1
+          }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1203,6 +1268,96 @@ const Shipments = () => {
             <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
           )}
         </MapContainer>
+
+        {/* Map Info Panel - Show when no shipment selected and sidebar collapsed */}
+        {sidebarCollapsed && !selectedShipment && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '20px',
+            right: '20px',
+            background: 'white',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            maxWidth: '300px'
+          }}>
+            <h6 style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+              Shipment Tracking
+            </h6>
+            <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+              Open the sidebar to view and manage shipments
+            </p>
+            <CButton
+              color="primary"
+              size="sm"
+              onClick={() => setSidebarCollapsed(false)}
+              style={{
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: '600'
+              }}
+            >
+              View Shipments
+            </CButton>
+          </div>
+        )}
+
+        {/* Selected Shipment Info - Show when shipment selected and sidebar collapsed */}
+        {sidebarCollapsed && selectedShipment && (
+          <div style={{
+            position: 'absolute',
+            top: '80px',
+            left: '20px',
+            right: '20px',
+            background: 'white',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            maxWidth: '350px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div>
+                <h6 style={{ margin: 0, marginBottom: '4px', fontWeight: '600', color: '#333' }}>
+                  Shipment #{selectedShipment.trackerId}
+                </h6>
+                <CBadge color="primary" style={{ fontSize: '10px' }}>
+                  In Transit
+                </CBadge>
+              </div>
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarCollapsed(false)}
+                style={{
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '11px'
+                }}
+              >
+                Details
+              </CButton>
+            </div>
+            
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              <div style={{ marginBottom: '4px' }}>
+                <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
+                {selectedShipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
+              </div>
+              <div style={{ marginBottom: '4px' }}>
+                <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
+                {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
+              </div>
+              <div>
+                <strong>ETA:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Modal - Make responsive */}
