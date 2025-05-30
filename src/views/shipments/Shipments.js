@@ -719,6 +719,15 @@ const Shipments = () => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
+    // If opening sidebar and there's a selected shipment, reset to show the list
+    if (sidebarCollapsed && selectedShipment) {
+      setSelectedShipment(null)
+    }
+  }
+
+  const openSidebarToList = () => {
+    setSidebarCollapsed(false)
+    setSelectedShipment(null) // Always reset to show the shipments list
   }
 
   return (
@@ -1293,7 +1302,7 @@ const Shipments = () => {
             <CButton
               color="primary"
               size="sm"
-              onClick={() => setSidebarCollapsed(false)}
+              onClick={openSidebarToList}
               style={{
                 borderRadius: '6px',
                 padding: '6px 12px',
