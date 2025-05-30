@@ -773,7 +773,9 @@ const Shipments = () => {
       display: 'flex', 
       height: '100vh', 
       overflow: 'hidden',
-      position: 'relative'
+      position: 'relative',
+      margin: 0,
+      padding: 0
     }}>
       {/* Mobile Overlay */}
       {isMobile && !sidebarCollapsed && (
@@ -807,7 +809,8 @@ const Shipments = () => {
         position: isMobile ? 'fixed' : 'relative',
         height: '100vh',
         overflow: 'hidden',
-        left: isMobile && sidebarCollapsed ? '-100vw' : '0'
+        left: isMobile && sidebarCollapsed ? '-100vw' : '0',
+        top: 0
       }}>
         {/* Sidebar Content - Only show when not collapsed */}
         {!sidebarCollapsed && (
@@ -817,7 +820,8 @@ const Shipments = () => {
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               padding: isMobile ? '60px 20px 20px 20px' : '20px',
               color: 'white',
-              position: 'relative'
+              position: 'relative',
+              flexShrink: 0
             }}>
               {/* Close button for mobile */}
               {isMobile && (
@@ -905,7 +909,11 @@ const Shipments = () => {
               {!selectedShipment ? (
                 <>
                   {/* Action Buttons */}
-                  <div style={{ padding: isMobile ? '12px' : '16px', borderBottom: '1px solid #e9ecef' }}>
+                  <div style={{ 
+                    padding: isMobile ? '12px' : '16px', 
+                    borderBottom: '1px solid #e9ecef',
+                    flexShrink: 0
+                  }}>
                     <div style={{ 
                       display: 'flex', 
                       flexDirection: isMobile ? 'column' : 'row',
@@ -994,7 +1002,11 @@ const Shipments = () => {
                   </div>
 
                   {/* Shipments List */}
-                  <div style={{ flex: 1, overflow: 'auto' }}>
+                  <div style={{ 
+                    flex: 1, 
+                    overflow: 'auto',
+                    WebkitOverflowScrolling: 'touch' // Enable smooth scrolling on iOS
+                  }}>
                     <CListGroup flush>
                       {filteredShipments.map((shipment, index) => (
                         <CListGroupItem
@@ -1082,7 +1094,11 @@ const Shipments = () => {
               ) : (
                 <>
                   {/* Shipment Detail Tabs */}
-                  <div style={{ borderBottom: '1px solid #e9ecef', padding: isMobile ? '0 12px' : '0 16px' }}>
+                  <div style={{ 
+                    borderBottom: '1px solid #e9ecef', 
+                    padding: isMobile ? '0 12px' : '0 16px',
+                    flexShrink: 0
+                  }}>
                     <CNav variant="pills" style={{ 
                       gap: '4px', 
                       padding: isMobile ? '8px 0' : '12px 0',
@@ -1113,7 +1129,12 @@ const Shipments = () => {
                   </div>
 
                   {/* Tab Content */}
-                  <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? '12px' : '16px' }}>
+                  <div style={{ 
+                    flex: 1, 
+                    overflow: 'auto', 
+                    padding: isMobile ? '12px' : '16px',
+                    WebkitOverflowScrolling: 'touch' // Enable smooth scrolling on iOS
+                  }}>
                     {shipmentTab === 'Sensors' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '12px' : '16px' }}>
                         {/* Temperature Chart */}
@@ -1220,8 +1241,7 @@ const Shipments = () => {
                                 />
                                 <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                               </LineChart>
-                            </ResponsiveContainer>
-                          </CCardBody>
+                            </CCardBody>
                         </CCard>
                       </div>
                     )}
@@ -1293,16 +1313,20 @@ const Shipments = () => {
             ),
         height: '100vh',
         transition: 'width 0.3s ease',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        margin: 0,
+        padding: 0
       }}>
         <MapContainer
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
           style={{ 
-            height: '100%', 
+            height: '100vh', 
             width: '100%',
             position: 'relative',
-            zIndex: 1
+            zIndex: 1,
+            margin: 0,
+            padding: 0
           }}
         >
           <TileLayer
