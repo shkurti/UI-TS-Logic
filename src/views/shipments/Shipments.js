@@ -772,10 +772,14 @@ const Shipments = () => {
     <div style={{ 
       display: 'flex', 
       height: '100vh', 
+      width: '100vw',
       overflow: 'hidden',
-      position: 'relative',
+      position: 'fixed',
+      top: 0,
+      left: 0,
       margin: 0,
-      padding: 0
+      padding: 0,
+      zIndex: 1
     }}>
       {/* Mobile Overlay */}
       {isMobile && !sidebarCollapsed && (
@@ -806,11 +810,10 @@ const Shipments = () => {
         flexDirection: 'column',
         zIndex: 1000,
         transition: 'width 0.3s ease, box-shadow 0.3s ease',
-        position: isMobile ? 'fixed' : 'relative',
+        position: 'relative',
         height: '100vh',
         overflow: 'hidden',
-        left: isMobile && sidebarCollapsed ? '-100vw' : '0',
-        top: 0
+        flexShrink: 0
       }}>
         {/* Sidebar Content - Only show when not collapsed */}
         {!sidebarCollapsed && (
@@ -922,7 +925,8 @@ const Shipments = () => {
                     }}>
                       <CButton
                         color="primary"
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => setIsModalOpen(true)
+                        }
                         style={{
                           flex: 1,
                           borderRadius: '8px',
@@ -1242,7 +1246,7 @@ const Shipments = () => {
                                 <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                               </LineChart>
                             </ResponsiveContainer>
-                          </CCardBody>
+                            </CCardBody>
                         </CCard>
                       </div>
                     )}
@@ -1306,17 +1310,11 @@ const Shipments = () => {
       <div style={{ 
         flex: 1, 
         position: 'relative',
-        width: sidebarCollapsed 
-          ? '100%' 
-          : (isMobile 
-              ? '0%' 
-              : (selectedShipment ? 'calc(100% - 450px)' : 'calc(100% - 400px)')
-            ),
         height: '100vh',
-        transition: 'width 0.3s ease',
         overflow: 'hidden',
         margin: 0,
-        padding: 0
+        padding: 0,
+        minWidth: 0
       }}>
         <MapContainer
           center={[42.798939, -74.658409]}
@@ -1324,7 +1322,9 @@ const Shipments = () => {
           style={{ 
             height: '100vh', 
             width: '100%',
-            position: 'relative',
+            position: 'absolute',
+            top: 0,
+            left: 0,
             zIndex: 1,
             margin: 0,
             padding: 0
