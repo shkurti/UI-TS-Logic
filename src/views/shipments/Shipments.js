@@ -1214,7 +1214,7 @@ const Shipments = () => {
                             Speed
                           </CCardHeader>
                           <CCardBody style={{ padding: isMobile ? '8px' : '12px' }}>
-                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}>
+                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}/>
                               <LineChart data={speedData}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="timestamp" tick={false} />
