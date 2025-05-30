@@ -771,11 +771,11 @@ const Shipments = () => {
   return (
     <div style={{ 
       display: 'flex', 
-      height: 'calc(100vh - 80px)', // Reduced from 120px since no footer
+      height: 'calc(100vh - 40px)', // Match the top position
       width: '100vw',
       overflow: 'hidden',
       position: 'fixed',
-      top: '40px', // Reduced from 120px to match actual navbar height
+      top: '40px', // Keep this as is since it matches navbar
       left: 0,
       margin: 0,
       padding: 0,
@@ -786,7 +786,7 @@ const Shipments = () => {
         <div 
           style={{
             position: 'fixed',
-            top: '40px', // Updated to match container top
+            top: '40px', // Match container top
             left: 0,
             right: 0,
             bottom: 0,
@@ -811,7 +811,7 @@ const Shipments = () => {
         zIndex: 1000,
         transition: 'width 0.3s ease, box-shadow 0.3s ease',
         position: 'relative',
-        height: 'calc(100vh - 80px)', // Updated for navbar only
+        height: 'calc(100vh - 40px)', // Match container height
         overflow: 'hidden',
         flexShrink: 0
       }}>
@@ -1275,7 +1275,7 @@ const Shipments = () => {
       {/* Toggle Button - Always visible and properly positioned */}
       <div style={{
         position: 'fixed',
-        top: '100px', // Adjusted for new navbar height
+        top: '60px', // Adjusted for proper navbar clearance
         left: sidebarCollapsed 
           ? '20px' 
           : (isMobile 
@@ -1310,7 +1310,7 @@ const Shipments = () => {
       <div style={{ 
         flex: 1, 
         position: 'relative',
-        height: 'calc(100vh - 80px)', // Updated for navbar only
+        height: 'calc(100vh - 40px)', // Match container height
         overflow: 'hidden',
         margin: 0,
         padding: 0,
@@ -1320,7 +1320,7 @@ const Shipments = () => {
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
           style={{ 
-            height: 'calc(100vh - 80px)', // Updated for navbar only
+            height: 'calc(100vh - 40px)', // Match container height
             width: '100%',
             position: 'absolute',
             top: 0,
