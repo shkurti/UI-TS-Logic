@@ -100,6 +100,8 @@ const Shipments = () => {
   const [shipFromFilter, setShipFromFilter] = useState('')
   const [shipToFilter, setShipToFilter] = useState('')
   const [alertMessage, setAlertMessage] = useState('')
+  const [isMobile, setIsMobile] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -699,325 +701,453 @@ const Shipments = () => {
       popupAnchor: [0, -14],
     })
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
+  }
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ 
+      display: 'flex', 
+      height: '100vh', 
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
+      {/* Mobile Overlay */}
+      {isMobile && !sidebarCollapsed && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 999
+          }}
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
       {/* Sidebar */}
       <div style={{
-        width: selectedShipment ? '450px' : '400px',
+        width: sidebarCollapsed ? (isMobile ? '0' : '60px') : (selectedShipment ? (isMobile ? '100vw' : '450px') : (isMobile ? '100vw' : '400px')),
         background: '#fff',
         boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
-        transition: 'width 0.3s ease'
+        transition: 'width 0.3s ease',
+        position: isMobile ? 'fixed' : 'relative',
+        height: '100vh',
+        overflow: 'hidden'
       }}>
-        {/* Sidebar Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          padding: '20px',
-          color: 'white'
-        }}>
-          {!selectedShipment ? (
-            <>
-              <h4 style={{ margin: 0, marginBottom: '8px', fontWeight: '700' }}>
-                Shipment Management
-              </h4>
-              <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>
-                Track and manage shipments
-              </p>
-            </>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <CButton
-                  color="light"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedShipment(null)}
-                  style={{ padding: '6px 12px' }}
-                >
-                  <BsArrowLeft size={14} />
-                </CButton>
-                <h5 style={{ margin: 0, fontWeight: '600' }}>
-                  Shipment #{selectedShipment.trackerId}
-                </h5>
-              </div>
-              
-              {/* Shipment Details Summary */}
-              <div style={{
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: '8px',
-                padding: '12px',
-                fontSize: '13px'
-              }}>
-                <div style={{ marginBottom: '4px' }}>
-                  <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 35) || 'N/A'}
-                  {selectedShipment.legs?.[0]?.shipFromAddress?.length > 35 ? '...' : ''}
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 35) || 'N/A'}
-                  {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 35 ? '...' : ''}
-                </div>
-                <div>
-                  <strong>Arrival:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Mobile Toggle Button - Always visible on collapsed sidebar */}
+        {(sidebarCollapsed || isMobile) && (
+          <div style={{
+            position: isMobile ? 'fixed' : 'absolute',
+            top: '20px',
+            left: sidebarCollapsed ? (isMobile ? '10px' : '10px') : (isMobile ? '20px' : '410px'),
+            zIndex: 1001,
+            transition: 'left 0.3s ease'
+          }}>
+            <CButton
+              color="primary"
+              size="sm"
+              onClick={toggleSidebar}
+              style={{
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+              }}
+            >
+              {sidebarCollapsed ? '☰' : '✕'}
+            </CButton>
+          </div>
+        )}
 
-        {/* Sidebar Content */}
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {!selectedShipment ? (
-            <>
-              {/* Action Buttons */}
-              <div style={{ padding: '16px', borderBottom: '1px solid #e9ecef' }}>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                  <CButton
-                    color="primary"
-                    onClick={() => setIsModalOpen(true)}
-                    style={{
-                      flex: 1,
-                      borderRadius: '8px',
-                      padding: '10px',
-                      fontWeight: '600',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <BsPlus size={16} style={{ marginRight: '6px' }} />
-                    New Shipment
-                  </CButton>
-                  <CButton
-                    color="danger"
-                    variant="outline"
-                    disabled={!selectedShipment}
-                    onClick={deleteShipment}
-                    style={{
-                      borderRadius: '8px',
-                      padding: '10px 16px'
-                    }}
-                  >
-                    <BsTrash size={14} />
-                  </CButton>
-                </div>
-
-                {/* Search */}
-                <CInputGroup size="sm">
-                  <CInputGroupText>
-                    <BsSearch size={14} />
-                  </CInputGroupText>
-                  <CFormInput
-                    placeholder="Search shipments..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </CInputGroup>
-              </div>
-
-              {/* Shipments List */}
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <CListGroup flush>
-                  {filteredShipments.map((shipment, index) => (
-                    <CListGroupItem
-                      key={index}
-                      onClick={() => handleShipmentClick(shipment)}
-                      style={{
-                        cursor: 'pointer',
-                        border: 'none',
-                        borderBottom: '1px solid #f0f0f0',
-                        padding: '16px',
-                        transition: 'background 0.2s'
-                      }}
-                      className="hover:bg-gray-50"
-                    >
-                      <div style={{ marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <strong style={{ color: '#2196f3', fontSize: '14px' }}>
-                            #{shipment.trackerId}
-                          </strong>
-                          <CBadge color="primary" style={{ fontSize: '10px' }}>
-                            In Transit
-                          </CBadge>
-                        </div>
-                      </div>
-                      
-                      <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, 25) || 'N/A'}
-                          {shipment.legs?.[0]?.shipFromAddress?.length > 25 ? '...' : ''}
-                        </div>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, 25) || 'N/A'}
-                          {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > 25 ? '...' : ''}
-                        </div>
-                        <div style={{ color: '#888' }}>
-                          ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                        </div>
-                      </div>
-                    </CListGroupItem>
-                  ))}
-                </CListGroup>
-                
-                {filteredShipments.length === 0 && (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px 20px', 
-                    color: '#666',
-                    fontSize: '14px'
+        {/* Sidebar Content - Only show when not collapsed */}
+        {!sidebarCollapsed && (
+          <>
+            {/* Sidebar Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: isMobile ? '60px 20px 20px 20px' : '20px',
+              color: 'white'
+            }}>
+              {!selectedShipment ? (
+                <>
+                  <h4 style={{ 
+                    margin: 0, 
+                    marginBottom: '8px', 
+                    fontWeight: '700',
+                    fontSize: isMobile ? '1.2rem' : '1.5rem'
                   }}>
-                    <BsInfoCircle size={24} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                    <div>No shipments found</div>
+                    Shipment Management
+                  </h4>
+                  <p style={{ 
+                    margin: 0, 
+                    opacity: 0.9, 
+                    fontSize: isMobile ? '12px' : '14px'
+                  }}>
+                    Track and manage shipments
+                  </p>
+                </>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <CButton
+                      color="light"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedShipment(null)}
+                      style={{ padding: '6px 12px' }}
+                    >
+                      <BsArrowLeft size={14} />
+                    </CButton>
+                    <h5 style={{ 
+                      margin: 0, 
+                      fontWeight: '600',
+                      fontSize: isMobile ? '1rem' : '1.25rem'
+                    }}>
+                      Shipment #{selectedShipment.trackerId}
+                    </h5>
+                    {isMobile && (
+                      <CButton
+                        color="light"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSidebarCollapsed(true)}
+                        style={{ padding: '6px 12px', marginLeft: 'auto' }}
+                      >
+                        ✕
+                      </CButton>
+                    )}
                   </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Shipment Detail Tabs */}
-              <div style={{ borderBottom: '1px solid #e9ecef', padding: '0 16px' }}>
-                <CNav variant="pills" style={{ gap: '4px', padding: '12px 0' }}>
-                  {['Sensors', 'Alerts', 'Reports'].map((tab) => (
-                    <CNavItem key={tab}>
-                      <CNavLink
-                        active={shipmentTab === tab}
-                        onClick={() => setShipmentTab(tab)}
+                  
+                  {/* Shipment Details Summary */}
+                  <div style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    padding: isMobile ? '8px' : '12px',
+                    fontSize: isMobile ? '11px' : '13px'
+                  }}>
+                    <div style={{ marginBottom: '4px' }}>
+                      <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, isMobile ? 25 : 35) || 'N/A'}
+                      {selectedShipment.legs?.[0]?.shipFromAddress?.length > (isMobile ? 25 : 35) ? '...' : ''}
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, isMobile ? 25 : 35) || 'N/A'}
+                      {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > (isMobile ? 25 : 35) ? '...' : ''}
+                    </div>
+                    <div>
+                      <strong>Arrival:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Content */}
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {!selectedShipment ? (
+                <>
+                  {/* Action Buttons */}
+                  <div style={{ padding: isMobile ? '12px' : '16px', borderBottom: '1px solid #e9ecef' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: isMobile ? 'column' : 'row',
+                      gap: '8px', 
+                      marginBottom: '16px' 
+                    }}>
+                      <CButton
+                        color="primary"
+                        onClick={() => setIsModalOpen(true)}
                         style={{
-                          borderRadius: '6px',
-                          padding: '8px 12px',
-                          fontSize: '13px',
-                          fontWeight: '500',
-                          background: shipmentTab === tab ? '#e3f2fd' : 'transparent',
-                          color: shipmentTab === tab ? '#1976d2' : '#666'
+                          flex: 1,
+                          borderRadius: '8px',
+                          padding: '10px',
+                          fontWeight: '600',
+                          fontSize: isMobile ? '12px' : '14px'
                         }}
                       >
-                        {tab === 'Sensors' && <BsThermometerHalf size={14} style={{ marginRight: '6px' }} />}
-                        {tab === 'Alerts' && <BsExclamationTriangle size={14} style={{ marginRight: '6px' }} />}
-                        {tab === 'Reports' && <BsFileText size={14} style={{ marginRight: '6px' }} />}
-                        {tab}
-                      </CNavLink>
-                    </CNavItem>
-                  ))}
-                </CNav>
-              </div>
+                        <BsPlus size={16} style={{ marginRight: '6px' }} />
+                        New Shipment
+                      </CButton>
+                      <CButton
+                        color="danger"
+                        variant="outline"
+                        disabled={!selectedShipment}
+                        onClick={deleteShipment}
+                        style={{
+                          borderRadius: '8px',
+                          padding: '10px 16px',
+                          flex: isMobile ? 1 : 'auto'
+                        }}
+                      >
+                        <BsTrash size={14} />
+                        {isMobile && <span style={{ marginLeft: '6px' }}>Delete</span>}
+                      </CButton>
+                    </div>
 
-              {/* Tab Content */}
-              <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-                {shipmentTab === 'Sensors' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Temperature Chart */}
-                    <CCard style={{ border: '1px solid #e9ecef' }}>
-                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
-                        <BsThermometerHalf style={{ marginRight: '8px', color: '#ff6b6b' }} />
-                        Temperature
-                      </CCardHeader>
-                      <CCardBody style={{ padding: '12px' }}>
-                        <ResponsiveContainer width="100%" height={180}>
-                          <LineChart data={temperatureData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis fontSize={10} />
-                            <Tooltip
-                              formatter={(value) => [`${value}°C`, 'Temperature']}
-                              labelFormatter={(label) => `Time: ${label}`}
-                            />
-                            <Line type="monotone" dataKey="temperature" stroke="#ff6b6b" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </CCardBody>
-                    </CCard>
-
-                    {/* Humidity Chart */}
-                    <CCard style={{ border: '1px solid #e9ecef' }}>
-                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
-                        <BsDroplet style={{ marginRight: '8px', color: '#4ecdc4' }} />
-                        Humidity
-                      </CCardHeader>
-                      <CCardBody style={{ padding: '12px' }}>
-                        <ResponsiveContainer width="100%" height={180}>
-                          <LineChart data={humidityData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis fontSize={10} />
-                            <Tooltip
-                              formatter={(value) => [`${value}%`, 'Humidity']}
-                              labelFormatter={(label) => `Time: ${label}`}
-                            />
-                            <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </CCardBody>
-                    </CCard>
-
-                    {/* Battery Chart */}
-                    <CCard style={{ border: '1px solid #e9ecef' }}>
-                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
-                        <BsBatteryHalf style={{ marginRight: '8px', color: '#45b7d1' }} />
-                        Battery Level
-                      </CCardHeader>
-                      <CCardBody style={{ padding: '12px' }}>
-                        <ResponsiveContainer width="100%" height={180}>
-                          <LineChart data={batteryData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis fontSize={10} />
-                            <Tooltip
-                              formatter={(value) => [`${value}%`, 'Battery']}
-                              labelFormatter={(label) => `Time: ${label}`}
-                            />
-                            <Line type="monotone" dataKey="battery" stroke="#45b7d1" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </CCardBody>
-                    </CCard>
-
-                    {/* Speed Chart */}
-                    <CCard style={{ border: '1px solid #e9ecef' }}>
-                      <CCardHeader style={{ padding: '12px 16px', background: '#f8f9fa', fontSize: '14px', fontWeight: '600' }}>
-                        <BsSpeedometer2 style={{ marginRight: '8px', color: '#96ceb4' }} />
-                        Speed
-                      </CCardHeader>
-                      <CCardBody style={{ padding: '12px' }}>
-                        <ResponsiveContainer width="100%" height={180}>
-                          <LineChart data={speedData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="timestamp" tick={false} />
-                            <YAxis fontSize={10} />
-                            <Tooltip
-                              formatter={(value) => [`${value} km/h`, 'Speed']}
-                              labelFormatter={(label) => `Time: ${label}`}
-                            />
-                            <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </CCardBody>
-                    </CCard>
+                    {/* Search */}
+                    <CInputGroup size={isMobile ? 'sm' : 'sm'}>
+                      <CInputGroupText>
+                        <BsSearch size={14} />
+                      </CInputGroupText>
+                      <CFormInput
+                        placeholder="Search shipments..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </CInputGroup>
                   </div>
-                )}
-                
-                {shipmentTab === 'Alerts' && (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
-                    <BsExclamationTriangle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                    <div>No alerts for this shipment</div>
+
+                  {/* Shipments List */}
+                  <div style={{ flex: 1, overflow: 'auto' }}>
+                    <CListGroup flush>
+                      {filteredShipments.map((shipment, index) => (
+                        <CListGroupItem
+                          key={index}
+                          onClick={() => handleShipmentClick(shipment)}
+                          style={{
+                            cursor: 'pointer',
+                            border: 'none',
+                            borderBottom: '1px solid #f0f0f0',
+                            padding: isMobile ? '12px' : '16px',
+                            transition: 'background 0.2s'
+                          }}
+                          className="hover:bg-gray-50"
+                        >
+                          <div style={{ marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong style={{ 
+                                color: '#2196f3', 
+                                fontSize: isMobile ? '12px' : '14px'
+                              }}>
+                                #{shipment.trackerId}
+                              </strong>
+                              <CBadge color="primary" style={{ fontSize: isMobile ? '8px' : '10px' }}>
+                                In Transit
+                              </CBadge>
+                            </div>
+                          </div>
+                          
+                          <div style={{ 
+                            fontSize: isMobile ? '10px' : '12px', 
+                            color: '#666', 
+                            lineHeight: '1.4' 
+                          }}>
+                            <div style={{ marginBottom: '4px' }}>
+                              <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
+                              {shipment.legs?.[0]?.shipFromAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
+                            </div>
+                            <div style={{ marginBottom: '4px' }}>
+                              <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
+                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
+                            </div>
+                            <div style={{ color: '#888' }}>
+                              ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                            </div>
+                          </div>
+                        </CListGroupItem>
+                      ))}
+                    </CListGroup>
+                    
+                    {filteredShipments.length === 0 && (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: isMobile ? '20px' : '40px 20px', 
+                        color: '#666',
+                        fontSize: isMobile ? '12px' : '14px'
+                      }}>
+                        <BsInfoCircle size={isMobile ? 20 : 24} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                        <div>No shipments found</div>
+                      </div>
+                    )}
                   </div>
-                )}
-                
-                {shipmentTab === 'Reports' && (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
-                    <BsFileText size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                    <div>Reports feature coming soon</div>
+                </>
+              ) : (
+                <>
+                  {/* Shipment Detail Tabs */}
+                  <div style={{ borderBottom: '1px solid #e9ecef', padding: isMobile ? '0 12px' : '0 16px' }}>
+                    <CNav variant="pills" style={{ 
+                      gap: '4px', 
+                      padding: isMobile ? '8px 0' : '12px 0',
+                      flexWrap: 'wrap'
+                    }}>
+                      {['Sensors', 'Alerts', 'Reports'].map((tab) => (
+                        <CNavItem key={tab}>
+                          <CNavLink
+                            active={shipmentTab === tab}
+                            onClick={() => setShipmentTab(tab)}
+                            style={{
+                              borderRadius: '6px',
+                              padding: isMobile ? '6px 8px' : '8px 12px',
+                              fontSize: isMobile ? '11px' : '13px',
+                              fontWeight: '500',
+                              background: shipmentTab === tab ? '#e3f2fd' : 'transparent',
+                              color: shipmentTab === tab ? '#1976d2' : '#666'
+                            }}
+                          >
+                            {tab === 'Sensors' && <BsThermometerHalf size={isMobile ? 12 : 14} style={{ marginRight: '4px' }} />}
+                            {tab === 'Alerts' && <BsExclamationTriangle size={isMobile ? 12 : 14} style={{ marginRight: '4px' }} />}
+                            {tab === 'Reports' && <BsFileText size={isMobile ? 12 : 14} style={{ marginRight: '4px' }} />}
+                            {tab}
+                          </CNavLink>
+                        </CNavItem>
+                      ))}
+                    </CNav>
                   </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+
+                  {/* Tab Content */}
+                  <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? '12px' : '16px' }}>
+                    {shipmentTab === 'Sensors' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '12px' : '16px' }}>
+                        {/* Temperature Chart */}
+                        <CCard style={{ border: '1px solid #e9ecef' }}>
+                          <CCardHeader style={{ 
+                            padding: isMobile ? '8px 12px' : '12px 16px', 
+                            background: '#f8f9fa', 
+                            fontSize: isMobile ? '12px' : '14px', 
+                            fontWeight: '600' 
+                          }}>
+                            <BsThermometerHalf style={{ marginRight: '8px', color: '#ff6b6b' }} />
+                            Temperature
+                          </CCardHeader>
+                          <CCardBody style={{ padding: isMobile ? '8px' : '12px' }}>
+                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}>
+                              <LineChart data={temperatureData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="timestamp" tick={false} />
+                                <YAxis fontSize={isMobile ? 8 : 10} />
+                                <Tooltip
+                                  formatter={(value) => [`${value}°C`, 'Temperature']}
+                                  labelFormatter={(label) => `Time: ${label}`}
+                                />
+                                <Line type="monotone" dataKey="temperature" stroke="#ff6b6b" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CCardBody>
+                        </CCard>
+
+                        {/* Humidity Chart */}
+                        <CCard style={{ border: '1px solid #e9ecef' }}>
+                          <CCardHeader style={{ 
+                            padding: isMobile ? '8px 12px' : '12px 16px', 
+                            background: '#f8f9fa', 
+                            fontSize: isMobile ? '12px' : '14px', 
+                            fontWeight: '600' 
+                          }}>
+                            <BsDroplet style={{ marginRight: '8px', color: '#4ecdc4' }} />
+                            Humidity
+                          </CCardHeader>
+                          <CCardBody style={{ padding: isMobile ? '8px' : '12px' }}>
+                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}>
+                              <LineChart data={humidityData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="timestamp" tick={false} />
+                                <YAxis fontSize={isMobile ? 8 : 10} />
+                                <Tooltip
+                                  formatter={(value) => [`${value}%`, 'Humidity']}
+                                  labelFormatter={(label) => `Time: ${label}`}
+                                />
+                                <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CCardBody>
+                        </CCard>
+
+                        {/* Battery Chart */}
+                        <CCard style={{ border: '1px solid #e9ecef' }}>
+                          <CCardHeader style={{ 
+                            padding: isMobile ? '8px 12px' : '12px 16px', 
+                            background: '#f8f9fa', 
+                            fontSize: isMobile ? '12px' : '14px', 
+                            fontWeight: '600' 
+                          }}>
+                            <BsBatteryHalf style={{ marginRight: '8px', color: '#45b7d1' }} />
+                            Battery Level
+                          </CCardHeader>
+                          <CCardBody style={{ padding: isMobile ? '8px' : '12px' }}>
+                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}>
+                              <LineChart data={batteryData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="timestamp" tick={false} />
+                                <YAxis fontSize={isMobile ? 8 : 10} />
+                                <Tooltip
+                                  formatter={(value) => [`${value}%`, 'Battery']}
+                                  labelFormatter={(label) => `Time: ${label}`}
+                                />
+                                <Line type="monotone" dataKey="battery" stroke="#45b7d1" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CCardBody>
+                        </CCard>
+
+                        {/* Speed Chart */}
+                        <CCard style={{ border: '1px solid #e9ecef' }}>
+                          <CCardHeader style={{ 
+                            padding: isMobile ? '8px 12px' : '12px 16px', 
+                            background: '#f8f9fa', 
+                            fontSize: isMobile ? '12px' : '14px', 
+                            fontWeight: '600' 
+                          }}>
+                            <BsSpeedometer2 style={{ marginRight: '8px', color: '#96ceb4' }} />
+                            Speed
+                          </CCardHeader>
+                          <CCardBody style={{ padding: isMobile ? '8px' : '12px' }}>
+                            <ResponsiveContainer width="100%" height={isMobile ? 120 : 180}>
+                              <LineChart data={speedData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="timestamp" tick={false} />
+                                <YAxis fontSize={isMobile ? 8 : 10} />
+                                <Tooltip
+                                  formatter={(value) => [`${value} km/h`, 'Speed']}
+                                  labelFormatter={(label) => `Time: ${label}`}
+                                />
+                                <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CCardBody>
+                        </CCard>
+                      </div>
+                    )}
+                    
+                    {shipmentTab === 'Alerts' && (
+                      <div style={{ textAlign: 'center', padding: isMobile ? '20px' : '40px 20px', color: '#666' }}>
+                        <BsExclamationTriangle size={isMobile ? 24 : 32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                        <div style={{ fontSize: isMobile ? '12px' : '14px' }}>No alerts for this shipment</div>
+                      </div>
+                    )}
+                    
+                    {shipmentTab === 'Reports' && (
+                      <div style={{ textAlign: 'center', padding: isMobile ? '20px' : '40px 20px', color: '#666' }}>
+                        <BsFileText size={isMobile ? 24 : 32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                        <div style={{ fontSize: isMobile ? '12px' : '14px' }}>Reports feature coming soon</div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Full Page Map */}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ 
+        flex: 1, 
+        position: 'relative',
+        width: sidebarCollapsed ? '100%' : (isMobile ? '0' : 'calc(100% - 400px)'),
+        transition: 'width 0.3s ease'
+      }}>
         <MapContainer
           center={[42.798939, -74.658409]}
-          zoom={5}
+          zoom={isMobile ? 4 : 5}
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
@@ -1045,18 +1175,12 @@ const Shipments = () => {
           {liveRoute.length > 0 && (
             <>
               <FitBounds route={liveRoute} />
-              <Polyline
-                positions={liveRoute}
-                color="blue"
-              />
+              <Polyline positions={liveRoute} color="blue" />
               {/* Dashed line from last GPS point to destination, if not at destination */}
               {destinationCoord && liveRoute.length > 0 && (
                 (() => {
                   const last = liveRoute[liveRoute.length - 1];
-                  if (
-                    last[0] !== destinationCoord[0] ||
-                    last[1] !== destinationCoord[1]
-                  ) {
+                  if (last[0] !== destinationCoord[0] || last[1] !== destinationCoord[1]) {
                     return (
                       <Polyline
                         positions={[last, destinationCoord]}
@@ -1068,11 +1192,7 @@ const Shipments = () => {
                   return null;
                 })()
               )}
-              {/* Last GPS point marker (optional, can use default icon) */}
-              <Marker
-                position={liveRoute[liveRoute.length - 1]}
-                icon={customIcon}
-              >
+              <Marker position={liveRoute[liveRoute.length - 1]} icon={customIcon}>
                 <Popup>Current Location</Popup>
               </Marker>
             </>
@@ -1080,35 +1200,42 @@ const Shipments = () => {
           
           {/* Show preview line for new shipment or for selected shipment with no routeData */}
           {liveRoute.length === 0 && startCoord && destinationCoord && (
-            <>
-              <Polyline
-                positions={[startCoord, destinationCoord]}
-                color="blue"
-                dashArray="8"
-              />
-            </>
+            <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
           )}
         </MapContainer>
       </div>
 
-      {/* Enhanced Modal - Keep existing modal code */}
+      {/* Enhanced Modal - Make responsive */}
       <CModal 
         visible={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        size="lg"
+        size={isMobile ? 'sm' : 'lg'}
         backdrop="static"
+        fullscreen={isMobile ? 'sm-down' : false}
       >
         <CModalHeader closeButton style={{ 
           background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
           color: 'white',
-          border: 'none'
+          border: 'none',
+          padding: isMobile ? '12px 16px' : '16px 24px'
         }}>
-          <h5 style={{ margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BsPlus size={20} />
+          <h5 style={{ 
+            margin: 0, 
+            fontWeight: '600', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+            fontSize: isMobile ? '1rem' : '1.25rem'
+          }}>
+            <BsPlus size={isMobile ? 16 : 20} />
             Create New Shipment
           </h5>
         </CModalHeader>
-        <CModalBody style={{ maxHeight: '500px', overflowY: 'auto', padding: '32px' }}>
+        <CModalBody style={{ 
+          maxHeight: isMobile ? 'calc(100vh - 120px)' : '500px', 
+          overflowY: 'auto', 
+          padding: isMobile ? '16px' : '32px' 
+        }}>
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4" style={{ 
@@ -1279,8 +1406,18 @@ const Shipments = () => {
             </CRow>
           </CForm>
         </CModalBody>
-        <CModalFooter style={{ border: 'none', padding: '24px 32px', background: '#f8f9fa' }}>
-          <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-end' }}>
+        <CModalFooter style={{ 
+          border: 'none', 
+          padding: isMobile ? '12px 16px' : '24px 32px', 
+          background: '#f8f9fa' 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '12px', 
+            width: '100%', 
+            justifyContent: 'flex-end' 
+          }}>
             <CButton 
               color="secondary" 
               variant="outline"
@@ -1288,7 +1425,8 @@ const Shipments = () => {
               style={{
                 borderRadius: '8px',
                 padding: '12px 24px',
-                fontWeight: '600'
+                fontWeight: '600',
+                order: isMobile ? 2 : 1
               }}
             >
               Cancel
@@ -1300,7 +1438,8 @@ const Shipments = () => {
                 borderRadius: '8px',
                 padding: '12px 24px',
                 fontWeight: '600',
-                boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
+                boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
+                order: isMobile ? 1 : 2
               }}
             >
               Create Shipment
