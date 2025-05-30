@@ -775,7 +775,7 @@ const Shipments = () => {
       width: '100vw',
       overflow: 'hidden',
       position: 'fixed',
-      top: '120px', // Position below navbar
+      top: '40px', // Position below navbar
       left: 0,
       margin: 0,
       padding: 0,
