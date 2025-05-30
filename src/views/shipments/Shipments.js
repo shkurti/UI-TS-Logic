@@ -102,6 +102,8 @@ const Shipments = () => {
   const [alertMessage, setAlertMessage] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedShipmentsForDeletion, setSelectedShipmentsForDeletion] = useState([])
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   // Add responsive detection
   useEffect(() => {
@@ -346,30 +348,70 @@ const Shipments = () => {
     }
   }
 
-  const deleteShipment = async () => {
-    if (!selectedShipment) {
-      alert('Please select a shipment to delete.')
+  const handleShipmentSelection = (shipmentId, isSelected) => {
+    if (isSelected) {
+      setSelectedShipmentsForDeletion(prev => [...prev, shipmentId])
+    } else {
+      setSelectedShipmentsForDeletion(prev => prev.filter(id => id !== shipmentId))
+    }
+  }
+
+  const handleSelectAllShipments = (isSelected) => {
+    if (isSelected) {
+      setSelectedShipmentsForDeletion(filteredShipments.map(s => s._id))
+    } else {
+      setSelectedShipmentsForDeletion([])
+    }
+  }
+
+  const deleteSelectedShipments = async () => {
+    if (selectedShipmentsForDeletion.length === 0) {
+      alert('No shipments selected for deletion.')
       return
     }
-    if (!window.confirm('Are you sure you want to delete this shipment?')) {
-      return
-    }
+
     try {
-      const response = await fetch(
-        `https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta/${selectedShipment._id}`,
-        { method: 'DELETE' }
+      const deletePromises = selectedShipmentsForDeletion.map(shipmentId =>
+        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta/${shipmentId}`, {
+          method: 'DELETE'
+        })
       )
-      if (response.ok) {
-        setShipments((prev) => prev.filter((s) => s._id !== selectedShipment._id))
-        setSelectedShipment(null)
-        setRouteData([])
-        alert('Shipment deleted successfully.')
-      } else {
-        alert('Failed to delete shipment.')
+
+      const results = await Promise.all(deletePromises)
+      const successCount = results.filter(response => response.ok).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        setShipments(prev => prev.filter(s => !selectedShipmentsForDeletion.includes(s._id)))
+        
+        // If currently selected shipment was deleted, clear selection
+        if (selectedShipment && selectedShipmentsForDeletion.includes(selectedShipment._id)) {
+          setSelectedShipment(null)
+          setRouteData([])
+        }
       }
-    } catch (e) {
-      alert('Error deleting shipment.')
+
+      setSelectedShipmentsForDeletion([])
+      setIsDeleteModalOpen(false)
+
+      if (failureCount === 0) {
+        alert(`Successfully deleted ${successCount} shipment${successCount > 1 ? 's' : ''}.`)
+      } else {
+        alert(`Deleted ${successCount} shipment${successCount > 1 ? 's' : ''}, failed to delete ${failureCount}.`)
+      }
+    } catch (error) {
+      console.error('Error deleting shipments:', error)
+      alert('Error occurred while deleting shipments.')
     }
+  }
+
+  // Remove the old deleteShipment function and replace with:
+  const openDeleteModal = () => {
+    if (selectedShipmentsForDeletion.length === 0) {
+      alert('Please select shipments to delete.')
+      return
+    }
+    setIsDeleteModalOpen(true)
   }
 
   // Address geocode cache to avoid redundant lookups
@@ -887,18 +929,56 @@ const Shipments = () => {
                       <CButton
                         color="danger"
                         variant="outline"
-                        disabled={!selectedShipment}
-                        onClick={deleteShipment}
+                        disabled={selectedShipmentsForDeletion.length === 0}
+                        onClick={openDeleteModal}
                         style={{
                           borderRadius: '8px',
                           padding: '10px 16px',
-                          flex: isMobile ? 1 : 'auto'
+                          flex: isMobile ? 1 : 'auto',
+                          fontSize: isMobile ? '12px' : '14px'
                         }}
                       >
                         <BsTrash size={14} />
-                        {isMobile && <span style={{ marginLeft: '6px' }}>Delete</span>}
+                        {isMobile ? (
+                          <span style={{ marginLeft: '6px' }}>
+                            Delete ({selectedShipmentsForDeletion.length})
+                          </span>
+                        ) : (
+                          selectedShipmentsForDeletion.length > 0 && (
+                            <span style={{ marginLeft: '6px' }}>
+                              ({selectedShipmentsForDeletion.length})
+                            </span>
+                          )
+                        )}
                       </CButton>
                     </div>
+
+                    {/* Select All Checkbox */}
+                    {filteredShipments.length > 0 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        marginBottom: '12px',
+                        fontSize: isMobile ? '12px' : '14px',
+                        color: '#666'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedShipmentsForDeletion.length === filteredShipments.length && filteredShipments.length > 0}
+                          onChange={(e) => handleSelectAllShipments(e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          Select All ({filteredShipments.length})
+                        </label>
+                        {selectedShipmentsForDeletion.length > 0 && (
+                          <span style={{ color: '#007bff', fontWeight: '500' }}>
+                            {selectedShipmentsForDeletion.length} selected
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Search */}
                     <CInputGroup size={isMobile ? 'sm' : 'sm'}>
@@ -919,45 +999,67 @@ const Shipments = () => {
                       {filteredShipments.map((shipment, index) => (
                         <CListGroupItem
                           key={index}
-                          onClick={() => handleShipmentClick(shipment)}
                           style={{
-                            cursor: 'pointer',
                             border: 'none',
                             borderBottom: '1px solid #f0f0f0',
                             padding: isMobile ? '12px' : '16px',
-                            transition: 'background 0.2s'
+                            transition: 'background 0.2s',
+                            backgroundColor: selectedShipmentsForDeletion.includes(shipment._id) ? '#e3f2fd' : 'transparent'
                           }}
-                          className="hover:bg-gray-50"
                         >
-                          <div style={{ marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <strong style={{ 
-                                color: '#2196f3', 
-                                fontSize: isMobile ? '12px' : '14px'
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                            {/* Checkbox for selection */}
+                            <input
+                              type="checkbox"
+                              checked={selectedShipmentsForDeletion.includes(shipment._id)}
+                              onChange={(e) => handleShipmentSelection(shipment._id, e.target.checked)}
+                              style={{ 
+                                cursor: 'pointer', 
+                                marginTop: '4px',
+                                transform: 'scale(1.1)'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            
+                            {/* Shipment Content */}
+                            <div 
+                              style={{ 
+                                flex: 1, 
+                                cursor: 'pointer' 
+                              }}
+                              onClick={() => handleShipmentClick(shipment)}
+                            >
+                              <div style={{ marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <strong style={{ 
+                                    color: '#2196f3', 
+                                    fontSize: isMobile ? '12px' : '14px'
+                                  }}>
+                                    #{shipment.trackerId}
+                                  </strong>
+                                  <CBadge color="primary" style={{ fontSize: isMobile ? '8px' : '10px' }}>
+                                    In Transit
+                                  </CBadge>
+                                </div>
+                              </div>
+                              
+                              <div style={{ 
+                                fontSize: isMobile ? '10px' : '12px', 
+                                color: '#666', 
+                                lineHeight: '1.4' 
                               }}>
-                                #{shipment.trackerId}
-                              </strong>
-                              <CBadge color="primary" style={{ fontSize: isMobile ? '8px' : '10px' }}>
-                                In Transit
-                              </CBadge>
-                            </div>
-                          </div>
-                          
-                          <div style={{ 
-                            fontSize: isMobile ? '10px' : '12px', 
-                            color: '#666', 
-                            lineHeight: '1.4' 
-                          }}>
-                            <div style={{ marginBottom: '4px' }}>
-                              <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
-                              {shipment.legs?.[0]?.shipFromAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
-                            </div>
-                            <div style={{ marginBottom: '4px' }}>
-                              <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
-                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
-                            </div>
-                            <div style={{ color: '#888' }}>
-                              ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                                <div style={{ marginBottom: '4px' }}>
+                                  <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
+                                  {shipment.legs?.[0]?.shipFromAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
+                                </div>
+                                <div style={{ marginBottom: '4px' }}>
+                                  <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, isMobile ? 20 : 25) || 'N/A'}
+                                  {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > (isMobile ? 20 : 25) ? '...' : ''}
+                                </div>
+                                <div style={{ color: '#888' }}>
+                                  ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </CListGroupItem>
@@ -1347,6 +1449,64 @@ const Shipments = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <CModal 
+        visible={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)}
+        size="sm"
+        backdrop="static"
+      >
+        <CModalHeader closeButton style={{ 
+          background: '#dc3545',
+          color: 'white',
+          border: 'none'
+        }}>
+          <h6 style={{ margin: 0, fontWeight: '600' }}>
+            Confirm Deletion
+          </h6>
+        </CModalHeader>
+        <CModalBody style={{ padding: '24px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <BsTrash size={48} style={{ color: '#dc3545', marginBottom: '16px' }} />
+            <h6 style={{ marginBottom: '12px', fontWeight: '600' }}>
+              Delete {selectedShipmentsForDeletion.length} Shipment{selectedShipmentsForDeletion.length > 1 ? 's' : ''}?
+            </h6>
+            <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+              This action cannot be undone. The selected shipment{selectedShipmentsForDeletion.length > 1 ? 's' : ''} will be permanently removed from the system.
+            </p>
+          </div>
+        </CModalBody>
+        <CModalFooter style={{ border: 'none', padding: '16px 24px' }}>
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <CButton 
+              color="secondary" 
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              style={{
+                flex: 1,
+                borderRadius: '8px',
+                padding: '10px',
+                fontWeight: '500'
+              }}
+            >
+              Cancel
+            </CButton>
+            <CButton 
+              color="danger"
+              onClick={deleteSelectedShipments}
+              style={{
+                flex: 1,
+                borderRadius: '8px',
+                padding: '10px',
+                fontWeight: '500'
+              }}
+            >
+              Delete
+            </CButton>
+          </div>
+        </CModalFooter>
+      </CModal>
 
       {/* Enhanced Modal - Make responsive */}
       <CModal 
