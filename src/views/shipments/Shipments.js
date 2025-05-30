@@ -772,8 +772,13 @@ const Shipments = () => {
     <div style={{ 
       display: 'flex', 
       height: '100vh', 
+      width: '100vw',
       overflow: 'hidden',
-      position: 'relative'
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      margin: 0,
+      padding: 0
     }}>
       {/* Mobile Overlay */}
       {isMobile && !sidebarCollapsed && (
@@ -1220,8 +1225,7 @@ const Shipments = () => {
                                 />
                                 <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                               </LineChart>
-                            </ResponsiveContainer>
-                          </CCardBody>
+                            </CCardBody>
                         </CCard>
                       </div>
                     )}
@@ -1286,10 +1290,10 @@ const Shipments = () => {
         flex: 1, 
         position: 'relative',
         width: sidebarCollapsed 
-          ? '100%' 
+          ? '100vw' 
           : (isMobile 
-              ? '0%' 
-              : (selectedShipment ? 'calc(100% - 450px)' : 'calc(100% - 400px)')
+              ? '0vw' 
+              : (selectedShipment ? 'calc(100vw - 450px)' : 'calc(100vw - 400px)')
             ),
         height: '100vh',
         transition: 'width 0.3s ease',
@@ -1299,9 +1303,11 @@ const Shipments = () => {
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
           style={{ 
-            height: '100%', 
+            height: '100vh', 
             width: '100%',
-            position: 'relative',
+            position: 'absolute',
+            top: 0,
+            left: 0,
             zIndex: 1
           }}
         >
