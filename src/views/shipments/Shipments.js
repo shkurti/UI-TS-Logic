@@ -771,11 +771,11 @@ const Shipments = () => {
   return (
     <div style={{ 
       display: 'flex', 
-      height: '100vh', 
+      height: 'calc(100vh - 104px)', // Subtract header height (header + breadcrumb)
       width: '100vw',
       overflow: 'hidden',
       position: 'fixed',
-      top: 0,
+      top: '104px', // Position below the header
       left: 0,
       margin: 0,
       padding: 0
@@ -810,7 +810,7 @@ const Shipments = () => {
         zIndex: 1000,
         transition: 'width 0.3s ease, box-shadow 0.3s ease',
         position: isMobile ? 'fixed' : 'relative',
-        height: '100vh',
+        height: '100%', // Changed from 100vh to 100%
         overflow: 'hidden',
         left: isMobile && sidebarCollapsed ? '-100vw' : '0'
       }}>
@@ -1254,7 +1254,7 @@ const Shipments = () => {
 
       {/* Toggle Button - Always visible and properly positioned */}
       <div style={{
-        position: 'fixed',
+        position: 'absolute', // Changed from fixed to absolute
         top: '20px',
         left: sidebarCollapsed 
           ? '20px' 
@@ -1306,7 +1306,7 @@ const Shipments = () => {
           center={[42.798939, -74.658409]}
           zoom={isMobile ? 4 : 5}
           style={{ 
-            height: '100vh', 
+            height: '100%', // Changed from 100vh to 100%
             width: '100%',
             position: 'absolute',
             top: 0,
