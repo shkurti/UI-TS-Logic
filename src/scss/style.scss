@@ -52,22 +52,14 @@ body {
   min-height: 0rem;
 }
 
-.footer {
-  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
-}
-
-// Shipments page specific styles
+// Shipments page specific styles - updated for no footer
 .shipments-container {
-  margin-top: calc(4rem + 1px); // Account for navbar height
-  height: calc(100vh - 4rem - 1px); // Full height minus navbar
+  margin-top: calc(4rem + 1px); // Account for navbar height only
+  height: calc(100vh - 4rem - 1px); // Full height minus navbar only
 }
 
 @include color-mode(dark) {
   body {
     background-color: var(--cui-dark-bg-subtle);
-  }
-
-  .footer {
-    --cui-footer-bg: var(--cui-body-bg);
   }
 }
