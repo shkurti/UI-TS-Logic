@@ -24,8 +24,13 @@ import {
   CModalFooter,
   CForm,
   CFormSelect,
+  CBadge,
+  CAlert,
+  CSpinner,
+  CInputGroup,
+  CInputGroupText,
 } from '@coreui/react'
-import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2 } from 'react-icons/bs' // Changed BsSun to BsSpeedometer2
+import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2, BsSearch, BsFilter, BsPlus, BsTrash, BsMap, BsInfoCircle, BsGeoAlt } from 'react-icons/bs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import L from 'leaflet'
 
@@ -88,6 +93,11 @@ const Shipments = () => {
   const [liveRoute, setLiveRoute] = useState([]);
   // Add state for geocoded start coordinate
   const [startCoord, setStartCoord] = useState(null);
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [shipFromFilter, setShipFromFilter] = useState('')
+  const [shipToFilter, setShipToFilter] = useState('')
+  const [alertMessage, setAlertMessage] = useState('')
 
   useEffect(() => {
     // Fetch shipments from the backend
@@ -671,22 +681,87 @@ const Shipments = () => {
     }
   }, [routeData]);
 
+  // Filter shipments based on search and filters
+  const filteredShipments = shipments.filter(shipment => {
+    const matchesSearch = !searchTerm || 
+      shipment.trackerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesShipFrom = !shipFromFilter || 
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(shipFromFilter.toLowerCase())
+    
+    const matchesShipTo = !shipToFilter || 
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(shipToFilter.toLowerCase())
+    
+    return matchesSearch && matchesShipFrom && matchesShipTo
+  })
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'In Transit': return 'primary'
+      case 'Upcoming': return 'warning'
+      case 'Completed': return 'success'
+      default: return 'secondary'
+    }
+  }
+
   return (
-    <>
-      {/* MAP SECTION */}
+    <div className="shipments-page" style={{ background: '#f8f9fa', minHeight: '100vh', padding: '20px 0' }}>
+      {/* Alert Messages */}
+      {alertMessage && (
+        <CAlert color="success" dismissible onClose={() => setAlertMessage('')} className="mb-4">
+          {alertMessage}
+        </CAlert>
+      )}
+
+      {/* Enhanced Header */}
       <CRow className="mb-4">
         <CCol xs={12}>
-          <CCard>
+          <div style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px',
+            padding: '32px',
+            color: 'white',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+          }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <BsMap size={40} />
+              Shipment Management
+            </h1>
+            <p style={{ fontSize: '1.1rem', opacity: 0.9, margin: 0 }}>
+              Track and manage your shipments in real-time with GPS monitoring and sensor data
+            </p>
+          </div>
+        </CCol>
+      </CRow>
+
+      {/* Enhanced Map Section */}
+      <CRow className="mb-4">
+        <CCol xs={12}>
+          <CCard style={{ 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            border: 'none',
+            overflow: 'hidden'
+          }}>
+            <CCardHeader style={{ 
+              background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
+              border: 'none',
+              padding: '20px 24px',
+              color: 'white'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BsGeoAlt size={20} />
+                <h5 style={{ margin: 0, fontWeight: '600' }}>Live Tracking Map</h5>
+              </div>
+            </CCardHeader>
             <CCardBody style={{ padding: 0 }}>
               <MapContainer
                 center={[42.798939, -74.658409]}
                 zoom={5}
-                style={{ height: '400px', width: '100%', borderRadius: '8px' }}
+                style={{ height: '450px', width: '100%' }}
               >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
                 {/* Always show start and destination markers if available */}
                 {startCoord && (
                   <Marker position={startCoord} icon={numberIcon('1')}>
@@ -754,89 +829,230 @@ const Shipments = () => {
         </CCol>
       </CRow>
 
-      {/* SHIPMENT LIST & FILTERS */}
+      {/* Enhanced Shipment List Section */}
       <CRow className="mb-4">
         <CCol xs={12}>
-          <CCard>
-            <CCardHeader style={{ background: '#f8f9fa', borderBottom: '1px solid #e3e3e3' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', marginBottom: 12 }}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <CButton color="primary" onClick={() => setIsModalOpen(true)}>
-                    Create New Shipment
-                  </CButton>
-                  <CButton
-                    color="danger"
-                    disabled={!selectedShipment}
-                    onClick={deleteShipment}
-                  >
-                    Delete Selected Shipment
-                  </CButton>
-                </div>
-                <div style={{ flex: 1, minWidth: 220 }}>
-                  <CFormInput placeholder="Search Shipments" />
+          <CCard style={{ 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            border: 'none'
+          }}>
+            <CCardHeader style={{ 
+              background: '#fff', 
+              borderBottom: '1px solid #e9ecef',
+              borderRadius: '16px 16px 0 0',
+              padding: '24px'
+            }}>
+              {/* Action Buttons Row */}
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                alignItems: 'center', 
+                gap: '16px', 
+                marginBottom: '24px'
+              }}>
+                <CButton 
+                  color="primary" 
+                  onClick={() => setIsModalOpen(true)}
+                  style={{
+                    borderRadius: '12px',
+                    padding: '12px 24px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
+                  }}
+                >
+                  <BsPlus size={20} />
+                  Create New Shipment
+                </CButton>
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  disabled={!selectedShipment}
+                  onClick={deleteShipment}
+                  style={{
+                    borderRadius: '12px',
+                    padding: '12px 24px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <BsTrash size={16} />
+                  Delete Selected
+                </CButton>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CBadge color="info" style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
+                    {filteredShipments.length} Shipments
+                  </CBadge>
+                  {isLoading && <CSpinner size="sm" />}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: 12 }}>
-                <CFormInput placeholder="Filter by Ship From" style={{ maxWidth: 250 }} />
-                <CFormInput placeholder="Filter by Ship To" style={{ maxWidth: 250 }} />
+
+              {/* Enhanced Search and Filter Row */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+                <CInputGroup style={{ maxWidth: '350px' }}>
+                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
+                    <BsSearch />
+                  </CInputGroupText>
+                  <CFormInput
+                    placeholder="Search shipments..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ borderLeft: 'none' }}
+                  />
+                </CInputGroup>
+                <CInputGroup style={{ maxWidth: '250px' }}>
+                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
+                    <BsFilter />
+                  </CInputGroupText>
+                  <CFormInput
+                    placeholder="Filter by Ship From"
+                    value={shipFromFilter}
+                    onChange={(e) => setShipFromFilter(e.target.value)}
+                    style={{ borderLeft: 'none' }}
+                  />
+                </CInputGroup>
+                <CInputGroup style={{ maxWidth: '250px' }}>
+                  <CInputGroupText style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}>
+                    <BsFilter />
+                  </CInputGroupText>
+                  <CFormInput
+                    placeholder="Filter by Ship To"
+                    value={shipToFilter}
+                    onChange={(e) => setShipToFilter(e.target.value)}
+                    style={{ borderLeft: 'none' }}
+                  />
+                </CInputGroup>
               </div>
-              <CNav variant="tabs" role="tablist" className="mb-2">
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === 'In Transit'}
-                    onClick={() => setActiveTab('In Transit')}
-                  >
-                    In Transit ({shipments.length})
-                  </CNavLink>
-                </CNavItem>
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === 'Upcoming'}
-                    onClick={() => setActiveTab('Upcoming')}
-                  >
-                    Upcoming (8)
-                  </CNavLink>
-                </CNavItem>
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === 'Completed'}
-                    onClick={() => setActiveTab('Completed')}
-                  >
-                    Completed (23)
-                  </CNavLink>
-                </CNavItem>
+
+              {/* Enhanced Status Tabs */}
+              <CNav variant="pills" role="tablist" style={{ gap: '8px' }}>
+                {['In Transit', 'Upcoming', 'Completed'].map((tab) => (
+                  <CNavItem key={tab}>
+                    <CNavLink
+                      active={activeTab === tab}
+                      onClick={() => setActiveTab(tab)}
+                      style={{
+                        borderRadius: '12px',
+                        padding: '12px 20px',
+                        fontWeight: '600',
+                        border: 'none',
+                        background: activeTab === tab ? `var(--cui-${getStatusColor(tab)})` : '#f8f9fa',
+                        color: activeTab === tab ? 'white' : '#6c757d',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      {tab} ({tab === 'In Transit' ? filteredShipments.length : tab === 'Upcoming' ? 8 : 23})
+                      <CBadge 
+                        color={activeTab === tab ? 'light' : getStatusColor(tab)} 
+                        style={{ marginLeft: '8px' }}
+                      >
+                        {tab === 'In Transit' ? filteredShipments.length : tab === 'Upcoming' ? 8 : 23}
+                      </CBadge>
+                    </CNavLink>
+                  </CNavItem>
+                ))}
               </CNav>
             </CCardHeader>
-            <CCardBody style={{ overflowX: 'auto', padding: 0 }}>
-              <div style={{ minWidth: 900, padding: 16 }}>
-                <CTable hover responsive bordered align="middle">
-                  <CTableHead>
+
+            <CCardBody style={{ padding: 0 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <CTable hover responsive className="mb-0" style={{ minWidth: '900px' }}>
+                  <CTableHead style={{ background: '#f8f9fa' }}>
                     <CTableRow>
-                      <CTableHeaderCell>Shipment ID</CTableHeaderCell>
-                      <CTableHeaderCell>Ship From</CTableHeaderCell>
-                      <CTableHeaderCell>Ship To</CTableHeaderCell>
-                      <CTableHeaderCell>Arrival Date</CTableHeaderCell>
-                      <CTableHeaderCell>Departure Date</CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Shipment ID
+                      </CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Ship From
+                      </CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Ship To
+                      </CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Status
+                      </CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Arrival Date
+                      </CTableHeaderCell>
+                      <CTableHeaderCell style={{ fontWeight: '600', padding: '16px 24px', border: 'none' }}>
+                        Actions
+                      </CTableHeaderCell>
                     </CTableRow>
                   </CTableHead>
                   <CTableBody>
-                    {shipments.map((shipment, index) => (
+                    {filteredShipments.map((shipment, index) => (
                       <CTableRow
                         key={index}
                         style={{
                           cursor: 'pointer',
-                          background: selectedShipment === shipment ? '#e9f5ff' : undefined,
-                          transition: 'background 0.2s'
+                          background: selectedShipment === shipment ? '#e3f2fd' : 'white',
+                          transition: 'all 0.2s ease',
+                          borderLeft: selectedShipment === shipment ? '4px solid #2196f3' : '4px solid transparent'
                         }}
                         onClick={() => handleShipmentClick(shipment)}
                       >
-                        <CTableDataCell>{shipment.trackerId || 'N/A'}</CTableDataCell>
-                        <CTableDataCell>{shipment.legs?.[0]?.shipFromAddress || 'N/A'}</CTableDataCell>
-                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}</CTableDataCell>
-                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.arrivalDate || 'N/A'}</CTableDataCell>
-                        <CTableDataCell>{shipment.legs?.[shipment.legs.length - 1]?.departureDate || 'N/A'}</CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px', fontWeight: '600', color: '#2196f3' }}>
+                          #{shipment.trackerId || 'N/A'}
+                        </CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '500' }}>
+                              {shipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
+                              {shipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
+                            </span>
+                            <small style={{ color: '#6c757d' }}>Origin</small>
+                          </div>
+                        </CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '500' }}>
+                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
+                              {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
+                            </span>
+                            <small style={{ color: '#6c757d' }}>Destination</small>
+                          </div>
+                        </CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px' }}>
+                          <CBadge color={getStatusColor('In Transit')} style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
+                            In Transit
+                          </CBadge>
+                        </CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '500' }}>
+                              {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                            </span>
+                            <small style={{ color: '#6c757d' }}>
+                              {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || ''}
+                            </small>
+                          </div>
+                        </CTableDataCell>
+                        <CTableDataCell style={{ padding: '20px 24px' }}>
+                          <CButton
+                            size="sm"
+                            color="info"
+                            variant="outline"
+                            style={{ borderRadius: '8px', padding: '6px 12px' }}
+                          >
+                            <BsInfoCircle size={14} style={{ marginRight: '4px' }} />
+                            View Details
+                          </CButton>
+                        </CTableDataCell>
                       </CTableRow>
                     ))}
+                    {filteredShipments.length === 0 && (
+                      <CTableRow>
+                        <CTableDataCell colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                          <BsInfoCircle size={24} style={{ marginBottom: '12px' }} />
+                          <div>No shipments found matching your criteria</div>
+                        </CTableDataCell>
+                      </CTableRow>
+                    )}
                   </CTableBody>
                 </CTable>
               </div>
@@ -845,48 +1061,48 @@ const Shipments = () => {
         </CCol>
       </CRow>
 
-      {/* DETAILS/SENSORS/ALERTS/REPORTS TABS */}
+      {/* Enhanced Details Panel */}
       {selectedShipment && (
         <CRow>
           <CCol xs={12}>
-            <CCard className="mb-4">
-              <CCardHeader style={{ background: '#f8f9fa', borderBottom: '1px solid #e3e3e3' }}>
-                <CNav variant="tabs" role="tablist">
-                  <CNavItem>
-                    <CNavLink
-                      active={shipmentTab === 'Details'}
-                      onClick={() => setShipmentTab('Details')}
-                    >
-                      Details
-                    </CNavLink>
-                  </CNavItem>
-                  <CNavItem>
-                    <CNavLink
-                      active={shipmentTab === 'Sensors'}
-                      onClick={() => setShipmentTab('Sensors')}
-                    >
-                      Sensors
-                    </CNavLink>
-                  </CNavItem>
-                  <CNavItem>
-                    <CNavLink
-                      active={shipmentTab === 'Alerts'}
-                      onClick={() => setShipmentTab('Alerts')}
-                    >
-                      Alerts
-                    </CNavLink>
-                  </CNavItem>
-                  <CNavItem>
-                    <CNavLink
-                      active={shipmentTab === 'Reports'}
-                      onClick={() => setShipmentTab('Reports')}
-                    >
-                      Reports
-                    </CNavLink>
-                  </CNavItem>
+            <CCard style={{ 
+              borderRadius: '16px', 
+              boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+              border: 'none'
+            }}>
+              <CCardHeader style={{ 
+                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                borderRadius: '16px 16px 0 0',
+                padding: '24px',
+                color: 'white'
+              }}>
+                <h5 style={{ margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <BsInfoCircle size={20} />
+                  Shipment Details - #{selectedShipment.trackerId}
+                </h5>
+                <CNav variant="pills" role="tablist" style={{ gap: '8px', marginTop: '16px' }}>
+                  {['Details', 'Sensors', 'Alerts', 'Reports'].map((tab) => (
+                    <CNavItem key={tab}>
+                      <CNavLink
+                        active={shipmentTab === tab}
+                        onClick={() => setShipmentTab(tab)}
+                        style={{
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          fontWeight: '500',
+                          background: shipmentTab === tab ? 'rgba(255,255,255,0.2)' : 'transparent',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.3)'
+                        }}
+                      >
+                        {tab}
+                      </CNavLink>
+                    </CNavItem>
+                  ))}
                 </CNav>
               </CCardHeader>
-              <CCardBody style={{ background: '#fcfcfc' }}>
+              <CCardBody style={{ background: '#f8f9fa', padding: '32px' }}>
                 {shipmentTab === 'Details' && (
                   <div style={{ maxWidth: 500, margin: '0 auto' }}>
                     <p>
@@ -908,156 +1124,112 @@ const Shipments = () => {
                 )}
                 {shipmentTab === 'Sensors' && (
                   <>
-                    <div className="sensor-icons d-flex justify-content-center mb-4" style={{ gap: 16 }}>
-                      <div
-                        className={`sensor-icon-wrapper${activeSensor === 'Temperature' ? ' bg-primary text-white' : ''}`}
-                        onClick={() => setActiveSensor('Temperature')}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          background: activeSensor === 'Temperature' ? '#0d6efd' : 'transparent',
-                          color: activeSensor === 'Temperature' ? '#fff' : undefined,
-                          transition: 'background 0.2s, color 0.2s',
-                          minWidth: 70
-                        }}
-                      >
-                        <BsThermometerHalf size={16} className="sensor-icon" />
-                        <span className="sensor-label" style={{ fontSize: 12 }}>Temperature</span>
-                      </div>
-                      <div
-                        className={`sensor-icon-wrapper${activeSensor === 'Humidity' ? ' bg-primary text-white' : ''}`}
-                        onClick={() => setActiveSensor('Humidity')}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          background: activeSensor === 'Humidity' ? '#0d6efd' : 'transparent',
-                          color: activeSensor === 'Humidity' ? '#fff' : undefined,
-                          transition: 'background 0.2s, color 0.2s',
-                          minWidth: 70
-                        }}
-                      >
-                        <BsDroplet size={16} className="sensor-icon" />
-                        <span className="sensor-label" style={{ fontSize: 12 }}>Humidity</span>
-                      </div>
-                      <div
-                        className={`sensor-icon-wrapper${activeSensor === 'Battery' ? ' bg-primary text-white' : ''}`}
-                        onClick={() => setActiveSensor('Battery')}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          background: activeSensor === 'Battery' ? '#0d6efd' : 'transparent',
-                          color: activeSensor === 'Battery' ? '#fff' : undefined,
-                          transition: 'background 0.2s, color 0.2s',
-                          minWidth: 70
-                        }}
-                      >
-                        <BsBatteryHalf size={16} className="sensor-icon" />
-                        <span className="sensor-label" style={{ fontSize: 12 }}>Battery</span>
-                      </div>
-                      <div
-                        className={`sensor-icon-wrapper${activeSensor === 'Speed' ? ' bg-primary text-white' : ''}`}
-                        onClick={() => setActiveSensor('Speed')}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          background: activeSensor === 'Speed' ? '#0d6efd' : 'transparent',
-                          color: activeSensor === 'Speed' ? '#fff' : undefined,
-                          transition: 'background 0.2s, color 0.2s',
-                          minWidth: 70
-                        }}
-                      >
-                        <BsSpeedometer2 size={16} className="sensor-icon" />
-                        <span className="sensor-label" style={{ fontSize: 12 }}>Speed</span>
-                      </div>
+                    <div className="sensor-icons d-flex justify-content-center mb-4" style={{ gap: 20 }}>
+                      {[
+                        { key: 'Temperature', icon: BsThermometerHalf, color: '#ff6b6b' },
+                        { key: 'Humidity', icon: BsDroplet, color: '#4ecdc4' },
+                        { key: 'Battery', icon: BsBatteryHalf, color: '#45b7d1' },
+                        { key: 'Speed', icon: BsSpeedometer2, color: '#96ceb4' }
+                      ].map(({ key, icon: Icon, color }) => (
+                        <div
+                          key={key}
+                          onClick={() => setActiveSensor(key)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            borderRadius: '16px',
+                            padding: '16px 20px',
+                            background: activeSensor === key ? color : 'white',
+                            color: activeSensor === key ? 'white' : '#6c757d',
+                            transition: 'all 0.3s ease',
+                            minWidth: 90,
+                            boxShadow: activeSensor === key ? `0 8px 20px ${color}40` : '0 2px 8px rgba(0,0,0,0.1)',
+                            transform: activeSensor === key ? 'translateY(-2px)' : 'none'
+                          }}
+                        >
+                          <Icon size={24} style={{ marginBottom: '8px' }} />
+                          <span style={{ fontSize: '13px', fontWeight: '600' }}>{key}</span>
+                        </div>
+                      ))}
                     </div>
-                    {activeSensor === 'Temperature' && (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={temperatureData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" tick={false} />
-                          <YAxis />
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${name === 'temperature' ? 'Temperature' : ''}: ${value}°C`,
-                              null,
-                            ]}
-                            labelFormatter={(label) => `Timestamp: ${label}`}
-                          />
-                          <Line type="monotone" dataKey="temperature" stroke="#8884d8" activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                    {activeSensor === 'Humidity' && (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={humidityData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" tick={false} />
-                          <YAxis />
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${name === 'humidity' ? 'Humidity' : ''}: ${value}%`,
-                              null,
-                            ]}
-                            labelFormatter={(label) => `Timestamp: ${label}`}
-                          />
-                          <Line type="monotone" dataKey="humidity" stroke="#82ca9d" activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                    {activeSensor === 'Battery' && (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={batteryData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" tick={false} />
-                          <YAxis />
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${name === 'battery' ? 'Battery Level' : ''}: ${value}%`,
-                              null,
-                            ]}
-                            labelFormatter={(label) => `Timestamp: ${label}`}
-                          />
-                          <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                    {activeSensor === 'Speed' && (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={speedData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="timestamp" tick={false} />
-                          <YAxis />
-                          <Tooltip
-                            formatter={(value, name) => [
-                              `${name === 'speed' ? 'Speed' : ''}: ${value} km/h`,
-                              null,
-                            ]}
-                            labelFormatter={(label) => `Timestamp: ${label}`}
-                          />
-                          <Line type="monotone" dataKey="speed" stroke="#ff7300" activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
+                    {/* Enhanced chart styling */}
+                    <div style={{ 
+                      background: 'white', 
+                      borderRadius: '16px', 
+                      padding: '24px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                    }}>
+                      {activeSensor === 'Temperature' && (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={temperatureData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="timestamp" tick={false} />
+                            <YAxis />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${name === 'temperature' ? 'Temperature' : ''}: ${value}°C`,
+                                null,
+                              ]}
+                              labelFormatter={(label) => `Timestamp: ${label}`}
+                            />
+                            <Line type="monotone" dataKey="temperature" stroke="#8884d8" activeDot={{ r: 8 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+                      {activeSensor === 'Humidity' && (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={humidityData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="timestamp" tick={false} />
+                            <YAxis />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${name === 'humidity' ? 'Humidity' : ''}: ${value}%`,
+                                null,
+                              ]}
+                              labelFormatter={(label) => `Timestamp: ${label}`}
+                            />
+                            <Line type="monotone" dataKey="humidity" stroke="#82ca9d" activeDot={{ r: 8 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+                      {activeSensor === 'Battery' && (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={batteryData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="timestamp" tick={false} />
+                            <YAxis />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${name === 'battery' ? 'Battery Level' : ''}: ${value}%`,
+                                null,
+                              ]}
+                              labelFormatter={(label) => `Timestamp: ${label}`}
+                            />
+                            <Line type="monotone" dataKey="battery" stroke="#ffc658" activeDot={{ r: 8 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+                      {activeSensor === 'Speed' && (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={speedData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="timestamp" tick={false} />
+                            <YAxis />
+                            <Tooltip
+                              formatter={(value, name) => [
+                                `${name === 'speed' ? 'Speed' : ''}: ${value} km/h`,
+                                null,
+                              ]}
+                              labelFormatter={(label) => `Timestamp: ${label}`}
+                            />
+                            <Line type="monotone" dataKey="speed" stroke="#ff7300" activeDot={{ r: 8 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
                   </>
                 )}
                 {shipmentTab === 'Alerts' && <div style={{ minHeight: 100 }}>Alerts content</div>}
@@ -1068,10 +1240,25 @@ const Shipments = () => {
         </CRow>
       )}
 
-      {/* MODAL */}
-      <CModal visible={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <CModalHeader>Create New Shipment</CModalHeader>
-        <CModalBody style={{ maxHeight: '400px', overflowY: 'auto' }}>
+      {/* Enhanced Modal */}
+      <CModal 
+        visible={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        size="lg"
+        style={{ '--cui-modal-border-radius': '16px' }}
+      >
+        <CModalHeader style={{ 
+          background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '16px 16px 0 0'
+        }}>
+          <h5 style={{ margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <BsPlus size={20} />
+            Create New Shipment
+          </h5>
+        </CModalHeader>
+        <CModalBody style={{ maxHeight: '500px', overflowY: 'auto', padding: '32px' }}>
           <CForm>
             {legs.map((leg, index) => (
               <div key={index} className="mb-4" style={{ borderBottom: '1px solid #eee', paddingBottom: 12 }}>
@@ -1184,16 +1371,34 @@ const Shipments = () => {
             </CRow>
           </CForm>
         </CModalBody>
-        <CModalFooter>
-          <CButton color="primary" onClick={submitForm}>
-            Submit
+        <CModalFooter style={{ border: 'none', padding: '24px 32px' }}>
+          <CButton 
+            color="primary" 
+            onClick={submitForm}
+            style={{
+              borderRadius: '12px',
+              padding: '12px 24px',
+              fontWeight: '600',
+              boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
+            }}
+          >
+            Create Shipment
           </CButton>
-          <CButton color="secondary" onClick={() => setIsModalOpen(false)}>
+          <CButton 
+            color="secondary" 
+            variant="outline"
+            onClick={() => setIsModalOpen(false)}
+            style={{
+              borderRadius: '12px',
+              padding: '12px 24px',
+              fontWeight: '600'
+            }}
+          >
             Cancel
           </CButton>
         </CModalFooter>
       </CModal>
-    </>
+    </div>
   )
 }
 
