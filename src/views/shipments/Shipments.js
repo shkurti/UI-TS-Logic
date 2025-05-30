@@ -762,6 +762,10 @@ const Shipments = () => {
                 zoom={5}
                 style={{ height: '450px', width: '100%' }}
               >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
                 {/* Always show start and destination markers if available */}
                 {startCoord && (
                   <Marker position={startCoord} icon={numberIcon('1')}>
@@ -1240,18 +1244,17 @@ const Shipments = () => {
         </CRow>
       )}
 
-      {/* Enhanced Modal */}
+      {/* Enhanced Modal - Fixed visibility issue */}
       <CModal 
         visible={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         size="lg"
-        style={{ '--cui-modal-border-radius': '16px' }}
+        backdrop="static"
       >
-        <CModalHeader style={{ 
+        <CModalHeader closeButton style={{ 
           background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
           color: 'white',
-          border: 'none',
-          borderRadius: '16px 16px 0 0'
+          border: 'none'
         }}>
           <h5 style={{ margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <BsPlus size={20} />
@@ -1261,141 +1264,201 @@ const Shipments = () => {
         <CModalBody style={{ maxHeight: '500px', overflowY: 'auto', padding: '32px' }}>
           <CForm>
             {legs.map((leg, index) => (
-              <div key={index} className="mb-4" style={{ borderBottom: '1px solid #eee', paddingBottom: 12 }}>
-                <h5 style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Leg {leg.legNumber}</h5>
-                <CRow className="mb-2">
+              <div key={index} className="mb-4" style={{ 
+                borderBottom: index < legs.length - 1 ? '1px solid #eee' : 'none', 
+                paddingBottom: 16,
+                background: '#f8f9fa',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '20px'
+              }}>
+                <h6 style={{ 
+                  fontWeight: 600, 
+                  fontSize: 16, 
+                  marginBottom: 16,
+                  color: '#495057',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <CBadge color="primary" style={{ fontSize: '12px' }}>
+                    Leg {leg.legNumber}
+                  </CBadge>
+                </h6>
+                
+                <CRow className="mb-3">
                   {index === 0 && (
                     <CCol>
                       <CFormInput
-                        label="Ship From Address"
+                        label="Ship From Address *"
                         value={leg.shipFromAddress}
                         onChange={(e) => handleInputChange(index, 'shipFromAddress', e.target.value)}
+                        placeholder="Enter origin address"
+                        style={{ borderRadius: '8px' }}
                       />
                     </CCol>
                   )}
                   {index < legs.length - 1 && (
                     <CCol>
                       <CFormInput
-                        label="Stop Address"
+                        label="Stop Address *"
                         value={leg.stopAddress}
                         onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
+                        placeholder="Enter stop address"
+                        style={{ borderRadius: '8px' }}
                       />
                     </CCol>
                   )}
                   {index === legs.length - 1 && (
                     <CCol>
                       <CFormInput
-                        label="Ship To Address"
+                        label="Ship To Address *"
                         value={leg.stopAddress}
                         onChange={(e) => handleInputChange(index, 'stopAddress', e.target.value)}
+                        placeholder="Enter destination address"
+                        style={{ borderRadius: '8px' }}
                       />
                     </CCol>
                   )}
                 </CRow>
-                <CRow className="mb-2">
-                  <CCol>
+                
+                <CRow className="mb-3">
+                  <CCol md={6}>
                     <CFormInput
                       type="datetime-local"
-                      label="Ship Date"
+                      label="Ship Date *"
                       value={leg.shipDate}
                       onChange={(e) => handleInputChange(index, 'shipDate', e.target.value)}
+                      style={{ borderRadius: '8px' }}
                     />
                   </CCol>
-                  <CCol>
+                  <CCol md={6}>
                     <CFormSelect
-                      label="Mode"
+                      label="Transport Mode *"
                       value={leg.mode}
                       onChange={(e) => handleInputChange(index, 'mode', e.target.value)}
+                      style={{ borderRadius: '8px' }}
                     >
                       <option value="">Select Mode</option>
-                      <option value="Road">Road</option>
-                      <option value="Air">Air</option>
-                      <option value="Sea">Sea</option>
+                      <option value="Road">🚛 Road</option>
+                      <option value="Air">✈️ Air</option>
+                      <option value="Sea">🚢 Sea</option>
                     </CFormSelect>
                   </CCol>
                 </CRow>
-                <CRow className="mb-2">
-                  <CCol>
+                
+                <CRow className="mb-3">
+                  <CCol md={4}>
                     <CFormInput
-                      label="Carrier"
+                      label="Carrier *"
                       value={leg.carrier}
                       onChange={(e) => handleInputChange(index, 'carrier', e.target.value)}
+                      placeholder="Enter carrier name"
+                      style={{ borderRadius: '8px' }}
                     />
                   </CCol>
-                  <CCol>
+                  <CCol md={4}>
                     <CFormInput
                       type="datetime-local"
-                      label="Arrival Date"
+                      label="Arrival Date *"
                       value={leg.arrivalDate}
                       onChange={(e) => handleInputChange(index, 'arrivalDate', e.target.value)}
+                      style={{ borderRadius: '8px' }}
                     />
                   </CCol>
-                  <CCol>
+                  <CCol md={4}>
                     <CFormInput
                       type="datetime-local"
-                      label="Departure Date"
+                      label="Departure Date *"
                       value={leg.departureDate}
                       onChange={(e) => handleInputChange(index, 'departureDate', e.target.value)}
+                      style={{ borderRadius: '8px' }}
                     />
                   </CCol>
                 </CRow>
+                
                 {leg.mode === 'Air' && (
-                  <CFormInput
-                    label="AWB"
-                    value={leg.awb}
-                    onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
-                  />
+                  <CRow className="mb-3">
+                    <CCol md={6}>
+                      <CFormInput
+                        label="AWB (Air Waybill)"
+                        value={leg.awb}
+                        onChange={(e) => handleInputChange(index, 'awb', e.target.value)}
+                        placeholder="Enter AWB number"
+                        style={{ borderRadius: '8px' }}
+                      />
+                    </CCol>
+                  </CRow>
                 )}
               </div>
             ))}
-            <CRow className="mb-3">
-              <CCol>
+            
+            <CRow className="mb-4">
+              <CCol md={8}>
                 <CFormSelect
-                  label="Select Tracker"
+                  label="Select Tracker *"
                   value={selectedTracker}
                   onChange={(e) => setSelectedTracker(e.target.value)}
+                  style={{ borderRadius: '8px' }}
                 >
-                  <option value="">Select a Tracker</option>
+                  <option value="">Choose a tracker device</option>
                   {trackers.map((tracker) => (
                     <option key={tracker.tracker_id} value={tracker.tracker_id}>
-                      {tracker.tracker_name}
+                      📍 {tracker.tracker_name} (ID: {tracker.tracker_id})
                     </option>
                   ))}
                 </CFormSelect>
               </CCol>
-              <CCol xs="auto" className="d-flex align-items-end">
-                <CButton color="secondary" onClick={addLeg}>
+              <CCol md={4} className="d-flex align-items-end">
+                <CButton 
+                  color="secondary" 
+                  variant="outline"
+                  onClick={addLeg}
+                  style={{
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontWeight: '500',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <BsPlus size={16} />
                   Add Stop
                 </CButton>
               </CCol>
             </CRow>
           </CForm>
         </CModalBody>
-        <CModalFooter style={{ border: 'none', padding: '24px 32px' }}>
-          <CButton 
-            color="primary" 
-            onClick={submitForm}
-            style={{
-              borderRadius: '12px',
-              padding: '12px 24px',
-              fontWeight: '600',
-              boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
-            }}
-          >
-            Create Shipment
-          </CButton>
-          <CButton 
-            color="secondary" 
-            variant="outline"
-            onClick={() => setIsModalOpen(false)}
-            style={{
-              borderRadius: '12px',
-              padding: '12px 24px',
-              fontWeight: '600'
-            }}
-          >
-            Cancel
-          </CButton>
+        <CModalFooter style={{ border: 'none', padding: '24px 32px', background: '#f8f9fa' }}>
+          <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-end' }}>
+            <CButton 
+              color="secondary" 
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              style={{
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontWeight: '600'
+              }}
+            >
+              Cancel
+            </CButton>
+            <CButton 
+              color="primary" 
+              onClick={submitForm}
+              style={{
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontWeight: '600',
+                boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)'
+              }}
+            >
+              Create Shipment
+            </CButton>
+          </div>
         </CModalFooter>
       </CModal>
     </div>
