@@ -775,7 +775,7 @@ const Shipments = () => {
       width: '100vw',
       overflow: 'hidden',
       position: 'fixed',
-      top: '80px', // Reduced from 120px to match actual navbar height
+      top: '40px', // Reduced from 120px to match actual navbar height
       left: 0,
       margin: 0,
       padding: 0,
@@ -786,7 +786,7 @@ const Shipments = () => {
         <div 
           style={{
             position: 'fixed',
-            top: '80px', // Updated to match container top
+            top: '40px', // Updated to match container top
             left: 0,
             right: 0,
             bottom: 0,
