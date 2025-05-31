@@ -517,48 +517,237 @@ const Shipments = () => {
         const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
         const from = firstLeg?.shipFromAddress;
         const to = lastLeg?.stopAddress;
-        
-        console.log(`Geocoding addresses: FROM: ${from}, TO: ${to}`); // Debug log
-        
         if (from && to && from.trim() !== '' && to.trim() !== '') {
           const [fromCoord, toCoord] = await Promise.all([
             geocodeAddress(from),
             geocodeAddress(to),
           ]);
-          
-          console.log(`Geocoding results: FROM: ${fromCoord}, TO: ${toCoord}`); // Debug log
-          
-          if (fromCoord && toCoord) {
-            setStartCoord(fromCoord);
-            setDestinationCoord(toCoord);
-            console.log(`Set coordinates: START: ${fromCoord}, DEST: ${toCoord}`); // Debug log
-          } else {
-            console.log('Geocoding failed for one or both addresses'); // Debug log
-            setStartCoord(null);
-            setDestinationCoord(null);
-          }
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
         } else {
-          console.log('Missing addresses in shipment legs'); // Debug log
           setStartCoord(null);
           setDestinationCoord(null);
         }
       } else {
-        console.log('No selected shipment or legs'); // Debug log
         setStartCoord(null);
         setDestinationCoord(null);
       }
     };
     setCoordsFromShipment();
-  }, [selectedShipment]); // Remove exhaustive deps to avoid issues
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment]);
 
-  // Clear preview states when not in modal
+  // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
-    if (!isModalOpen) {
+    const showSelectedShipmentLine = async () => {
+      if (
+        selectedShipment &&
+        (!routeData || routeData.length === 0) &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+            return;
+          }
+        }
+      }
       setNewShipmentPreview(null);
       setPreviewMarkers([]);
-    }
-  }, [isModalOpen]);
+      setDestinationCoord(null);
+    };
+    showSelectedShipmentLine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
 
+  // Also update preview markers for modal preview (always use full address)
+  useEffect(() => {
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+      setDestinationCoord(newShipmentPreview[1]);
+    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+
+  // Ensure destinationCoord is always set when GPS data is loaded
+  useEffect(() => {
+    const setDestinationFromShipment = async () => {
+      if (
+        selectedShipment &&
+        routeData.length > 0 &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const to = lastLeg?.stopAddress;
+        if (to && to.trim() !== '') {
+          const toCoord = await geocodeAddress(to);
+          if (
+            Array.isArray(toCoord) &&
+            toCoord.length === 2 &&
+            !isNaN(toCoord[0]) &&
+            !isNaN(toCoord[1])
+          ) {
+            setDestinationCoord(toCoord);
+            return;
+          }
+        }
+      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
+    };
+    setDestinationFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
+  // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
+  useEffect(() => {
+    if (!selectedShipment || !selectedShipment.trackerId) {
+      setLiveRoute([]);
+      return;
+    }
+    // Get the expected time range for the selected shipment
+    const legs = selectedShipment.legs || [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || {};
+    const expectedStart = new Date(firstLeg.shipDate);
+    const expectedEnd = new Date(lastLeg.arrivalDate);
+
+    let isCurrent = true;
+
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    ws.onopen = () => {
+      // Optionally log or authenticate
+    };
+    ws.onmessage = (event) => {
+      if (!isCurrent) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (
+          message.operationType === 'insert' &&
+          String(message.tracker_id) === String(selectedShipment.trackerId)
+        ) {
+          const { geolocation, new_record } = message;
+          
+          // Use local timestamp if available, otherwise convert UTC
+          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
+          
+          // Check if the timestamp is within the expected range (using local time now)
+          if (new_record?.timestamp_local) {
+            const dt = new Date(new_record.timestamp_local);
+            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
+              return;
+            }
+          }
+          
+          const lat = parseFloat(geolocation?.Lat);
+          const lng = parseFloat(geolocation?.Lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLiveRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
+          }
+          
+          // Update sensor data with local timestamps
+          if (new_record) {
+            if (new_record.Temp !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Hum !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Batt !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, battery: parseFloat(new_record.Batt) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, speed: parseFloat(new_record.Speed) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => {};
+
+    return () => {
+      isCurrent = false;
+      ws.close();
+    };
+  }, [selectedShipment, userTimezone]);
+
+  // When a shipment is selected, initialize liveRoute from routeData
+  useEffect(() => {
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
+    } else {
+      setLiveRoute([]);
+    }
+  }, [routeData]);
+
+  // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
     const matchesSearch = !searchTerm || 
       shipment.trackerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -871,40 +1060,37 @@ const Shipments = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
-                    {/* Mobile - Start marker from shipment address */}
-                    {selectedShipment && startCoord && Array.isArray(startCoord) && startCoord.length === 2 && (
-                      <Marker position={startCoord} icon={numberIcon('1')} zIndexOffset={1000}>
+                    {/* Always show start and destination markers if available */}
+                    {startCoord && (
+                      <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
-                          <div style={{ minWidth: '150px', fontSize: '12px' }}>
-                            <strong>🚀 Start</strong><br/>
-                            {selectedShipment.legs?.[0]?.shipFromAddress}
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>🚀 Departure Point</strong><br/>
+                            {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+                            <br/><small>Start of shipment journey</small>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    )}
+                    {destinationCoord && (
+                      <Marker position={destinationCoord} icon={numberIcon('2')}>
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>🏁 Destination Point</strong><br/>
+                            {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+                            <br/><small>End of shipment journey</small>
                           </div>
                         </Popup>
                       </Marker>
                     )}
                     
-                    {/* Mobile - Destination marker from shipment address */}
-                    {selectedShipment && destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && (
-                      <Marker position={destinationCoord} icon={numberIcon('2')} zIndexOffset={1000}>
-                        <Popup>
-                          <div style={{ minWidth: '150px', fontSize: '12px' }}>
-                            <strong>🏁 Destination</strong><br/>
-                            {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                          </div>
-                        </Popup>
-                      </Marker>
-                    )}
-                    
-                    {/* Mobile - Route logic (same as desktop) */}
-                    {liveRoute && liveRoute.length > 0 ? (
+                    {/* Enhanced shipment route display */}
+                    {liveRoute.length > 0 ? (
                       <>
-                        <FitBounds route={[
-                          ...(startCoord ? [startCoord] : []),
-                          ...liveRoute, 
-                          ...(destinationCoord ? [destinationCoord] : [])
-                        ]} />
+                        {/* Fit map to show the entire route */}
+                        <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
                         
-                        {/* Solid GPS route */}
+                        {/* Solid blue line showing the actual GPS route taken */}
                         <Polyline 
                           positions={liveRoute} 
                           color="#2196f3" 
@@ -912,13 +1098,19 @@ const Shipments = () => {
                           opacity={0.8}
                         />
                         
-                        {/* Dashed line to destination address */}
-                        {destinationCoord && (
+                        {/* Dashed line from last GPS point to destination (if not at destination) */}
+                        {destinationCoord && liveRoute.length > 0 && (
                           (() => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                            const distanceThreshold = 0.001;
-                            const isAtDestination = Math.abs(lastGpsPoint[0] - destinationCoord[0]) < distanceThreshold && 
-                                                  Math.abs(lastGpsPoint[1] - destinationCoord[1]) < distanceThreshold;
+                            const destLat = destinationCoord[0];
+                            const destLng = destinationCoord[1];
+                            const lastLat = lastGpsPoint[0];
+                            const lastLng = lastGpsPoint[1];
+                            
+                            // Only show dashed line if current location is not at destination
+                            const distanceThreshold = 0.001; // ~100 meters
+                            const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
+                                                  Math.abs(lastLng - destLng) < distanceThreshold;
                             
                             if (!isAtDestination) {
                               return (
@@ -935,23 +1127,21 @@ const Shipments = () => {
                           })()
                         )}
                         
-                        {/* Current location */}
-                        <Marker 
-                          position={liveRoute[liveRoute.length - 1]} 
-                          icon={currentLocationIcon}
-                          zIndexOffset={1001}
-                        >
+                        {/* Current location marker with enhanced styling */}
+                        <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                           <Popup>
-                            <div style={{ fontSize: '11px' }}>
-                              <strong>📍 Current</strong><br/>
-                              {liveRoute[liveRoute.length - 1][0].toFixed(4)}, {liveRoute[liveRoute.length - 1][1].toFixed(4)}
+                            <div style={{ minWidth: '200px' }}>
+                              <strong>📍 Current Location</strong><br/>
+                              <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
+                              <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
+                              <small>Last updated: {new Date().toLocaleTimeString()}</small>
                             </div>
                           </Popup>
                         </Marker>
                       </>
                     ) : (
-                      /* No GPS data - show dashed line between addresses */
-                      selectedShipment && startCoord && destinationCoord && (
+                      // Show dashed line between start and destination when no GPS data yet
+                      startCoord && destinationCoord && (
                         <Polyline 
                           positions={[startCoord, destinationCoord]} 
                           color="#9e9e9e" 
@@ -1755,77 +1945,37 @@ const Shipments = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
-              {/* Debug: Log coordinates when they change */}
-              {console.log('Rendering map with:', { startCoord, destinationCoord, liveRoute: liveRoute?.length, selectedShipment: !!selectedShipment })}
-              
-              {/* START MARKER (1) - ALWAYS show from shipment address when shipment selected */}
-              {selectedShipment && startCoord && Array.isArray(startCoord) && startCoord.length === 2 && (
-                <Marker 
-                  position={startCoord} 
-                  icon={numberIcon('1')}
-                  zIndexOffset={1000}
-                >
+              {/* Always show start and destination markers if available */}
+              {startCoord && (
+                <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
                       <strong>🚀 Departure Point</strong><br/>
-                      {selectedShipment.legs?.[0]?.shipFromAddress || 'Starting Location'}
+                      {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
                       <br/><small>Start of shipment journey</small>
                     </div>
                   </Popup>
                 </Marker>
               )}
-              
-              {/* DESTINATION MARKER (2) - ALWAYS show from shipment address when shipment selected */}
-              {selectedShipment && destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && (
-                <Marker 
-                  position={destinationCoord} 
-                  icon={numberIcon('2')}
-                  zIndexOffset={1000}
-                >
+              {destinationCoord && (
+                <Marker position={destinationCoord} icon={numberIcon('2')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
                       <strong>🏁 Destination Point</strong><br/>
-                      {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress || 'Destination Location'}
+                      {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
                       <br/><small>End of shipment journey</small>
                     </div>
                   </Popup>
                 </Marker>
               )}
               
-              {/* Modal preview markers for new shipment creation */}
-              {isModalOpen && newShipmentPreview && newShipmentPreview.length === 2 && (
+              {/* Enhanced shipment route display */}
+              {liveRoute.length > 0 ? (
                 <>
-                  <Marker position={newShipmentPreview[0]} icon={numberIcon('1')} zIndexOffset={1000}>
-                    <Popup>
-                      <div style={{ minWidth: '150px' }}>
-                        <strong>🚀 Start</strong><br/>
-                        {legs[0]?.shipFromAddress || 'Starting Point'}
-                      </div>
-                    </Popup>
-                  </Marker>
-                  <Marker position={newShipmentPreview[1]} icon={numberIcon('2')} zIndexOffset={1000}>
-                    <Popup>
-                      <div style={{ minWidth: '150px' }}>
-                        <strong>🏁 End</strong><br/>
-                        {legs[legs.length - 1]?.stopAddress || 'Destination Point'}
-                      </div>
-                    </Popup>
-                  </Marker>
-                </>
-              )}
-              
-              {/* Route and polyline logic */}
-              {liveRoute && liveRoute.length > 0 ? (
-                /* When we have GPS tracking data */
-                <>
-                  {/* Fit map to show all points including address markers */}
-                  <FitBounds route={[
-                    ...(startCoord ? [startCoord] : []),
-                    ...liveRoute, 
-                    ...(destinationCoord ? [destinationCoord] : [])
-                  ]} />
+                  {/* Fit map to show the entire route */}
+                  <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
                   
-                  {/* 1. Solid blue line showing actual GPS route */}
+                  {/* Solid blue line showing the actual GPS route taken */}
                   <Polyline 
                     positions={liveRoute} 
                     color="#2196f3" 
@@ -1833,8 +1983,8 @@ const Shipments = () => {
                     opacity={0.8}
                   />
                   
-                  {/* 2. Dashed orange line from last GPS point to destination ADDRESS */}
-                  {destinationCoord && (
+                  {/* Dashed line from last GPS point to destination (if not at destination) */}
+                  {destinationCoord && liveRoute.length > 0 && (
                     (() => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
                       const destLat = destinationCoord[0];
@@ -1842,7 +1992,8 @@ const Shipments = () => {
                       const lastLat = lastGpsPoint[0];
                       const lastLng = lastGpsPoint[1];
                       
-                      // Show dashed line if not at destination address (within 100m)
+                      
+                      // Only show dashed line if current location is not at destination
                       const distanceThreshold = 0.001; // ~100 meters
                       const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
                                             Math.abs(lastLng - destLng) < distanceThreshold;
@@ -1862,12 +2013,8 @@ const Shipments = () => {
                     })()
                   )}
                   
-                  {/* 3. Current location marker (red pulsing dot) */}
-                  <Marker 
-                    position={liveRoute[liveRoute.length - 1]} 
-                    icon={currentLocationIcon}
-                    zIndexOffset={1001}
-                  >
+                  {/* Current location marker with enhanced styling */}
+                  <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
                         <strong>📍 Current Location</strong><br/>
@@ -1879,30 +2026,16 @@ const Shipments = () => {
                   </Marker>
                 </>
               ) : (
-                /* When NO GPS data - show dashed line between start and destination ADDRESSES */
-                <>
-                  {/* For selected shipment without GPS data */}
-                  {selectedShipment && startCoord && destinationCoord && !isModalOpen && (
-                    <Polyline 
-                      positions={[startCoord, destinationCoord]} 
-                      color="#9e9e9e" 
-                      weight={3}
-                      opacity={0.6}
-                      dashArray="15, 15" 
-                    />
-                  )}
-                  
-                  {/* For modal preview */}
-                  {isModalOpen && newShipmentPreview && newShipmentPreview.length === 2 && (
-                    <Polyline 
-                      positions={newShipmentPreview} 
-                      color="#9e9e9e" 
-                      weight={3}
-                      opacity={0.6}
-                      dashArray="15, 15" 
-                    />
-                  )}
-                </>
+                // Show dashed line between start and destination when no GPS data yet
+                startCoord && destinationCoord && (
+                  <Polyline 
+                    positions={[startCoord, destinationCoord]} 
+                    color="#9e9e9e" 
+                    weight={3}
+                    opacity={0.6}
+                    dashArray="15, 15" 
+                  />
+                )
               )}
             </MapContainer>
 
