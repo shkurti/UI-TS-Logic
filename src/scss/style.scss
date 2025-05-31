@@ -316,3 +316,28 @@ body {
     background-color: var(--cui-dark-bg) !important;
   }
 }
+
+// Force marker visibility with higher specificity
+.leaflet-container .number-marker {
+  z-index: 1000 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+.leaflet-container .current-location-marker {
+  z-index: 1001 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+// Ensure marker icons render properly
+.leaflet-marker-icon {
+  z-index: inherit !important;
+}
+
+// Force polyline visibility
+.leaflet-container .leaflet-interactive {
+  pointer-events: auto !important;
+  stroke-opacity: inherit !important;
+  fill-opacity: inherit !important;
+}
