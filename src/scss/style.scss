@@ -250,45 +250,84 @@ body {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
 }
 
-// Force marker visibility with stronger CSS
-.leaflet-container .leaflet-marker-pane .number-marker {
+// Force marker visibility with the strongest possible CSS selectors
+.leaflet-container .leaflet-marker-pane .number-marker,
+.leaflet-container .leaflet-marker-pane .number-marker div {
   z-index: 1000 !important;
   visibility: visible !important;
   display: block !important;
   opacity: 1 !important;
-}
-
-.leaflet-container .leaflet-marker-pane .current-location-marker {
-  z-index: 1001 !important;
-  visibility: visible !important;
-  display: block !important;
-  opacity: 1 !important;
-}
-
-// Enhanced marker icon styles to ensure they render
-.number-marker div {
-  position: relative !important;
-  z-index: 1000 !important;
-  display: flex !important;
-  visibility: visible !important;
-}
-
-.current-location-marker div {
-  position: relative !important;
-  z-index: 1001 !important;
-  display: block !important;
-  visibility: visible !important;
-  animation: pulse 2s infinite;
-}
-
-// Force polyline visibility
-.leaflet-container .leaflet-overlay-pane svg {
   pointer-events: auto !important;
 }
 
-.leaflet-container .leaflet-overlay-pane svg path {
-  stroke-opacity: inherit !important;
-  fill-opacity: inherit !important;
+.leaflet-container .leaflet-marker-pane .current-location-marker,
+.leaflet-container .leaflet-marker-pane .current-location-marker div {
+  z-index: 1001 !important;
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+// Force the marker icons to render with absolute positioning
+.number-marker {
+  position: relative !important;
+  
+  div {
+    position: relative !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    visibility: visible !important;
+    width: 32px !important;
+    height: 32px !important;
+    background: #1976d2 !important;
+    color: #fff !important;
+    border-radius: 50% !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+    border: 3px solid #fff !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+    font-family: Arial, sans-serif !important;
+  }
+}
+
+.current-location-marker {
+  position: relative !important;
+  
+  div {
+    position: relative !important;
+    z-index: 1001 !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: #ff4444 !important;
+    border-radius: 50% !important;
+    border: 3px solid #fff !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+    animation: pulse 2s infinite !important;
+  }
+}
+
+// Override any conflicting Leaflet styles
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+// Ensure marker pane is properly visible
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
+
+// Force visibility on all marker elements
+.leaflet-marker-icon {
+  z-index: 1000 !important;
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
 }
 
 // Enhanced popup styles

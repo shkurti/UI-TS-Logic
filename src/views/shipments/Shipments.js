@@ -695,7 +695,7 @@ const Shipments = () => {
     return matchesSearch && matchesShipFrom && matchesShipTo
   })
 
-  // Helper to create a number marker icon
+  // Helper to create a number marker icon - enhanced version
   const numberIcon = (number) =>
     L.divIcon({
       className: 'number-marker',
@@ -705,7 +705,7 @@ const Shipments = () => {
         border-radius: 50%;
         width: 32px;
         height: 32px;
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: center;
         font-weight: bold;
@@ -713,13 +713,15 @@ const Shipments = () => {
         border: 3px solid #fff;
         box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         font-family: Arial, sans-serif;
+        position: relative;
+        z-index: 1000;
       ">${number}</div>`,
       iconSize: [32, 32],
       iconAnchor: [16, 16],
       popupAnchor: [0, -16],
     })
 
-  // Current location marker (red pulsing dot)
+  // Current location marker (red pulsing dot) - enhanced version
   const currentLocationIcon = L.divIcon({
     className: 'current-location-marker',
     html: `<div style="
@@ -731,6 +733,9 @@ const Shipments = () => {
       border: 3px solid #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
       animation: pulse 2s infinite;
+      position: relative;
+      z-index: 1001;
+      display: block !important;
     "></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
@@ -987,26 +992,32 @@ const Shipments = () => {
                     
                     {/* Mobile - Start marker from shipment address */}
                     {selectedShipment && startCoord && Array.isArray(startCoord) && startCoord.length === 2 && (
-                      <Marker position={startCoord} icon={numberIcon('1')} zIndexOffset={1000}>
-                        <Popup>
-                          <div style={{ minWidth: '150px', fontSize: '12px' }}>
-                            <strong>🚀 Start</strong><br/>
-                            {selectedShipment.legs?.[0]?.shipFromAddress}
-                          </div>
-                        </Popup>
-                      </Marker>
+                      <>
+                        {console.log('Mobile: Rendering START marker at:', startCoord)}
+                        <Marker position={startCoord} icon={numberIcon('1')} zIndexOffset={1000}>
+                          <Popup>
+                            <div style={{ minWidth: '150px', fontSize: '12px' }}>
+                              <strong>🚀 Start</strong><br/>
+                              {selectedShipment.legs?.[0]?.shipFromAddress}
+                            </div>
+                          </Popup>
+                        </Marker>
+                      </>
                     )}
                     
                     {/* Mobile - Destination marker from shipment address */}
                     {selectedShipment && destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && (
-                      <Marker position={destinationCoord} icon={numberIcon('2')} zIndexOffset={1000}>
-                        <Popup>
-                          <div style={{ minWidth: '150px', fontSize: '12px' }}>
-                            <strong>🏁 Destination</strong><br/>
-                            {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
-                          </div>
-                        </Popup>
-                      </Marker>
+                      <>
+                        {console.log('Mobile: Rendering DESTINATION marker at:', destinationCoord)}
+                        <Marker position={destinationCoord} icon={numberIcon('2')} zIndexOffset={1000}>
+                          <Popup>
+                            <div style={{ minWidth: '150px', fontSize: '12px' }}>
+                              <strong>🏁 Destination</strong><br/>
+                              {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                            </div>
+                          </Popup>
+                        </Marker>
+                      </>
                     )}
                     
                     {/* Mobile - Route logic (same as desktop) */}
@@ -1880,41 +1891,48 @@ const Shipments = () => {
               
               {/* START MARKER (1) - Show from shipment address when shipment selected */}
               {selectedShipment && startCoord && Array.isArray(startCoord) && startCoord.length === 2 && (
-                <Marker 
-                  position={startCoord} 
-                  icon={numberIcon('1')}
-                  zIndexOffset={1000}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>🚀 Departure Point</strong><br/>
-                      {selectedShipment.legs?.[0]?.shipFromAddress || 'Starting Location'}
-                      <br/><small>Start of shipment journey</small>
-                    </div>
-                  </Popup>
-                </Marker>
+                <>
+                  {console.log('Rendering START marker at:', startCoord)}
+                  <Marker 
+                    position={startCoord} 
+                    icon={numberIcon('1')}
+                    zIndexOffset={1000}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '200px' }}>
+                        <strong>🚀 Departure Point</strong><br/>
+                        {selectedShipment.legs?.[0]?.shipFromAddress || 'Starting Location'}
+                        <br/><small>Start of shipment journey</small>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </>
               )}
               
               {/* DESTINATION MARKER (2) - Show from shipment address when shipment selected */}
               {selectedShipment && destinationCoord && Array.isArray(destinationCoord) && destinationCoord.length === 2 && (
-                <Marker 
-                  position={destinationCoord} 
-                  icon={numberIcon('2')}
-                  zIndexOffset={1000}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>🏁 Destination Point</strong><br/>
-                      {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress || 'Destination Location'}
-                      <br/><small>End of shipment journey</small>
-                    </div>
-                  </Popup>
-                </Marker>
+                <>
+                  {console.log('Rendering DESTINATION marker at:', destinationCoord)}
+                  <Marker 
+                    position={destinationCoord} 
+                    icon={numberIcon('2')}
+                    zIndexOffset={1000}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '200px' }}>
+                        <strong>🏁 Destination Point</strong><br/>
+                        {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress || 'Destination Location'}
+                        <br/><small>End of shipment journey</small>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </>
               )}
               
               {/* Modal preview markers for new shipment creation */}
               {isModalOpen && newShipmentPreview && newShipmentPreview.length === 2 && (
                 <>
+                  {console.log('Rendering MODAL preview markers at:', newShipmentPreview)}
                   <Marker position={newShipmentPreview[0]} icon={numberIcon('1')} zIndexOffset={1000}>
                     <Popup>
                       <div style={{ minWidth: '150px' }}>
@@ -1970,6 +1988,7 @@ const Shipments = () => {
                                             Math.abs(lastLng - destLng) < distanceThreshold;
                       
                       if (!isAtDestination) {
+                        console.log('Rendering dashed line from GPS to destination');
                         return (
                           <Polyline
                             positions={[lastGpsPoint, destinationCoord]}
@@ -2008,7 +2027,7 @@ const Shipments = () => {
                   {/* For selected shipment without GPS data */}
                   {selectedShipment && startCoord && destinationCoord && !isModalOpen && (
                     <>
-                      {console.log('Rendering dashed line for shipment')}
+                      {console.log('Rendering dashed line for shipment between:', startCoord, 'and', destinationCoord)}
                       <Polyline 
                         positions={[startCoord, destinationCoord]} 
                         color="#9e9e9e" 
@@ -2021,13 +2040,16 @@ const Shipments = () => {
                   
                   {/* For modal preview */}
                   {isModalOpen && newShipmentPreview && newShipmentPreview.length === 2 && (
-                    <Polyline 
-                      positions={newShipmentPreview} 
-                      color="#9e9e9e" 
-                      weight={3}
-                      opacity={0.6}
-                      dashArray="15, 15" 
-                    />
+                    <>
+                      {console.log('Rendering modal preview dashed line')}
+                      <Polyline 
+                        positions={newShipmentPreview} 
+                        color="#9e9e9e" 
+                        weight={3}
+                        opacity={0.6}
+                        dashArray="15, 15" 
+                      />
+                    </>
                   )}
                 </>
               )}
