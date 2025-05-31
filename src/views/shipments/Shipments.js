@@ -286,7 +286,7 @@ const Shipments = () => {
 
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
-    setShipmentTab('Details')
+    setShipmentTab('Sensors')  // Changed from 'Details' to 'Sensors'
     setActiveSensor('Temperature')
     setTemperatureData([])
     setHumidityData([])
