@@ -292,3 +292,44 @@ body {
     background-color: var(--cui-dark-bg) !important;
   }
 }
+
+// Force marker visibility with stronger CSS
+.leaflet-container .leaflet-marker-pane .number-marker {
+  z-index: 1000 !important;
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+
+.leaflet-container .leaflet-marker-pane .current-location-marker {
+  z-index: 1001 !important;
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+
+// Enhanced marker icon styles to ensure they render
+.number-marker div {
+  position: relative !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  visibility: visible !important;
+}
+
+.current-location-marker div {
+  position: relative !important;
+  z-index: 1001 !important;
+  display: block !important;
+  visibility: visible !important;
+  animation: pulse 2s infinite;
+}
+
+// Force polyline visibility
+.leaflet-container .leaflet-overlay-pane svg {
+  pointer-events: auto !important;
+}
+
+.leaflet-container .leaflet-overlay-pane svg path {
+  stroke-opacity: inherit !important;
+  fill-opacity: inherit !important;
+}
