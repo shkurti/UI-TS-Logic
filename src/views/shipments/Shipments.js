@@ -57,6 +57,22 @@ function FitBounds({ route }) {
   return null
 }
 
+// Add a component to handle map invalidation
+function MapInvalidator({ sidebarCollapsed, selectedShipment }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    // Add a small delay to ensure DOM transition is complete
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+    }, 350) // Slightly longer than the CSS transition (0.3s)
+    
+    return () => clearTimeout(timer)
+  }, [sidebarCollapsed, selectedShipment, map])
+  
+  return null
+}
+
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -1002,6 +1018,7 @@ const Shipments = () => {
                     zoom={5}
                     style={{ height: '100%', width: '100%' }}
                   >
+                    <MapInvalidator sidebarCollapsed={false} selectedShipment={isMapExpanded} />
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1743,6 +1760,7 @@ const Shipments = () => {
                 padding: 0
               }}
             >
+              <MapInvalidator sidebarCollapsed={sidebarCollapsed} selectedShipment={selectedShipment} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1976,6 +1994,7 @@ const Shipments = () => {
         </CModalHeader>
         <CModalBody style={{ 
           maxHeight: isMobile ? 'calc(100vh - 120px)' : '500px', 
+          
           overflowY: 'auto', 
           padding: isMobile ? '16px' : '32px' 
         }}>
