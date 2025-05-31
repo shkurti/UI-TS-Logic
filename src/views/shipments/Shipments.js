@@ -2001,6 +2001,7 @@ const Shipments = () => {
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
                       {marker.popup}
+                    </div>
                   </Popup>
                 </Marker>
               ))}
