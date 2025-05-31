@@ -92,6 +92,40 @@ body {
   }
 }
 
+// Leaflet zoom controls repositioning
+.leaflet-control-zoom {
+  right: 10px !important;
+  left: auto !important;
+  top: 10px !important;
+}
+
+// Additional styling for zoom controls
+.leaflet-control-zoom a {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  color: #333 !important;
+  
+  &:hover {
+    background-color: #fff !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  }
+}
+
+// Mobile adjustments for zoom controls
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    right: 15px !important;
+    top: 15px !important;
+  }
+  
+  .leaflet-control-zoom a {
+    width: 35px !important;
+    height: 35px !important;
+    line-height: 35px !important;
+    font-size: 16px !important;
+  }
+}
+
 @include color-mode(dark) {
   body {
     background-color: var(--cui-dark-bg-subtle);
@@ -102,6 +136,18 @@ body {
     .shipment-card {
       background-color: var(--cui-dark-bg);
       border-color: var(--cui-dark-border-color);
+    }
+  }
+  
+  // Dark mode zoom controls
+  .leaflet-control-zoom a {
+    background-color: rgba(40, 40, 40, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+    
+    &:hover {
+      background-color: rgba(60, 60, 60, 1) !important;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
     }
   }
 }
