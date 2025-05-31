@@ -1562,28 +1562,37 @@ const Shipments = () => {
                       <div style={{ 
                         flex: 1, 
                         overflow: 'auto', 
-                        padding: '16px',
+                        padding: '8px 0',
                         WebkitOverflowScrolling: 'touch'
                       }}>
                         {shipmentTab === 'Sensors' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {/* Temperature Chart */}
-                            <CCard style={{ border: '1px solid #e9ecef' }}>
-                              <CCardHeader style={{ 
+                            <div style={{ 
+                              border: '1px solid #e9ecef',
+                              margin: '0 16px',
+                              borderRadius: '8px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
                                 padding: '12px 16px', 
                                 background: '#f8f9fa', 
                                 fontSize: '14px', 
-                                fontWeight: '600' 
+                                fontWeight: '600',
+                                borderBottom: '1px solid #e9ecef'
                               }}>
                                 <BsThermometerHalf style={{ marginRight: '8px', color: '#ff6b6b' }} />
                                 Temperature
-                              </CCardHeader>
-                              <CCardBody style={{ padding: '12px' }}>
+                              </div>
+                              <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart data={temperatureData}>
+                                  <LineChart 
+                                    data={temperatureData}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                  >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} />
+                                    <YAxis fontSize={10} width={40} />
                                     <Tooltip
                                       formatter={(value) => [`${value}°C`, 'Temperature']}
                                       labelFormatter={(label) => `Time: ${label}`}
@@ -1591,26 +1600,35 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="temperature" stroke="#ff6b6b" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                              </CCardBody>
-                            </CCard>
+                              </div>
+                            </div>
 
                             {/* Humidity Chart */}
-                            <CCard style={{ border: '1px solid #e9ecef' }}>
-                              <CCardHeader style={{ 
+                            <div style={{ 
+                              border: '1px solid #e9ecef',
+                              margin: '0 16px',
+                              borderRadius: '8px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
                                 padding: '12px 16px', 
                                 background: '#f8f9fa', 
                                 fontSize: '14px', 
-                                fontWeight: '600' 
+                                fontWeight: '600',
+                                borderBottom: '1px solid #e9ecef'
                               }}>
                                 <BsDroplet style={{ marginRight: '8px', color: '#4ecdc4' }} />
                                 Humidity
-                              </CCardHeader>
-                              <CCardBody style={{ padding: '12px' }}>
+                              </div>
+                              <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart data={humidityData}>
+                                  <LineChart 
+                                    data={humidityData}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                  >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} />
+                                    <YAxis fontSize={10} width={40} />
                                     <Tooltip
                                       formatter={(value) => [`${value}%`, 'Humidity']}
                                       labelFormatter={(label) => `Time: ${label}`}
@@ -1618,26 +1636,35 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                              </CCardBody>
-                            </CCard>
+                              </div>
+                            </div>
 
                             {/* Battery Chart */}
-                            <CCard style={{ border: '1px solid #e9ecef' }}>
-                              <CCardHeader style={{ 
+                            <div style={{ 
+                              border: '1px solid #e9ecef',
+                              margin: '0 16px',
+                              borderRadius: '8px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
                                 padding: '12px 16px', 
                                 background: '#f8f9fa', 
                                 fontSize: '14px', 
-                                fontWeight: '600' 
+                                fontWeight: '600',
+                                borderBottom: '1px solid #e9ecef'
                               }}>
                                 <BsBatteryHalf style={{ marginRight: '8px', color: '#45b7d1' }} />
                                 Battery Level
-                              </CCardHeader>
-                              <CCardBody style={{ padding: '12px' }}>
+                              </div>
+                              <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart data={batteryData}>
+                                  <LineChart 
+                                    data={batteryData}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                  >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} />
+                                    <YAxis fontSize={10} width={40} />
                                     <Tooltip
                                       formatter={(value) => [`${value}%`, 'Battery']}
                                       labelFormatter={(label) => `Time: ${label}`}
@@ -1645,26 +1672,35 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="battery" stroke="#45b7d1" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                              </CCardBody>
-                            </CCard>
+                              </div>
+                            </div>
 
                             {/* Speed Chart */}
-                            <CCard style={{ border: '1px solid #e9ecef' }}>
-                              <CCardHeader style={{ 
+                            <div style={{ 
+                              border: '1px solid #e9ecef',
+                              margin: '0 16px',
+                              borderRadius: '8px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
                                 padding: '12px 16px', 
                                 background: '#f8f9fa', 
                                 fontSize: '14px', 
-                                fontWeight: '600' 
+                                fontWeight: '600',
+                                borderBottom: '1px solid #e9ecef'
                               }}>
                                 <BsSpeedometer2 style={{ marginRight: '8px', color: '#96ceb4' }} />
                                 Speed
-                              </CCardHeader>
-                              <CCardBody style={{ padding: '12px' }}>
+                              </div>
+                              <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart data={speedData}>
+                                  <LineChart 
+                                    data={speedData}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                  >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} />
+                                    <YAxis fontSize={10} width={40} />
                                     <Tooltip
                                       formatter={(value) => [`${value} km/h`, 'Speed']}
                                       labelFormatter={(label) => `Time: ${label}`}
@@ -1672,8 +1708,8 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                                </CCardBody>
-                            </CCard>
+                              </div>
+                            </div>
                           </div>
                         )}
                         
