@@ -225,13 +225,42 @@ body {
   }
 }
 
-// Enhanced marker styles for better visibility
+// Enhanced marker styles for better visibility and z-index control
 .number-marker {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  z-index: 1000 !important;
+}
+
+.number-marker div {
+  position: relative !important;
+  z-index: 1000 !important;
 }
 
 .current-location-marker {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  z-index: 1001 !important;
+}
+
+.current-location-marker div {
+  position: relative !important;
+  z-index: 1001 !important;
+  animation: pulse 2s infinite;
+}
+
+// Ensure markers appear above polylines
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400 !important;
+}
+
+// Enhanced visibility for polylines
+.leaflet-interactive {
+  cursor: pointer;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
 // Pulse animation for current location
@@ -263,11 +292,6 @@ body {
 .leaflet-popup-content-wrapper {
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-}
-
-// Enhanced polyline styles for better visibility
-.leaflet-interactive {
-  cursor: pointer;
 }
 
 // Dark mode adjustments for enhanced markers
