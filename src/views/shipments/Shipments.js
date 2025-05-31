@@ -105,10 +105,6 @@ const Shipments = () => {
   // Add state for new shipment preview polyline
   const [newShipmentPreview, setNewShipmentPreview] = useState(null);
   const [previewMarkers, setPreviewMarkers] = useState([]); // New state for preview markers
-  // Add state for destination coordinate (for efficient access)
-  const [destinationCoord, setDestinationCoord] = useState(null);
-  // Add this state to store the live GPS route for the selected shipment
-  const [liveRoute, setLiveRoute] = useState([]);
   // Add state for geocoded coordinates and GPS tracking
   const [startCoord, setStartCoord] = useState(null);
   const [destinationCoord, setDestinationCoord] = useState(null);
