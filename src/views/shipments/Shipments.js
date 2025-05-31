@@ -125,6 +125,9 @@ const Shipments = () => {
   const [isMapExpanded, setIsMapExpanded] = useState(false)
   const [mobileSensorTab, setMobileSensorTab] = useState('Temperature')
 
+  // Add timezone detection
+  const [userTimezone, setUserTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -283,7 +286,7 @@ const Shipments = () => {
 
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
-    setShipmentTab('Details')
+    setShipmentTab('Sensors')  // Changed from 'Details' to 'Sensors'
     setActiveSensor('Temperature')
     setTemperatureData([])
     setHumidityData([])
@@ -306,15 +309,17 @@ const Shipments = () => {
         tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
+        timezone: userTimezone  // Pass user's timezone to backend
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
-        // Populate sensor data for tabs using the correct field names from backend
+        
+        // Process sensor data - timestamps are now in local time
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',  // Already in local time
             temperature: record.temperature !== undefined
               ? parseFloat(record.temperature)
               : record.Temp !== undefined
@@ -324,7 +329,7 @@ const Shipments = () => {
         )
         setHumidityData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             humidity: record.humidity !== undefined
               ? parseFloat(record.humidity)
               : record.Hum !== undefined
@@ -334,7 +339,7 @@ const Shipments = () => {
         )
         setBatteryData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             battery: record.battery !== undefined
               ? parseFloat(record.battery)
               : record.Batt !== undefined
@@ -344,7 +349,7 @@ const Shipments = () => {
         )
         setSpeedData(
           data.map((record) => ({
-            timestamp: record.timestamp || record.DT || 'N/A',
+            timestamp: record.timestamp || 'N/A',
             speed: record.speed !== undefined
               ? parseFloat(record.speed)
               : record.Speed !== undefined
@@ -645,16 +650,18 @@ const Shipments = () => {
           String(message.tracker_id) === String(selectedShipment.trackerId)
         ) {
           const { geolocation, new_record } = message;
-          // Check if the new_record timestamp is within the expected range
-          const dtString = new_record?.DT || new_record?.timestamp;
-          if (dtString) {
-            const dt = new Date(dtString);
+          
+          // Use local timestamp if available, otherwise convert UTC
+          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
+          
+          // Check if the timestamp is within the expected range (using local time now)
+          if (new_record?.timestamp_local) {
+            const dt = new Date(new_record.timestamp_local);
             if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
-              return; // Ignore data outside the shipment's time window
+              return;
             }
-          } else {
-            return; // Ignore if no timestamp
           }
+          
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
           if (!isNaN(lat) && !isNaN(lng)) {
@@ -667,9 +674,9 @@ const Shipments = () => {
               return prevRoute;
             });
           }
-          // Update sensor data in real time using new_record fields (Temp, Hum, Batt, Speed, DT)
+          
+          // Update sensor data with local timestamps
           if (new_record) {
-            const timestamp = new_record.DT || new_record.timestamp || 'N/A';
             if (new_record.Temp !== undefined) {
               setTemperatureData((prevData) => {
                 if (!prevData.some((data) => data.timestamp === timestamp)) {
@@ -727,7 +734,7 @@ const Shipments = () => {
       isCurrent = false;
       ws.close();
     };
-  }, [selectedShipment]);
+  }, [selectedShipment, userTimezone]);
 
   // When a shipment is selected, initialize liveRoute from routeData
   useEffect(() => {
