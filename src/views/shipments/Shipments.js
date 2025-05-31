@@ -1103,7 +1103,7 @@ const Shipments = () => {
                             </Popup>
                           </Marker>
                         )}
-                        
+
                         {/* Always show dashed line from start to destination if both exist */}
                         {startCoord && destinationCoord && (
                           <Polyline 
@@ -1116,10 +1116,14 @@ const Shipments = () => {
                         )}
 
                         {/* If GPS route exists, overlay solid line and adjust dashed line */}
-                        {liveRoute.length > 0 && startCoord && destinationCoord && (
+                        {liveRoute.length > 0 && startCoord && (
                           <>
                             {/* Fit bounds to show all points */}
-                            <FitBounds route={[startCoord, ...liveRoute, destinationCoord]} />
+                            <FitBounds route={[
+                              startCoord,
+                              ...liveRoute,
+                              ...(destinationCoord ? [destinationCoord] : [])
+                            ]} />
 
                             {/* Solid polyline for actual GPS route */}
                             <Polyline 
@@ -1129,8 +1133,8 @@ const Shipments = () => {
                               opacity={0.9}
                             />
 
-                            {/* Dashed line from last GPS point to destination, only if not arrived */}
-                            {(() => {
+                            {/* Dashed line from last GPS point to destination, only if not arrived and destination exists */}
+                            {destinationCoord && (() => {
                               const lastGpsPoint = liveRoute[liveRoute.length - 1];
                               const destLat = destinationCoord[0];
                               const destLng = destinationCoord[1];
@@ -1167,7 +1171,7 @@ const Shipments = () => {
                           </>
                         )}
 
-                        {/* If no GPS data, fit bounds and show only dashed line */}
+                        {/* If no GPS data, fit bounds and show only dashed line if both coords exist */}
                         {(!liveRoute.length && startCoord && destinationCoord) && (
                           <FitBounds route={[startCoord, destinationCoord]} />
                         )}
@@ -2018,7 +2022,7 @@ const Shipments = () => {
                       </Popup>
                     </Marker>
                   )}
-                  
+
                   {/* Always show dashed line from start to destination if both exist */}
                   {startCoord && destinationCoord && (
                     <Polyline 
@@ -2031,10 +2035,14 @@ const Shipments = () => {
                   )}
 
                   {/* If GPS route exists, overlay solid line and adjust dashed line */}
-                  {liveRoute.length > 0 && startCoord && destinationCoord && (
+                  {liveRoute.length > 0 && startCoord && (
                     <>
                       {/* Fit bounds to show all points */}
-                      <FitBounds route={[startCoord, ...liveRoute, destinationCoord]} />
+                      <FitBounds route={[
+                        startCoord,
+                        ...liveRoute,
+                        ...(destinationCoord ? [destinationCoord] : [])
+                      ]} />
 
                       {/* Solid polyline for actual GPS route */}
                       <Polyline 
@@ -2044,8 +2052,8 @@ const Shipments = () => {
                         opacity={0.9}
                       />
 
-                      {/* Dashed line from last GPS point to destination, only if not arrived */}
-                      {(() => {
+                      {/* Dashed line from last GPS point to destination, only if not arrived and destination exists */}
+                      {destinationCoord && (() => {
                         const lastGpsPoint = liveRoute[liveRoute.length - 1];
                         const destLat = destinationCoord[0];
                         const destLng = destinationCoord[1];
@@ -2082,7 +2090,7 @@ const Shipments = () => {
                     </>
                   )}
 
-                  {/* If no GPS data, fit bounds and show only dashed line */}
+                  {/* If no GPS data, fit bounds and show only dashed line if both coords exist */}
                   {(!liveRoute.length && startCoord && destinationCoord) && (
                     <FitBounds route={[startCoord, destinationCoord]} />
                   )}
