@@ -1017,6 +1017,9 @@ const Shipments = () => {
                     center={[42.798939, -74.658409]}
                     zoom={5}
                     style={{ height: '100%', width: '100%' }}
+                    className="custom-map-container"
+                    zoomControl={true}
+                    attributionControl={true}
                   >
                     <MapInvalidator sidebarCollapsed={false} selectedShipment={isMapExpanded} />
                     <TileLayer
@@ -1759,6 +1762,9 @@ const Shipments = () => {
                 margin: 0,
                 padding: 0
               }}
+              className="custom-map-container"
+              zoomControl={true}
+              attributionControl={true}
             >
               <MapInvalidator sidebarCollapsed={sidebarCollapsed} selectedShipment={selectedShipment} />
               <TileLayer

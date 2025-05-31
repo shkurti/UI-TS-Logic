@@ -92,37 +92,110 @@ body {
   }
 }
 
-// Leaflet zoom controls repositioning
-.leaflet-control-zoom {
-  right: 10px !important;
+// Leaflet zoom controls repositioning - use more specific selectors
+.leaflet-container .leaflet-control-zoom {
   left: auto !important;
+  right: 10px !important;
   top: 10px !important;
 }
 
-// Additional styling for zoom controls
-.leaflet-control-zoom a {
+// Ensure the zoom control container is positioned correctly
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+  left: auto !important;
+  right: 10px !important;
+}
+
+// Additional styling for zoom controls with higher specificity
+.leaflet-container .leaflet-control-zoom a {
   background-color: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(0, 0, 0, 0.2) !important;
   color: #333 !important;
+  border-radius: 4px !important;
   
   &:hover {
     background-color: #fff !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
   }
+  
+  &:first-child {
+    border-bottom: none !important;
+    border-radius: 4px 4px 0 0 !important;
+  }
+  
+  &:last-child {
+    border-radius: 0 0 4px 4px !important;
+  }
+}
+
+// Force right positioning with multiple selectors
+.leaflet-control-container .leaflet-top.leaflet-left .leaflet-control-zoom,
+.leaflet-control-container .leaflet-control-zoom {
+  left: auto !important;
+  right: 10px !important;
+  top: 10px !important;
 }
 
 // Mobile adjustments for zoom controls
 @media (max-width: 768px) {
-  .leaflet-control-zoom {
+  .leaflet-container .leaflet-control-zoom,
+  .leaflet-top.leaflet-left .leaflet-control-zoom {
     right: 15px !important;
+    left: auto !important;
     top: 15px !important;
   }
   
-  .leaflet-control-zoom a {
+  .leaflet-container .leaflet-control-zoom a {
     width: 35px !important;
     height: 35px !important;
     line-height: 35px !important;
     font-size: 16px !important;
+    font-weight: bold !important;
+  }
+}
+
+// Custom map container class for additional control
+.custom-map-container {
+  .leaflet-control-zoom {
+    left: auto !important;
+    right: 10px !important;
+    top: 10px !important;
+  }
+  
+  .leaflet-top.leaflet-left {
+    left: auto !important;
+    right: 10px !important;
+    top: 10px !important;
+    
+    .leaflet-control-zoom {
+      left: 0 !important;
+      right: 0 !important;
+      position: relative !important;
+    }
+  }
+}
+
+// Alternative approach - override the leaflet control positioning completely
+.leaflet-control-container .leaflet-top.leaflet-left {
+  left: auto !important;
+  right: 10px !important;
+  top: 10px !important;
+}
+
+// Mobile specific overrides
+@media (max-width: 768px) {
+  .custom-map-container {
+    .leaflet-control-zoom,
+    .leaflet-top.leaflet-left {
+      right: 15px !important;
+      left: auto !important;
+      top: 15px !important;
+    }
+  }
+  
+  .leaflet-control-container .leaflet-top.leaflet-left {
+    right: 15px !important;
+    left: auto !important;
+    top: 15px !important;
   }
 }
 
@@ -139,8 +212,8 @@ body {
     }
   }
   
-  // Dark mode zoom controls
-  .leaflet-control-zoom a {
+  // Dark mode zoom controls with higher specificity
+  .leaflet-container .leaflet-control-zoom a {
     background-color: rgba(40, 40, 40, 0.9) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     color: #fff !important;
