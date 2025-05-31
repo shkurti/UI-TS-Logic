@@ -58,8 +58,50 @@ body {
   height: calc(100vh - 4rem - 1px); // Full height minus navbar only
 }
 
+// Mobile-specific shipments styles
+@media (max-width: 768px) {
+  .shipments-container {
+    margin-top: 40px; // Match the top positioning
+    height: calc(100vh - 40px);
+  }
+  
+  // Smooth scrolling for mobile
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  // Card hover effects for mobile
+  .shipment-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    
+    &:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+  }
+  
+  // Sensor tab scrolling
+  .sensor-tabs-scroll {
+    scrollbar-width: none; // Firefox
+    -ms-overflow-style: none; // IE/Edge
+    
+    &::-webkit-scrollbar {
+      display: none; // Chrome/Safari
+    }
+  }
+}
+
 @include color-mode(dark) {
   body {
     background-color: var(--cui-dark-bg-subtle);
+  }
+  
+  // Dark mode adjustments for mobile cards
+  @media (max-width: 768px) {
+    .shipment-card {
+      background-color: var(--cui-dark-bg);
+      border-color: var(--cui-dark-border-color);
+    }
   }
 }
