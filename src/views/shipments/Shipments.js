@@ -1159,11 +1159,11 @@ const Shipments = () => {
                   <div style={{
                     background: 'white',
                     borderRadius: '12px',
-                    padding: '16px',
+                    padding: '16px 0 16px 16px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                   }}>
                     <h6 style={{ 
-                      margin: '0 0 16px 0', 
+                      margin: '0 16px 16px 0', 
                       fontWeight: '600',
                       display: 'flex',
                       alignItems: 'center',
@@ -1176,15 +1176,18 @@ const Shipments = () => {
                       {mobileSensorTab}
                     </h6>
                     <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={
-                        mobileSensorTab === 'Temperature' ? temperatureData :
-                        mobileSensorTab === 'Humidity' ? humidityData :
-                        mobileSensorTab === 'Battery' ? batteryData :
-                        speedData
-                      }>
+                      <LineChart 
+                        data={
+                          mobileSensorTab === 'Temperature' ? temperatureData :
+                          mobileSensorTab === 'Humidity' ? humidityData :
+                          mobileSensorTab === 'Battery' ? batteryData :
+                          speedData
+                        }
+                        margin={{ top: 10, right: 16, left: 0, bottom: 5 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="timestamp" tick={false} />
-                        <YAxis fontSize={10} />
+                        <YAxis fontSize={10} width={35} />
                         <Tooltip
                           formatter={(value) => [
                             `${value}${
