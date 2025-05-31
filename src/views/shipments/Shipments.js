@@ -1716,7 +1716,10 @@ const Shipments = () => {
               ? '20px' 
               : (selectedShipment ? '470px' : '420px'),
             zIndex: 1001,
-            transition: 'left 0.3s ease'
+            transition: 'left 0.3s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
           }}>
             <CButton
               color="primary"
@@ -1737,6 +1740,56 @@ const Shipments = () => {
             >
               {sidebarCollapsed ? '☰' : '✕'}
             </CButton>
+
+            {/* Selected Shipment Info - Show when shipment selected and sidebar collapsed */}
+            {sidebarCollapsed && selectedShipment && (
+              <div style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: '350px',
+                maxWidth: 'calc(100vw - 60px)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <h6 style={{ margin: 0, marginBottom: '4px', fontWeight: '600', color: '#333' }}>
+                      Shipment #{selectedShipment.trackerId}
+                    </h6>
+                    <CBadge color="primary" style={{ fontSize: '10px' }}>
+                      In Transit
+                    </CBadge>
+                  </div>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSidebarCollapsed(false)}
+                    style={{
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '11px'
+                    }}
+                  >
+                    Details
+                  </CButton>
+                </div>
+                
+                <div style={{ fontSize: '12px', color: '#666' }}>
+                  <div style={{ marginBottom: '4px' }}>
+                    <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
+                    {selectedShipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
+                  </div>
+                  <div style={{ marginBottom: '4px' }}>
+                    <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
+                    {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
+                  </div>
+                  <div>
+                    <strong>ETA:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Full Page Map */}
@@ -1854,60 +1907,6 @@ const Shipments = () => {
                 >
                   View Shipments
                 </CButton>
-              </div>
-            )}
-
-            {/* Selected Shipment Info - Show when shipment selected and sidebar collapsed */}
-            {sidebarCollapsed && selectedShipment && (
-              <div style={{
-                position: 'absolute',
-                top: '20px',
-                left: '20px',
-                right: '20px',
-                background: 'white',
-                borderRadius: '12px',
-                padding: '16px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                zIndex: 1000,
-                maxWidth: '350px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div>
-                    <h6 style={{ margin: 0, marginBottom: '4px', fontWeight: '600', color: '#333' }}>
-                      Shipment #{selectedShipment.trackerId}
-                    </h6>
-                    <CBadge color="primary" style={{ fontSize: '10px' }}>
-                      In Transit
-                    </CBadge>
-                  </div>
-                  <CButton
-                    color="secondary"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSidebarCollapsed(false)}
-                    style={{
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      fontSize: '11px'
-                    }}
-                  >
-                    Details
-                  </CButton>
-                </div>
-                
-                <div style={{ fontSize: '12px', color: '#666' }}>
-                  <div style={{ marginBottom: '4px' }}>
-                    <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
-                    {selectedShipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
-                  </div>
-                  <div style={{ marginBottom: '4px' }}>
-                    <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
-                    {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
-                  </div>
-                  <div>
-                    <strong>ETA:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                  </div>
-                </div>
               </div>
             )}
           </div>
