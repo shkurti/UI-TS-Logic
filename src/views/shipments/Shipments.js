@@ -461,54 +461,42 @@ const Shipments = () => {
     return null;
   };
 
-  // Add state for all waypoints (start + stops)
-  const [allWaypoints, setAllWaypoints] = useState([]);
-
-  // Helper: Geocode all addresses for multi-leg preview/markers
-  const geocodeAllWaypoints = async (legs) => {
-    if (!legs || legs.length === 0) return [];
-    const addresses = [];
-    if (legs[0]?.shipFromAddress) addresses.push(legs[0].shipFromAddress);
-    for (const leg of legs) {
-      if (leg?.stopAddress) addresses.push(leg.stopAddress);
-    }
-    const coords = [];
-    for (let i = 0; i < addresses.length; i++) {
-      const coord = await geocodeAddress(addresses[i]);
-      if (coord) {
-        coords.push({
-          position: coord,
-          label: (i + 1).toString(),
-          address: addresses[i],
-          type: i === 0 ? 'start' : (i === addresses.length - 1 ? 'destination' : 'stop')
-        });
-      }
-    }
-    return coords;
-  };
-
-  // When modal is open and addresses are filled, preview the multi-leg route
+  // When modal is open and addresses are filled, preview the line
   useEffect(() => {
     const showPreview = async () => {
       if (!isModalOpen) {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
-        setAllWaypoints([]);
         setDestinationCoord(null);
         setStartCoord(null);
         return;
       }
-      const waypoints = await geocodeAllWaypoints(legs);
-      if (waypoints.length >= 2) {
-        setAllWaypoints(waypoints);
-        setStartCoord(waypoints[0].position);
-        setDestinationCoord(waypoints[waypoints.length - 1].position);
-        setNewShipmentPreview(waypoints.map(w => w.position));
-        setPreviewMarkers(waypoints);
+      const firstLeg = legs[0];
+      const lastLeg = legs[legs.length - 1];
+      const from = firstLeg?.shipFromAddress;
+      const to = lastLeg?.stopAddress;
+      if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
+          setPreviewMarkers([
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
+          ]);
+        } else {
+          setNewShipmentPreview(null);
+          setPreviewMarkers([]);
+          setDestinationCoord(null);
+          setStartCoord(null);
+        }
       } else {
         setNewShipmentPreview(null);
         setPreviewMarkers([]);
-        setAllWaypoints([]);
         setDestinationCoord(null);
         setStartCoord(null);
       }
@@ -517,22 +505,30 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
-  // When a shipment is selected, geocode all waypoints
+  // When a shipment is selected, geocode and store start/destination coords
   useEffect(() => {
     const setCoordsFromShipment = async () => {
-      if (selectedShipment && selectedShipment.legs && selectedShipment.legs.length > 0) {
-        const waypoints = await geocodeAllWaypoints(selectedShipment.legs);
-        if (waypoints.length >= 2) {
-          setAllWaypoints(waypoints);
-          setStartCoord(waypoints[0].position);
-          setDestinationCoord(waypoints[waypoints.length - 1].position);
+      if (
+        selectedShipment &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '') {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
         } else {
-          setAllWaypoints([]);
           setStartCoord(null);
           setDestinationCoord(null);
         }
       } else {
-        setAllWaypoints([]);
         setStartCoord(null);
         setDestinationCoord(null);
       }
@@ -541,28 +537,280 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
 
-  // Show multi-leg route when shipment is selected and there is no GPS data
+  // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
-      if (selectedShipment && (!routeData || routeData.length === 0) && selectedShipment.legs && selectedShipment.legs.length > 0) {
-        const waypoints = await geocodeAllWaypoints(selectedShipment.legs);
-        if (waypoints.length >= 2) {
-          setAllWaypoints(waypoints);
-          setNewShipmentPreview(waypoints.map(w => w.position));
-          setPreviewMarkers(waypoints);
-          setDestinationCoord(waypoints[waypoints.length - 1].position);
-          return;
+      if (
+        selectedShipment &&
+        (!routeData || routeData.length === 0) &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+            return;
+          }
         }
       }
-      if (!isModalOpen) {
-        setNewShipmentPreview(null);
-        setPreviewMarkers([]);
-        setAllWaypoints([]);
-      }
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
+
+  // Also update preview markers for modal preview (always use full address)
+  useEffect(() => {
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+      setDestinationCoord(newShipmentPreview[1]);
+    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+
+  // Ensure destinationCoord is always set when GPS data is loaded
+  useEffect(() => {
+    const setDestinationFromShipment = async () => {
+      if (
+        selectedShipment &&
+        routeData.length > 0 &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const to = lastLeg?.stopAddress;
+        if (to && to.trim() !== '') {
+          const toCoord = await geocodeAddress(to);
+          if (
+            Array.isArray(toCoord) &&
+            toCoord.length === 2 &&
+            !isNaN(toCoord[0]) &&
+            !isNaN(toCoord[1])
+          ) {
+            setDestinationCoord(toCoord);
+            return;
+          }
+        }
+      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
+    };
+    setDestinationFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
+  // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
+  useEffect(() => {
+    if (!selectedShipment || !selectedShipment.trackerId) {
+      setLiveRoute([]);
+      return;
+    }
+    // Get the expected time range for the selected shipment
+    const legs = selectedShipment.legs || [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || {};
+    const expectedStart = new Date(firstLeg.shipDate);
+    const expectedEnd = new Date(lastLeg.arrivalDate);
+
+    let isCurrent = true;
+
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    ws.onopen = () => {
+      // Optionally log or authenticate
+    };
+    ws.onmessage = (event) => {
+      if (!isCurrent) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (
+          message.operationType === 'insert' &&
+          String(message.tracker_id) === String(selectedShipment.trackerId)
+        ) {
+          const { geolocation, new_record } = message;
+          
+          // Use local timestamp if available, otherwise convert UTC
+          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
+          
+          // Check if the timestamp is within the expected range (using local time now)
+          if (new_record?.timestamp_local) {
+            const dt = new Date(new_record.timestamp_local);
+            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
+              return;
+            }
+          }
+          
+          const lat = parseFloat(geolocation?.Lat);
+          const lng = parseFloat(geolocation?.Lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLiveRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
+          }
+          
+          // Update sensor data with local timestamps
+          if (new_record) {
+            if (new_record.Temp !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Hum !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Batt !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, battery: parseFloat(new_record.Batt) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, speed: parseFloat(new_record.Speed) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => {};
+
+    return () => {
+      isCurrent = false;
+      ws.close();
+    };
+  }, [selectedShipment, userTimezone]);
+
+  // When a shipment is selected, initialize liveRoute from routeData
+  useEffect(() => {
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
+    } else {
+      setLiveRoute([]);
+    }
+  }, [routeData]);
+
+  // Filter shipments based on search and filters
+  const filteredShipments = shipments.filter(shipment => {
+    const matchesSearch = !searchTerm || 
+      shipment.trackerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesShipFrom = !shipFromFilter || 
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(shipFromFilter.toLowerCase())
+    
+    const matchesShipTo = !shipToFilter || 
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(shipToFilter.toLowerCase())
+    
+    return matchesSearch && matchesShipFrom && matchesShipTo
+  })
+
+  // Helper to create a number marker icon - Enhanced for better visibility
+  const numberIcon = (number) =>
+    L.divIcon({
+      className: 'number-marker',
+      html: `<div style="
+        background: #1976d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        font-family: Arial, sans-serif;
+      ">${number}</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
+    })
+
+  // Enhanced current location marker
+  const currentLocationIcon = L.divIcon({
+    className: 'current-location-marker',
+    html: `<div style="
+      background: #ff4444;
+      color: #fff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      animation: pulse 2s infinite;
+    "></div>
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+    </style>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+  })
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
@@ -1795,41 +2043,6 @@ const Shipments = () => {
                     />
                   </>
                 )
-              )}
-
-              {/* Show all waypoints as numbered markers and dashed preview line */}
-              {allWaypoints.map((waypoint, idx) => (
-                <Marker key={idx} position={waypoint.position} icon={numberIcon(waypoint.label)}>
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>
-                        {waypoint.type === 'start' ? '🚀 Departure Point' :
-                         waypoint.type === 'destination' ? '🏁 Destination Point' :
-                         `🛑 Stop ${waypoint.label}`}
-                      </strong><br/>
-                      {waypoint.address}
-                      <br/><small>
-                        {waypoint.type === 'start' ? 'Start of shipment journey' :
-                         waypoint.type === 'destination' ? 'End of shipment journey' :
-                         'Intermediate stop'}
-                      </small>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-
-              {/* In the "no GPS data" block, use allWaypoints for the preview line */}
-              {!liveRoute.length && newShipmentPreview && newShipmentPreview.length >= 2 && (
-                <>
-                  <FitBounds route={newShipmentPreview} />
-                  <Polyline 
-                    positions={newShipmentPreview} 
-                    color="#9e9e9e" 
-                    weight={3}
-                    opacity={0.6}
-                    dashArray="15, 15" 
-                  />
-                </>
               )}
             </MapContainer>
 
