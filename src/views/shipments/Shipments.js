@@ -517,11 +517,17 @@ const Shipments = () => {
         const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
         const from = firstLeg?.shipFromAddress;
         const to = lastLeg?.stopAddress;
+        
+        console.log('Setting coords from shipment:', { from, to }); // Debug log
+        
         if (from && to && from.trim() !== '' && to.trim() !== '') {
           const [fromCoord, toCoord] = await Promise.all([
             geocodeAddress(from),
             geocodeAddress(to),
           ]);
+          
+          console.log('Geocoded coordinates:', { fromCoord, toCoord }); // Debug log
+          
           setStartCoord(fromCoord);
           setDestinationCoord(toCoord);
         } else {
@@ -537,10 +543,34 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
 
+  // Remove the complex destination setting logic and preview logic that might interfere
   // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
-      if (
+      // Only show preview when modal is open OR when shipment is selected with no GPS data
+      if (isModalOpen) {
+        const firstLeg = legs[0];
+        const lastLeg = legs[legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            // Don't override destinationCoord here for modal preview
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+            return;
+          }
+        }
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+      } else if (
         selectedShipment &&
         (!routeData || routeData.length === 0) &&
         selectedShipment.legs &&
@@ -557,23 +587,20 @@ const Shipments = () => {
           ]);
           if (fromCoord && toCoord) {
             setNewShipmentPreview([fromCoord, toCoord]);
-            setDestinationCoord(toCoord);
-            setPreviewMarkers([
-              { position: fromCoord, label: '1', popup: `Start: ${from}` },
-              { position: toCoord, label: '2', popup: `End: ${to}` }
-            ]);
             return;
           }
         }
+        setNewShipmentPreview(null);
+      } else {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
       }
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
+  }, [selectedShipment, routeData, isModalOpen, legs]);
 
+  // Remove the other useEffects that were setting destinationCoord
   // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
     if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
@@ -583,13 +610,11 @@ const Shipments = () => {
         { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
         { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
       ]);
-      setDestinationCoord(newShipmentPreview[1]);
-    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+    } else if (!isModalOpen) {
       setPreviewMarkers([]);
-      setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+  }, [isModalOpen, newShipmentPreview, legs]);
 
   // Ensure destinationCoord is always set when GPS data is loaded
   useEffect(() => {
@@ -1059,6 +1084,9 @@ const Shipments = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+                    
+                    {/* Debug info - remove after testing */}
+                    {console.log('Rendering map with coords:', { startCoord, destinationCoord, liveRoute: liveRoute.length })}
                     
                     {/* Always show start marker if available */}
                     {startCoord && (
@@ -1949,6 +1977,9 @@ const Shipments = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
+              {/* Debug info - remove after testing */}
+              {console.log('Rendering map with coords:', { startCoord, destinationCoord, liveRoute: liveRoute.length })}
+              
               {/* Always show start marker if available */}
               {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
@@ -1958,7 +1989,6 @@ const Shipments = () => {
                       {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
                       <br/><small>Start of shipment journey</small>
                     </div>
-                  </Popup>
                 </Marker>
               )}
 
