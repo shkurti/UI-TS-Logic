@@ -254,20 +254,20 @@ body {
   animation: pulse 2s infinite;
 }
 
-// Enhanced popup styles
-.leaflet-popup-content {
-  margin: 8px 12px !important;
-  line-height: 1.4 !important;
-}
-
-.leaflet-popup-content-wrapper {
-  border-radius: 8px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-}
-
-// Enhanced polyline styles for better visibility
-.leaflet-interactive {
-  cursor: pointer;
+// Tracker-specific styles
+.tracker-container {
+  // Ensure tracker markers display correctly in both light and dark modes
+  
+  .current-location-marker {
+    z-index: 1000;
+    
+    div {
+      background: #ff4444 !important;
+      border: 3px solid #fff !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+      animation: pulse 2s infinite !important;
+    }
+  }
 }
 
 // Dark mode adjustments for enhanced markers
@@ -290,5 +290,11 @@ body {
   
   .leaflet-popup-tip {
     background-color: var(--cui-dark-bg) !important;
+  }
+  
+  .tracker-container .current-location-marker div {
+    background: #ff4444 !important;
+    border: 3px solid #333 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6) !important;
   }
 }

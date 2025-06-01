@@ -40,6 +40,31 @@ const customIcon = L.icon({
   popupAnchor: [1, -34],
 })
 
+// Enhanced current location marker - same as Shipments.js
+const currentLocationIcon = L.divIcon({
+  className: 'current-location-marker',
+  html: `<div style="
+    background: #ff4444;
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    animation: pulse 2s infinite;
+  "></div>
+  <style>
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+  </style>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -10],
+})
+
 // Component to move the map to the selected tracker's location
 function MapMover({ position }) {
   const map = useMap()
@@ -586,17 +611,23 @@ const Trackers = () => {
                         <MapMover position={selectedTracker.location.split(', ').map(Number)} />
                         <Marker
                           position={selectedTracker.location.split(', ').map(Number)}
-                          icon={customIcon}
+                          icon={currentLocationIcon}
                         >
                           <Popup>
                             <div style={{ minWidth: '200px' }}>
-                              <strong>{selectedTracker.tracker_name || 'Unknown Tracker'}</strong>
+                              <strong>📍 Current Location</strong>
+                              <br />
+                              <strong>Tracker:</strong> {selectedTracker.tracker_name || 'Unknown Tracker'}
                               <br />
                               <strong>ID:</strong> {selectedTracker.tracker_id}
                               <br />
                               <strong>Battery:</strong> {selectedTracker.batteryLevel}
                               <br />
                               <strong>Last Connected:</strong> {selectedTracker.lastConnected || 'N/A'}
+                              <br />
+                              <small>Lat: {selectedTracker.location.split(', ')[0]}</small>
+                              <br />
+                              <small>Lng: {selectedTracker.location.split(', ')[1]}</small>
                             </div>
                           </Popup>
                         </Marker>
@@ -1093,17 +1124,23 @@ const Trackers = () => {
                   <MapMover position={selectedTracker.location.split(', ').map(Number)} />
                   <Marker
                     position={selectedTracker.location.split(', ').map(Number)}
-                    icon={customIcon}
+                    icon={currentLocationIcon}
                   >
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
-                        <strong>{selectedTracker.tracker_name || 'Unknown Tracker'}</strong>
+                        <strong>📍 Current Location</strong>
+                        <br />
+                        <strong>Tracker:</strong> {selectedTracker.tracker_name || 'Unknown Tracker'}
                         <br />
                         <strong>ID:</strong> {selectedTracker.tracker_id}
                         <br />
                         <strong>Battery:</strong> {selectedTracker.batteryLevel}
                         <br />
                         <strong>Last Connected:</strong> {selectedTracker.lastConnected || 'N/A'}
+                        <br />
+                        <small>Lat: {selectedTracker.location.split(', ')[0]}</small>
+                        <br />
+                        <small>Lng: {selectedTracker.location.split(', ')[1]}</small>
                       </div>
                     </Popup>
                   </Marker>
