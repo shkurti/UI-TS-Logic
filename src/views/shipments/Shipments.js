@@ -1086,7 +1086,7 @@ const Shipments = () => {
                       </Marker>
                     )}
 
-                    {/* Route display logic */}
+                    {/* Route display logic*/}
                     {liveRoute.length > 0 ? (
                       <>
                         {/* Fit bounds to show all points including destination */}
