@@ -763,7 +763,7 @@ const Shipments = () => {
     return matchesSearch && matchesShipFrom && matchesShipTo
   })
 
-  // Helper to create a number marker icon
+  // Helper to create a number marker icon - Enhanced for better visibility
   const numberIcon = (number) =>
     L.divIcon({
       className: 'number-marker',
@@ -771,20 +771,46 @@ const Shipments = () => {
         background: #1976d2;
         color: #fff;
         border-radius: 50%;
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
         font-size: 16px;
-        border: 2px solid #fff;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        font-family: Arial, sans-serif;
       ">${number}</div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -14],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
     })
+
+  // Enhanced current location marker
+  const currentLocationIcon = L.divIcon({
+    className: 'current-location-marker',
+    html: `<div style="
+      background: #ff4444;
+      color: #fff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      animation: pulse 2s infinite;
+    "></div>
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+    </style>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+  })
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
@@ -1034,48 +1060,96 @@ const Shipments = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
+                    {/* Always show start and destination markers if available */}
                     {startCoord && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
-                          Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>🚀 Departure Point</strong><br/>
+                            {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+                            <br/><small>Start of shipment journey</small>
+                          </div>
                         </Popup>
                       </Marker>
                     )}
                     {destinationCoord && (
                       <Marker position={destinationCoord} icon={numberIcon('2')}>
                         <Popup>
-                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>🏁 Destination Point</strong><br/>
+                            {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+                            <br/><small>End of shipment journey</small>
+                          </div>
                         </Popup>
                       </Marker>
                     )}
                     
-                    {liveRoute.length > 0 && (
+                    {/* Enhanced shipment route display */}
+                    {liveRoute.length > 0 ? (
                       <>
-                        <FitBounds route={liveRoute} />
-                        <Polyline positions={liveRoute} color="blue" />
+                        {/* Fit map to show the entire route */}
+                        <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
+                        
+                        {/* Solid blue line showing the actual GPS route taken */}
+                        <Polyline 
+                          positions={liveRoute} 
+                          color="#2196f3" 
+                          weight={4}
+                          opacity={0.8}
+                        />
+                        
+                        {/* Dashed line from last GPS point to destination (if not at destination) */}
                         {destinationCoord && liveRoute.length > 0 && (
                           (() => {
-                            const last = liveRoute[liveRoute.length - 1];
-                            if (last[0] !== destinationCoord[0] || last[1] !== destinationCoord[1]) {
+                            const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                            const destLat = destinationCoord[0];
+                            const destLng = destinationCoord[1];
+                            const lastLat = lastGpsPoint[0];
+                            const lastLng = lastGpsPoint[1];
+                            
+                            // Only show dashed line if current location is not at destination
+                            const distanceThreshold = 0.001; // ~100 meters
+                            const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
+                                                  Math.abs(lastLng - destLng) < distanceThreshold;
+                            
+                            if (!isAtDestination) {
                               return (
                                 <Polyline
-                                  positions={[last, destinationCoord]}
-                                  color="blue"
-                                  dashArray="8"
+                                  positions={[lastGpsPoint, destinationCoord]}
+                                  color="#ff9800"
+                                  weight={3}
+                                  opacity={0.7}
+                                  dashArray="10, 10"
                                 />
                               );
                             }
                             return null;
                           })()
                         )}
-                        <Marker position={liveRoute[liveRoute.length - 1]} icon={customIcon}>
-                          <Popup>Current Location</Popup>
+                        
+                        {/* Current location marker with enhanced styling */}
+                        <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
+                          <Popup>
+                            <div style={{ minWidth: '200px' }}>
+                              <strong>📍 Current Location</strong><br/>
+                              <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
+                              <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
+                              <small>Last updated: {new Date().toLocaleTimeString()}</small>
+                            </div>
+                          </Popup>
                         </Marker>
                       </>
-                    )}
-                    
-                    {liveRoute.length === 0 && startCoord && destinationCoord && (
-                      <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
+                    ) : (
+                      // Show dashed line between start and destination when no GPS data yet
+                      startCoord && destinationCoord && (
+                        <Polyline 
+                          positions={[startCoord, destinationCoord]} 
+                          color="#9e9e9e" 
+                          weight={3}
+                          opacity={0.6}
+                          dashArray="15, 15" 
+                        />
+                      )
                     )}
                   </MapContainer>
                 </div>
@@ -1875,48 +1949,93 @@ const Shipments = () => {
               {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
-                    Start: {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+                    <div style={{ minWidth: '200px' }}>
+                      <strong>🚀 Departure Point</strong><br/>
+                      {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
+                      <br/><small>Start of shipment journey</small>
+                    </div>
                   </Popup>
                 </Marker>
               )}
               {destinationCoord && (
                 <Marker position={destinationCoord} icon={numberIcon('2')}>
                   <Popup>
-                    End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+                    <div style={{ minWidth: '200px' }}>
+                      <strong>🏁 Destination Point</strong><br/>
+                      {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
+                      <br/><small>End of shipment journey</small>
+                    </div>
                   </Popup>
                 </Marker>
               )}
               
-              {/* Show shipment route if selected */}
-              {liveRoute.length > 0 && (
+              {/* Enhanced shipment route display */}
+              {liveRoute.length > 0 ? (
                 <>
-                  <FitBounds route={liveRoute} />
-                  <Polyline positions={liveRoute} color="blue" />
-                  {/* Dashed line from last GPS point to destination, if not at destination */}
+                  {/* Fit map to show the entire route */}
+                  <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
+                  
+                  {/* Solid blue line showing the actual GPS route taken */}
+                  <Polyline 
+                    positions={liveRoute} 
+                    color="#2196f3" 
+                    weight={4}
+                    opacity={0.8}
+                  />
+                  
+                  {/* Dashed line from last GPS point to destination (if not at destination) */}
                   {destinationCoord && liveRoute.length > 0 && (
                     (() => {
-                      const last = liveRoute[liveRoute.length - 1];
-                      if (last[0] !== destinationCoord[0] || last[1] !== destinationCoord[1]) {
+                      const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                      const destLat = destinationCoord[0];
+                      const destLng = destinationCoord[1];
+                      const lastLat = lastGpsPoint[0];
+                      const lastLng = lastGpsPoint[1];
+                      
+                      
+                      // Only show dashed line if current location is not at destination
+                      const distanceThreshold = 0.001; // ~100 meters
+                      const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
+                                            Math.abs(lastLng - destLng) < distanceThreshold;
+                      
+                      if (!isAtDestination) {
                         return (
                           <Polyline
-                            positions={[last, destinationCoord]}
-                            color="blue"
-                            dashArray="8"
+                            positions={[lastGpsPoint, destinationCoord]}
+                            color="#ff9800"
+                            weight={3}
+                            opacity={0.7}
+                            dashArray="10, 10"
                           />
                         );
                       }
                       return null;
                     })()
                   )}
-                  <Marker position={liveRoute[liveRoute.length - 1]} icon={customIcon}>
-                    <Popup>Current Location</Popup>
+                  
+                  {/* Current location marker with enhanced styling */}
+                  <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
+                    <Popup>
+                      <div style={{ minWidth: '200px' }}>
+                        <strong>📍 Current Location</strong><br/>
+                        <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
+                        <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
+                        <small>Last updated: {new Date().toLocaleTimeString()}</small>
+                      </div>
+                    </Popup>
                   </Marker>
                 </>
-              )}
-              
-              {/* Show preview line for new shipment or for selected shipment with no routeData */}
-              {liveRoute.length === 0 && startCoord && destinationCoord && (
-                <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
+              ) : (
+                // Show dashed line between start and destination when no GPS data yet
+                startCoord && destinationCoord && (
+                  <Polyline 
+                    positions={[startCoord, destinationCoord]} 
+                    color="#9e9e9e" 
+                    weight={3}
+                    opacity={0.6}
+                    dashArray="15, 15" 
+                  />
+                )
               )}
             </MapContainer>
 
