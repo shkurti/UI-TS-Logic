@@ -660,13 +660,128 @@ const Shipments = () => {
         setDestinationCoord(newShipmentPreview[newShipmentPreview.length - 1]);
       }
     } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
+      // Don't clear preview markers when GPS data exists - we want to show both
+      if (!selectedShipment) {
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, selectedShipment, routeData]);
 
-  // Remove old effects related to preview and focus on the new implementation
+  // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
+  useEffect(() => {
+    if (!selectedShipment || !selectedShipment.trackerId) {
+      setLiveRoute([]);
+      return;
+    }
+    // Get the expected time range for the selected shipment
+    const legs = selectedShipment.legs || [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || {};
+    const expectedStart = new Date(firstLeg.shipDate);
+    const expectedEnd = new Date(lastLeg.arrivalDate);
+
+    let isCurrent = true;
+
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    ws.onopen = () => {
+      // Optionally log or authenticate
+    };
+    ws.onmessage = (event) => {
+      if (!isCurrent) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (
+          message.operationType === 'insert' &&
+          String(message.tracker_id) === String(selectedShipment.trackerId)
+        ) {
+          const { geolocation, new_record } = message;
+          
+          // Use local timestamp if available, otherwise convert UTC
+          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
+          
+          // Check if the timestamp is within the expected range (using local time now)
+          if (new_record?.timestamp_local) {
+            const dt = new Date(new_record.timestamp_local);
+            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
+              return;
+            }
+          }
+          
+          const lat = parseFloat(geolocation?.Lat);
+          const lng = parseFloat(geolocation?.Lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLiveRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
+          }
+          
+          // Update sensor data with local timestamps
+          if (new_record) {
+            if (new_record.Temp !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Hum !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Batt !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, battery: parseFloat(new_record.Batt) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, speed: parseFloat(new_record.Speed) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => {};
+
+    return () => {
+      isCurrent = false;
+      ws.close();
+    };
+  }, [selectedShipment, userTimezone]);
 
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
@@ -1077,7 +1192,7 @@ const Shipments = () => {
                       )
                     )}
 
-                    {/* Preview markers for all stops */}
+                    {/* Preview markers for all stops - Always show when available */}
                     {previewMarkers.map((marker, index) => (
                       <Marker key={index} position={marker.position} icon={numberIcon(marker.label)}>
                         <Popup>
@@ -1977,7 +2092,7 @@ const Shipments = () => {
                 )
               )}
 
-              {/* Preview markers for all stops */}
+              {/* Preview markers for all stops - Always show when available */}
               {previewMarkers.map((marker, index) => (
                 <Marker key={index} position={marker.position} icon={numberIcon(marker.label)}>
                   <Popup>
