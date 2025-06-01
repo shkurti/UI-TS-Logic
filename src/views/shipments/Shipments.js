@@ -471,54 +471,23 @@ const Shipments = () => {
         setStartCoord(null);
         return;
       }
-      
-      // Collect all addresses from all legs
-      const addresses = [];
-      const addressLabels = [];
-      
-      // Add start address from first leg
       const firstLeg = legs[0];
-      if (firstLeg?.shipFromAddress && firstLeg.shipFromAddress.trim() !== '') {
-        addresses.push(firstLeg.shipFromAddress);
-        addressLabels.push(`Start: ${firstLeg.shipFromAddress}`);
-      }
-      
-      // Add all stop addresses from all legs
-      legs.forEach((leg, index) => {
-        if (leg?.stopAddress && leg.stopAddress.trim() !== '') {
-          addresses.push(leg.stopAddress);
-          if (index === legs.length - 1) {
-            addressLabels.push(`End: ${leg.stopAddress}`);
-          } else {
-            addressLabels.push(`Stop ${index + 1}: ${leg.stopAddress}`);
-          }
-        }
-      });
-      
-      // Only proceed if we have at least 2 addresses
-      if (addresses.length >= 2) {
-        // Geocode all addresses
-        const coordinates = await Promise.all(
-          addresses.map(address => geocodeAddress(address))
-        );
-        
-        // Filter out null coordinates
-        const validCoords = coordinates.filter(coord => coord !== null);
-        const validAddresses = addresses.filter((_, index) => coordinates[index] !== null);
-        const validLabels = addressLabels.filter((_, index) => coordinates[index] !== null);
-        
-        if (validCoords.length >= 2) {
-          setNewShipmentPreview(validCoords);
-          setStartCoord(validCoords[0]);
-          setDestinationCoord(validCoords[validCoords.length - 1]);
-          
-          // Create numbered markers for all addresses
-          const markers = validCoords.map((coord, index) => ({
-            position: coord,
-            label: (index + 1).toString(),
-            popup: validLabels[index]
-          }));
-          setPreviewMarkers(markers);
+      const lastLeg = legs[legs.length - 1];
+      const from = firstLeg?.shipFromAddress;
+      const to = lastLeg?.stopAddress;
+      if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
+          setPreviewMarkers([
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
+          ]);
         } else {
           setNewShipmentPreview(null);
           setPreviewMarkers([]);
@@ -544,36 +513,17 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        // Collect all addresses from selected shipment
-        const addresses = [];
-        
-        // Add start address from first leg
         const firstLeg = selectedShipment.legs[0];
-        if (firstLeg?.shipFromAddress && firstLeg.shipFromAddress.trim() !== '') {
-          addresses.push(firstLeg.shipFromAddress);
-        }
-        
-        // Add all stop addresses
-        selectedShipment.legs.forEach(leg => {
-          if (leg?.stopAddress && leg.stopAddress.trim() !== '') {
-            addresses.push(leg.stopAddress);
-          }
-        });
-        
-        if (addresses.length >= 2) {
-          const coordinates = await Promise.all(
-            addresses.map(address => geocodeAddress(address))
-          );
-          
-          const validCoords = coordinates.filter(coord => coord !== null);
-          
-          if (validCoords.length >= 2) {
-            setStartCoord(validCoords[0]);
-            setDestinationCoord(validCoords[validCoords.length - 1]);
-          } else {
-            setStartCoord(null);
-            setDestinationCoord(null);
-          }
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '') {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
         } else {
           setStartCoord(null);
           setDestinationCoord(null);
@@ -587,7 +537,7 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
 
-  // Show a line between all addresses when a shipment is selected and there is no routeData
+  // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
       if (
@@ -596,50 +546,22 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        // Collect all addresses from selected shipment
-        const addresses = [];
-        const addressLabels = [];
-        
-        // Add start address from first leg
         const firstLeg = selectedShipment.legs[0];
-        if (firstLeg?.shipFromAddress && firstLeg.shipFromAddress.trim() !== '') {
-          addresses.push(firstLeg.shipFromAddress);
-          addressLabels.push(`Start: ${firstLeg.shipFromAddress}`);
-        }
-        
-        // Add all stop addresses
-        selectedShipment.legs.forEach((leg, index) => {
-          if (leg?.stopAddress && leg.stopAddress.trim() !== '') {
-            addresses.push(leg.stopAddress);
-            if (index === selectedShipment.legs.length - 1) {
-              addressLabels.push(`End: ${leg.stopAddress}`);
-            } else {
-              addressLabels.push(`Stop ${index + 1}: ${leg.stopAddress}`);
-            }
-          }
-        });
-        
-        if (addresses.length >= 2) {
-          // Geocode all addresses
-          const coordinates = await Promise.all(
-            addresses.map(address => geocodeAddress(address))
-          );
-          
-          // Filter out null coordinates
-          const validCoords = coordinates.filter(coord => coord !== null);
-          const validLabels = addressLabels.filter((_, index) => coordinates[index] !== null);
-          
-          if (validCoords.length >= 2) {
-            setNewShipmentPreview(validCoords);
-            setDestinationCoord(validCoords[validCoords.length - 1]);
-            
-            // Create numbered markers for all addresses
-            const markers = validCoords.map((coord, index) => ({
-              position: coord,
-              label: (index + 1).toString(),
-              popup: validLabels[index]
-            }));
-            setPreviewMarkers(markers);
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
             return;
           }
         }
@@ -654,20 +576,51 @@ const Shipments = () => {
 
   // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
-    if (isModalOpen && newShipmentPreview && newShipmentPreview.length >= 2) {
-      // Markers are already set in the main preview effect above
-      if (newShipmentPreview.length > 0) {
-        setDestinationCoord(newShipmentPreview[newShipmentPreview.length - 1]);
-      }
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+      setDestinationCoord(newShipmentPreview[1]);
     } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
-      // Don't clear preview markers when GPS data exists - we want to show both
-      if (!selectedShipment) {
-        setPreviewMarkers([]);
-        setDestinationCoord(null);
-      }
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, selectedShipment, routeData]);
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+
+  // Ensure destinationCoord is always set when GPS data is loaded
+  useEffect(() => {
+    const setDestinationFromShipment = async () => {
+      if (
+        selectedShipment &&
+        routeData.length > 0 &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const to = lastLeg?.stopAddress;
+        if (to && to.trim() !== '') {
+          const toCoord = await geocodeAddress(to);
+          if (
+            Array.isArray(toCoord) &&
+            toCoord.length === 2 &&
+            !isNaN(toCoord[0]) &&
+            !isNaN(toCoord[1])
+          ) {
+            setDestinationCoord(toCoord);
+            return;
+          }
+        }
+      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
+    };
+    setDestinationFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
 
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
@@ -782,6 +735,17 @@ const Shipments = () => {
       ws.close();
     };
   }, [selectedShipment, userTimezone]);
+
+  // When a shipment is selected, initialize liveRoute from routeData
+  useEffect(() => {
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
+    } else {
+      setLiveRoute([]);
+    }
+  }, [routeData]);
 
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
@@ -1177,12 +1141,12 @@ const Shipments = () => {
                         </Marker>
                       </>
                     ) : (
-                      // No GPS data: show dashed line connecting all planned route points if they exist
-                      newShipmentPreview && newShipmentPreview.length >= 2 && (
+                      // No GPS data: show dashed line from start to destination if both exist
+                      startCoord && destinationCoord && (
                         <>
-                          <FitBounds route={newShipmentPreview} />
+                          <FitBounds route={[startCoord, destinationCoord]} />
                           <Polyline 
-                            positions={newShipmentPreview} 
+                            positions={[startCoord, destinationCoord]} 
                             color="#9e9e9e" 
                             weight={3}
                             opacity={0.6}
@@ -1191,17 +1155,6 @@ const Shipments = () => {
                         </>
                       )
                     )}
-
-                    {/* Preview markers for all stops - Always show when available */}
-                    {previewMarkers.map((marker, index) => (
-                      <Marker key={index} position={marker.position} icon={numberIcon(marker.label)}>
-                        <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>{marker.popup}</strong>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -2077,12 +2030,12 @@ const Shipments = () => {
                   </Marker>
                 </>
               ) : (
-                // No GPS data: show dashed line connecting all planned route points if they exist
-                newShipmentPreview && newShipmentPreview.length >= 2 && (
+                // No GPS data: show dashed line from start to destination if both exist
+                startCoord && destinationCoord && (
                   <>
-                    <FitBounds route={newShipmentPreview} />
+                    <FitBounds route={[startCoord, destinationCoord]} />
                     <Polyline 
-                      positions={newShipmentPreview} 
+                      positions={[startCoord, destinationCoord]} 
                       color="#9e9e9e" 
                       weight={3}
                       opacity={0.6}
@@ -2091,17 +2044,6 @@ const Shipments = () => {
                   </>
                 )
               )}
-
-              {/* Preview markers for all stops - Always show when available */}
-              {previewMarkers.map((marker, index) => (
-                <Marker key={index} position={marker.position} icon={numberIcon(marker.label)}>
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>{marker.popup}</strong>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
             </MapContainer>
 
             {/* Map Info Panel - Show when no shipment selected and sidebar collapsed */}
