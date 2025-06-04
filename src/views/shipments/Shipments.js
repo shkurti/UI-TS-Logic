@@ -340,12 +340,10 @@ const Shipments = () => {
         setBatteryData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined && record.battery !== null
+            battery: record.battery !== undefined && record.battery !== null && record.battery !== "N/A"
               ? parseFloat(record.battery)
-              : record.Batt !== undefined && record.Batt !== null
-                ? parseFloat(record.Batt)
-                : null,
-          })).filter(item => item.battery !== null) // Filter out null battery values
+              : null,
+          })).filter(item => item.battery !== null && !isNaN(item.battery)) // Filter out null/invalid battery values
         )
         setSpeedData(
           data.map((record) => ({
@@ -699,7 +697,7 @@ const Shipments = () => {
                 return prevData;
               });
             }
-            if (new_record.Batt !== undefined && new_record.Batt !== null) {
+            if (new_record.Batt !== undefined && new_record.Batt !== null && !isNaN(new_record.Batt)) {
               setBatteryData((prevData) => {
                 if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
