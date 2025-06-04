@@ -128,6 +128,9 @@ const Shipments = () => {
   // Add timezone detection
   const [userTimezone, setUserTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
+  // Add state for hover marker
+  const [hoverMarker, setHoverMarker] = useState(null)
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -812,6 +815,50 @@ const Shipments = () => {
     popupAnchor: [0, -10],
   })
 
+  // Hover marker icon for sensor data
+  const hoverMarkerIcon = (sensorType) => {
+    const colors = {
+      'Temperature': '#ff6b6b',
+      'Humidity': '#4ecdc4',
+      'Battery': '#45b7d1',
+      'Speed': '#96ceb4'
+    };
+    const icons = {
+      'Temperature': '🌡️',
+      'Humidity': '💧',
+      'Battery': '🔋',
+      'Speed': '⚡'
+    };
+    
+    return L.divIcon({
+      className: 'hover-sensor-marker',
+      html: `<div style="
+        background: ${colors[sensorType] || '#666'};
+        color: #fff;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        animation: bounce 0.6s ease-in-out;
+      ">${icons[sensorType] || '📍'}</div>
+      <style>
+        @keyframes bounce {
+          0%, 20%, 60%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-10px); }
+          80% { transform: translateY(-5px); }
+        }
+      </style>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12],
+    });
+  };
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
   }
@@ -820,6 +867,58 @@ const Shipments = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
   }
+
+  // Helper function to find GPS coordinates for a timestamp
+  const findCoordinatesForTimestamp = (timestamp) => {
+    if (!routeData || routeData.length === 0) return null;
+    
+    // Find the exact match or closest timestamp
+    const exactMatch = routeData.find(record => record.timestamp === timestamp);
+    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
+      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
+    }
+    
+    // If no exact match, find the closest timestamp
+    const sortedData = [...routeData].sort((a, b) => 
+      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
+      Math.abs(new Date(b.timestamp) - new Date(timestamp))
+    );
+    
+    const closest = sortedData[0];
+    if (closest && closest.latitude && closest.longitude) {
+      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
+    }
+    
+    return null;
+  };
+
+  // Handle chart hover events
+  const handleChartHover = (data, sensorType) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const payload = data.activePayload[0].payload;
+      const timestamp = payload.timestamp;
+      const coordinates = findCoordinatesForTimestamp(timestamp);
+      
+      if (coordinates) {
+        setHoverMarker({
+          position: coordinates,
+          timestamp: timestamp,
+          sensorType: sensorType,
+          value: payload[sensorType.toLowerCase()],
+          unit: sensorType === 'Temperature' ? '°C' : 
+                sensorType === 'Humidity' ? '%' : 
+                sensorType === 'Battery' ? '%' : ' km/h'
+        });
+      }
+    } else {
+      setHoverMarker(null);
+    }
+  };
+
+  // Clear hover marker when mouse leaves chart
+  const handleChartMouseLeave = () => {
+    setHoverMarker(null);
+  };
 
   return (
     <div style={{ 
@@ -1151,6 +1250,25 @@ const Shipments = () => {
                         />
                       )
                     )}
+
+                    {/* Hover marker for sensor data */}
+                    {hoverMarker && (
+                      <Marker 
+                        position={hoverMarker.position} 
+                        icon={hoverMarkerIcon(hoverMarker.sensorType)}
+                      >
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>{hoverMarker.sensorType} Reading</strong><br/>
+                            <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
+                            <strong>Time:</strong> {hoverMarker.timestamp}<br/>
+                            <strong>Location:</strong><br/>
+                            <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
+                            <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    )}
                   </MapContainer>
                 </div>
               </div>
@@ -1265,6 +1383,8 @@ const Shipments = () => {
                           speedData
                         }
                         margin={{ top: 10, right: 16, left: 0, bottom: 5 }}
+                        onMouseMove={(data) => handleChartHover(data, mobileSensorTab)}
+                        onMouseLeave={handleChartMouseLeave}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="timestamp" tick={false} />
@@ -1673,6 +1793,8 @@ const Shipments = () => {
                                   <LineChart 
                                     data={temperatureData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    onMouseMove={(data) => handleChartHover(data, 'Temperature')}
+                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -1709,6 +1831,8 @@ const Shipments = () => {
                                   <LineChart 
                                     data={humidityData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    onMouseMove={(data) => handleChartHover(data, 'Humidity')}
+                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -1745,6 +1869,8 @@ const Shipments = () => {
                                   <LineChart 
                                     data={batteryData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    onMouseMove={(data) => handleChartHover(data, 'Battery')}
+                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -1781,6 +1907,8 @@ const Shipments = () => {
                                   <LineChart 
                                     data={speedData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    onMouseMove={(data) => handleChartHover(data, 'Speed')}
+                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -1992,7 +2120,6 @@ const Shipments = () => {
                       const lastLat = lastGpsPoint[0];
                       const lastLng = lastGpsPoint[1];
                       
-                      
                       // Only show dashed line if current location is not at destination
                       const distanceThreshold = 0.001; // ~100 meters
                       const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
@@ -2036,6 +2163,25 @@ const Shipments = () => {
                     dashArray="15, 15" 
                   />
                 )
+              )}
+
+              {/* Hover marker for sensor data */}
+              {hoverMarker && (
+                <Marker 
+                  position={hoverMarker.position} 
+                  icon={hoverMarkerIcon(hoverMarker.sensorType)}
+                >
+                  <Popup>
+                    <div style={{ minWidth: '200px' }}>
+                      <strong>{hoverMarker.sensorType} Reading</strong><br/>
+                      <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
+                      <strong>Time:</strong> {hoverMarker.timestamp}<br/>
+                      <strong>Location:</strong><br/>
+                      <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
+                      <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
+                    </div>
+                  </Popup>
+                </Marker>
               )}
             </MapContainer>
 
