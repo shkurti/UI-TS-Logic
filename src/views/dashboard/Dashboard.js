@@ -155,7 +155,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (selectedTracker) {
       // WebSocket for real-time updates
-      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+      const ws = new WebSocket('wss://tslogics.com/ws');
       ws.onopen = () => console.log('WebSocket connection established');
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);

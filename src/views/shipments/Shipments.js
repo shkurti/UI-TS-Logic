@@ -637,7 +637,7 @@ const Shipments = () => {
 
     let isCurrent = true;
 
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    const ws = new WebSocket('wss://tslogics.com/ws');
     ws.onopen = () => {
       // Optionally log or authenticate
     };
