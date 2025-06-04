@@ -340,12 +340,12 @@ const Shipments = () => {
         setBatteryData(
           data.map((record) => ({
             timestamp: record.timestamp || 'N/A',
-            battery: record.battery !== undefined
+            battery: record.battery !== undefined && record.battery !== null
               ? parseFloat(record.battery)
-              : record.Batt !== undefined
+              : record.Batt !== undefined && record.Batt !== null
                 ? parseFloat(record.Batt)
                 : null,
-          }))
+          })).filter(item => item.battery !== null) // Filter out null battery values
         )
         setSpeedData(
           data.map((record) => ({
@@ -699,7 +699,7 @@ const Shipments = () => {
                 return prevData;
               });
             }
-            if (new_record.Batt !== undefined) {
+            if (new_record.Batt !== undefined && new_record.Batt !== null) {
               setBatteryData((prevData) => {
                 if (!prevData.some((data) => data.timestamp === timestamp)) {
                   return [
@@ -1992,7 +1992,6 @@ const Shipments = () => {
                       const lastLat = lastGpsPoint[0];
                       const lastLng = lastGpsPoint[1];
                       
-                      
                       // Only show dashed line if current location is not at destination
                       const distanceThreshold = 0.001; // ~100 meters
                       const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
@@ -2341,46 +2340,46 @@ const Shipments = () => {
         <CModalFooter style={{ 
           border: 'none', 
           padding: isMobile ? '12px 16px' : '24px 32px', 
+          padding: isMobile ? '12px 16px' : '24px 32px', 
           background: '#f8f9fa' 
-        }}>
-          <div style={{ 
-            display: 'flex', 
+        }}>div style={{ 
+          <div style={{ ex', 
+            display: 'flex', Mobile ? 'column' : 'row',
             flexDirection: isMobile ? 'column' : 'row',
-            gap: '12px', 
-            width: '100%', 
+            gap: '12px', , 
+            width: '100%',  'flex-end' 
             justifyContent: 'flex-end' 
-          }}>
-            <CButton 
+          }}>CButton 
+            <CButton secondary" 
               color="secondary" 
-              variant="outline"
+              variant="outline"tIsModalOpen(false)}
               onClick={() => setIsModalOpen(false)}
-              style={{
-                borderRadius: '8px',
+              style={{Radius: '8px',
+                borderRadius: '8px',,
                 padding: '12px 24px',
-                fontWeight: '600',
+                fontWeight: '600',2 : 1
                 order: isMobile ? 2 : 1
               }}
-            >
-              Cancel
+            > Cancel
+              Canceln>
             </CButton>
-            <CButton 
-              color="primary" 
+            <CButton primary" 
+              color="primary" orm}
               onClick={submitForm}
-              style={{
-                borderRadius: '8px',
+              style={{Radius: '8px',
+                borderRadius: '8px',,
                 padding: '12px 24px',
-                fontWeight: '600',
+                fontWeight: '600',12px rgba(13, 110, 253, 0.3)',
                 boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
                 order: isMobile ? 1 : 2
               }}
-            >
+            > Create Shipment
               Create Shipment
             </CButton>
-          </div>
+          </div>Footer>
         </CModalFooter>
       </CModal>
     </div>
   )
 }
-
-export default Shipments
+export default Shipmentsexport default Shipments
