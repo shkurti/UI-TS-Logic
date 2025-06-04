@@ -73,7 +73,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Fetch all registered trackers
-    fetch('https://tslogics.com/trackers')
+    fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -86,7 +86,7 @@ const Dashboard = () => {
 
   const handleTrackerSelect = (tracker) => {
     setSelectedTracker(tracker); // Set the selected tracker
-    fetch(`https://tslogics.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
+    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -155,7 +155,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (selectedTracker) {
       // WebSocket for real-time updates
-      const ws = new WebSocket('wss://tslogics.com/ws');
+      const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
       ws.onopen = () => console.log('WebSocket connection established');
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);

@@ -126,7 +126,7 @@ const Trackers = () => {
 
   useEffect(() => {
     // Fetch initial list of trackers
-    fetch('https://tslogics.com/trackers')
+    fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -150,7 +150,7 @@ const Trackers = () => {
       .catch((error) => console.error('Error fetching trackers:', error))
 
     // WebSocket for real-time updates
-    const ws = new WebSocket('wss://tslogics.com/ws')
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
     ws.onopen = () => console.log('WebSocket connection established')
     ws.onmessage = (event) => {
       try {
@@ -223,7 +223,7 @@ const Trackers = () => {
   const handleRegister = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('https://tslogics.com/register_tracker', {
+      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/register_tracker', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +282,7 @@ const Trackers = () => {
 
     try {
       const deletePromises = selectedTrackersForDeletion.map(trackerId =>
-        fetch(`https://tslogics.com/delete_tracker/${trackerId}`, {
+        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/delete_tracker/${trackerId}`, {
           method: 'DELETE'
         })
       )
