@@ -126,7 +126,7 @@ const Trackers = () => {
 
   useEffect(() => {
     // Fetch initial list of trackers
-    fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
+    fetch('https://tslogics.com/trackers')
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -223,7 +223,7 @@ const Trackers = () => {
   const handleRegister = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/register_tracker', {
+      const response = await fetch('https://tslogics.com/register_tracker', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +282,7 @@ const Trackers = () => {
 
     try {
       const deletePromises = selectedTrackersForDeletion.map(trackerId =>
-        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/delete_tracker/${trackerId}`, {
+        fetch(`https://tslogics.com/delete_tracker/${trackerId}`, {
           method: 'DELETE'
         })
       )

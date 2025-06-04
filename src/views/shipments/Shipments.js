@@ -148,7 +148,7 @@ const Shipments = () => {
     // Fetch shipments from the backend
     const fetchShipments = async () => {
       try {
-        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta')
+        const response = await fetch('https://tslogics.com/shipment_meta')
         if (response.ok) {
           const data = await response.json()
           setShipments(data) // Populate the shipment list
@@ -163,7 +163,7 @@ const Shipments = () => {
     // Fetch registered trackers
     const fetchTrackers = async () => {
       try {
-        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers')
+        const response = await fetch('https://tslogics.com/registered_trackers')
         if (response.ok) {
           const data = await response.json()
           setTrackers(data)
@@ -247,7 +247,7 @@ const Shipments = () => {
     }
 
     try {
-      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
+      const response = await fetch('https://tslogics.com/shipment_meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shipmentData),
@@ -311,7 +311,7 @@ const Shipments = () => {
         end: arrivalDate,
         timezone: userTimezone  // Pass user's timezone to backend
       })
-      const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
+      const response = await fetch(`https://tslogics.com/shipment_route_data?${params}`)
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
@@ -397,7 +397,7 @@ const Shipments = () => {
 
     try {
       const deletePromises = selectedShipmentsForDeletion.map(shipmentId =>
-        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta/${shipmentId}`, {
+        fetch(`https://tslogics.com/shipment_meta/${shipmentId}`, {
           method: 'DELETE'
         })
       )

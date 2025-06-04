@@ -73,7 +73,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Fetch all registered trackers
-    fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/trackers')
+    fetch('https://tslogics.com/trackers')
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -86,7 +86,7 @@ const Dashboard = () => {
 
   const handleTrackerSelect = (tracker) => {
     setSelectedTracker(tracker); // Set the selected tracker
-    fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
+    fetch(`https://tslogics.com/tracker_data/${tracker.tracker_id}`) // Fetch historical data
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
