@@ -2340,46 +2340,46 @@ const Shipments = () => {
         <CModalFooter style={{ 
           border: 'none', 
           padding: isMobile ? '12px 16px' : '24px 32px', 
-          padding: isMobile ? '12px 16px' : '24px 32px', 
           background: '#f8f9fa' 
-        }}>div style={{ 
-          <div style={{ ex', 
-            display: 'flex', Mobile ? 'column' : 'row',
+        }}>
+          <div style={{ 
+            display: 'flex', 
             flexDirection: isMobile ? 'column' : 'row',
-            gap: '12px', , 
-            width: '100%',  'flex-end' 
+            gap: '12px', 
+            width: '100%', 
             justifyContent: 'flex-end' 
-          }}>CButton 
-            <CButton secondary" 
+          }}>
+            <CButton 
               color="secondary" 
-              variant="outline"tIsModalOpen(false)}
+              variant="outline"
               onClick={() => setIsModalOpen(false)}
-              style={{Radius: '8px',
-                borderRadius: '8px',,
+              style={{
+                borderRadius: '8px',
                 padding: '12px 24px',
-                fontWeight: '600',2 : 1
+                fontWeight: '600',
                 order: isMobile ? 2 : 1
               }}
-            > Cancel
-              Canceln>
+            >
+              Cancel
             </CButton>
-            <CButton primary" 
-              color="primary" orm}
+            <CButton 
+              color="primary" 
               onClick={submitForm}
-              style={{Radius: '8px',
-                borderRadius: '8px',,
+              style={{
+                borderRadius: '8px',
                 padding: '12px 24px',
-                fontWeight: '600',12px rgba(13, 110, 253, 0.3)',
+                fontWeight: '600',
                 boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
                 order: isMobile ? 1 : 2
               }}
-            > Create Shipment
+            >
               Create Shipment
             </CButton>
-          </div>Footer>
+          </div>
         </CModalFooter>
       </CModal>
     </div>
   )
 }
-export default Shipmentsexport default Shipments
+
+export default Shipments
