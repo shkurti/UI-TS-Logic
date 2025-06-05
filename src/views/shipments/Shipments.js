@@ -625,6 +625,50 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
 
+  // --- Kalman Filter Implementation ---
+  class KalmanFilter1D {
+    constructor({ R = 0.00001, Q = 0.001, A = 1, B = 0, C = 1 } = {}) {
+      this.R = R; // noise power desirable
+      this.Q = Q; // noise power estimated
+      this.A = A;
+      this.B = B;
+      this.C = C;
+      this.cov = NaN;
+      this.x = NaN;
+    }
+    filter(z, u = 0) {
+      if (isNaN(this.x)) {
+        this.x = (1 / this.C) * z;
+        this.cov = (1 / this.C) * this.Q * (1 / this.C);
+      } else {
+        // Prediction step
+        const predX = this.A * this.x + this.B * u;
+        const predCov = this.A * this.cov * this.A + this.R;
+        // Kalman gain
+        const K = predCov * this.C * (1 / (this.C * predCov * this.C + this.Q));
+        // Correction step
+        this.x = predX + K * (z - this.C * predX);
+        this.cov = predCov - K * this.C * predCov;
+      }
+      return this.x;
+    }
+    reset() {
+      this.cov = NaN;
+      this.x = NaN;
+    }
+  }
+
+  // Helper to filter an array of [lat, lng] points
+  function kalmanFilterRoute(route) {
+    if (!route || route.length === 0) return [];
+    const latKF = new KalmanFilter1D();
+    const lngKF = new KalmanFilter1D();
+    return route.map(([lat, lng]) => [
+      latKF.filter(lat),
+      lngKF.filter(lng)
+    ]);
+  }
+
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
     if (!selectedShipment || !selectedShipment.trackerId) {
@@ -669,10 +713,21 @@ const Shipments = () => {
           const lng = parseFloat(geolocation?.Lng);
           if (!isNaN(lat) && !isNaN(lng)) {
             setLiveRoute((prevRoute) => {
+              // --- Kalman filter for live GPS ---
+              const latKF = new KalmanFilter1D();
+              const lngKF = new KalmanFilter1D();
+              // Initialize filter with previous points
+              prevRoute.forEach(([plat, plng]) => {
+                latKF.filter(plat);
+                lngKF.filter(plng);
+              });
+              const filtered = [
+                latKF.filter(lat),
+                lngKF.filter(lng)
+              ];
               const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [lat, lng];
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                return [...prevRoute, newPoint];
+              if (!lastPoint || lastPoint[0] !== filtered[0] || lastPoint[1] !== filtered[1]) {
+                return [...prevRoute, filtered];
               }
               return prevRoute;
             });
@@ -739,12 +794,11 @@ const Shipments = () => {
     };
   }, [selectedShipment, userTimezone]);
 
-  // When a shipment is selected, initialize liveRoute from routeData
+  // When a shipment is selected, initialize liveRoute from routeData (apply Kalman filter)
   useEffect(() => {
     if (routeData && routeData.length > 0) {
-      setLiveRoute(
-        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
-      );
+      const rawRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
+      setLiveRoute(kalmanFilterRoute(rawRoute));
     } else {
       setLiveRoute([]);
     }
@@ -1394,8 +1448,7 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' :
-                              ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
