@@ -625,13 +625,14 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
 
-  // --- Kalman Filter Implementation ---
+  // --- Kalman Filter Implementation with Optional Speed Input ---
   class KalmanFilter1D {
-    constructor({ R = 0.00001, Q = 0.001, A = 1, B = 0, C = 1 } = {}) {
-      this.R = R; // noise power desirable
-      this.Q = Q; // noise power estimated
+    // Optionally use speed as control input (u)
+    constructor({ R = 0.0001, Q = 0.00001, A = 1, B = 0.00001, C = 1 } = {}) {
+      this.R = R; // measurement noise
+      this.Q = Q; // process noise
       this.A = A;
-      this.B = B;
+      this.B = B; // B is small, as GPS speed is in km/h and position is in degrees
       this.C = C;
       this.cov = NaN;
       this.x = NaN;
@@ -658,15 +659,22 @@ const Shipments = () => {
     }
   }
 
-  // Helper to filter an array of [lat, lng] points
-  function kalmanFilterRoute(route) {
+  // Helper to filter an array of [lat, lng] points, optionally using speed (in km/h)
+  function kalmanFilterRoute(route, speedArr) {
     if (!route || route.length === 0) return [];
     const latKF = new KalmanFilter1D();
     const lngKF = new KalmanFilter1D();
-    return route.map(([lat, lng]) => [
-      latKF.filter(lat),
-      lngKF.filter(lng)
-    ]);
+    // If speedArr is provided, use it as control input (u)
+    return route.map(([lat, lng], idx) => {
+      const speed = speedArr && speedArr[idx] ? speedArr[idx] : 0;
+      // Convert speed from km/h to degrees per second (approximate, for small B)
+      // 1 degree latitude ~ 111km, so deg = km / 111
+      const speedDeg = speed / 111 / 3600; // per second, assuming 1s interval
+      return [
+        latKF.filter(lat, speedDeg),
+        lngKF.filter(lng, speedDeg)
+      ];
+    });
   }
 
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
@@ -711,19 +719,35 @@ const Shipments = () => {
           
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
+          // Use speed if available
+          const speed =
+            new_record?.speed !== undefined
+              ? parseFloat(new_record.speed)
+              : new_record?.Speed !== undefined
+                ? parseFloat(new_record.Speed)
+                : 0;
           if (!isNaN(lat) && !isNaN(lng)) {
             setLiveRoute((prevRoute) => {
-              // --- Kalman filter for live GPS ---
+              // --- Kalman filter for live GPS, use speed as control input ---
               const latKF = new KalmanFilter1D();
               const lngKF = new KalmanFilter1D();
-              // Initialize filter with previous points
-              prevRoute.forEach(([plat, plng]) => {
-                latKF.filter(plat);
-                lngKF.filter(plng);
+              // Try to use previous speeds if available
+              let prevSpeeds = [];
+              if (prevRoute.length > 0 && prevRoute[0].length === 3) {
+                prevSpeeds = prevRoute.map(([, , s]) => s);
+              }
+              prevRoute.forEach(([plat, plng], idx) => {
+                const ps = prevSpeeds[idx] || 0;
+                // Convert speed to degrees per second
+                const speedDeg = ps / 111 / 3600;
+                latKF.filter(plat, speedDeg);
+                lngKF.filter(plng, speedDeg);
               });
+              const speedDeg = speed / 111 / 3600;
               const filtered = [
-                latKF.filter(lat),
-                lngKF.filter(lng)
+                latKF.filter(lat, speedDeg),
+                lngKF.filter(lng, speedDeg),
+                speed
               ];
               const lastPoint = prevRoute[prevRoute.length - 1];
               if (!lastPoint || lastPoint[0] !== filtered[0] || lastPoint[1] !== filtered[1]) {
@@ -794,11 +818,18 @@ const Shipments = () => {
     };
   }, [selectedShipment, userTimezone]);
 
-  // When a shipment is selected, initialize liveRoute from routeData (apply Kalman filter)
+  // When a shipment is selected, initialize liveRoute from routeData (apply Kalman filter, use speed if available)
   useEffect(() => {
     if (routeData && routeData.length > 0) {
       const rawRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-      setLiveRoute(kalmanFilterRoute(rawRoute));
+      const speedArr = routeData.map((r) =>
+        r.speed !== undefined
+          ? parseFloat(r.speed)
+          : r.Speed !== undefined
+            ? parseFloat(r.Speed)
+            : 0
+      );
+      setLiveRoute(kalmanFilterRoute(rawRoute, speedArr));
     } else {
       setLiveRoute([]);
     }
@@ -1982,6 +2013,7 @@ const Shipments = () => {
                           <div style={{ 
                             textAlign: 'center', 
                             padding: '40px 20px', 
+                            
                             color: '#666',
                             fontSize: '14px'
                           }}>
