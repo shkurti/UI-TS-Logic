@@ -920,63 +920,6 @@ const Shipments = () => {
     setHoverMarker(null);
   };
 
-  // --- OpenRouteService API Key (replace with your own key) ---
-  const ORS_API_KEY = 'YOUR_ORS_API_KEY_HERE'; // <-- Set your key here
-
-  // Helper to snap a route to the road using OpenRouteService Directions API
-  async function snapRouteToRoad(route) {
-    if (!ORS_API_KEY || !route || route.length < 2) return route;
-    try {
-      // ORS expects [lng, lat] pairs
-      const coordinates = route.map(([lat, lng]) => [lng, lat]);
-      const body = {
-        coordinates,
-        format: 'geojson'
-      };
-      const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
-        method: 'POST',
-        headers: {
-          'Authorization': ORS_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) return route;
-      const data = await res.json();
-      // Extract snapped [lat, lng] from geojson
-      if (
-        data &&
-        data.features &&
-        data.features[0] &&
-        data.features[0].geometry &&
-        data.features[0].geometry.coordinates
-      ) {
-        return data.features[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      }
-    } catch (e) {
-      // Fallback to original route
-    }
-    return route;
-  }
-
-  // --- Snapped route state ---
-  const [snappedRoute, setSnappedRoute] = useState([]);
-
-  // Snap the route whenever liveRoute changes
-  useEffect(() => {
-    let ignore = false;
-    async function snap() {
-      if (liveRoute && liveRoute.length > 1) {
-        const snapped = await snapRouteToRoad(liveRoute);
-        if (!ignore) setSnappedRoute(snapped);
-      } else {
-        setSnappedRoute([]);
-      }
-    }
-    snap();
-    return () => { ignore = true; };
-  }, [liveRoute]);
-
   return (
     <div style={{ 
       display: 'flex',
@@ -1248,7 +1191,7 @@ const Shipments = () => {
                         
                         {/* Solid blue line showing the actual GPS route taken */}
                         <Polyline 
-                          positions={snappedRoute.length > 1 ? snappedRoute : liveRoute} 
+                          positions={liveRoute} 
                           color="#2196f3" 
                           weight={4}
                           opacity={0.8}
@@ -2162,7 +2105,7 @@ const Shipments = () => {
                   
                   {/* Solid blue line showing the actual GPS route taken */}
                   <Polyline 
-                    positions={snappedRoute.length > 1 ? snappedRoute : liveRoute} 
+                    positions={liveRoute} 
                     color="#2196f3" 
                     weight={4}
                     opacity={0.8}
