@@ -131,10 +131,6 @@ const Shipments = () => {
   // Add state for hover marker
   const [hoverMarker, setHoverMarker] = useState(null)
 
-  // Add state for snapped route
-  const [snappedRoute, setSnappedRoute] = useState([])
-  const [isSnappingRoute, setIsSnappingRoute] = useState(false)
-
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -633,7 +629,6 @@ const Shipments = () => {
   useEffect(() => {
     if (!selectedShipment || !selectedShipment.trackerId) {
       setLiveRoute([]);
-      setSnappedRoute([]);
       return;
     }
     // Get the expected time range for the selected shipment
@@ -677,26 +672,7 @@ const Shipments = () => {
               const lastPoint = prevRoute[prevRoute.length - 1];
               const newPoint = [lat, lng];
               if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                const updatedRoute = [...prevRoute, newPoint];
-                
-                // Update snapped route with new point
-                if (updatedRoute.length >= 2) {
-                  // Only snap the last few points to avoid re-processing the entire route
-                  const lastSegment = updatedRoute.slice(-5); // Last 5 points
-                  snapPointsToRoads(lastSegment).then(snappedSegment => {
-                    setSnappedRoute(prevSnapped => {
-                      // Replace the last few points with snapped version
-                      const newSnapped = [...prevSnapped];
-                      if (snappedSegment.length > 0) {
-                        // Remove last few points and add snapped segment
-                        newSnapped.splice(-Math.min(4, newSnapped.length), Math.min(4, newSnapped.length), ...snappedSegment);
-                      }
-                      return newSnapped;
-                    });
-                  });
-                }
-                
-                return updatedRoute;
+                return [...prevRoute, newPoint];
               }
               return prevRoute;
             });
@@ -763,155 +739,16 @@ const Shipments = () => {
     };
   }, [selectedShipment, userTimezone]);
 
-  // When a shipment is selected, initialize liveRoute from routeData and snap to roads
+  // When a shipment is selected, initialize liveRoute from routeData
   useEffect(() => {
     if (routeData && routeData.length > 0) {
-      const rawRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-      setLiveRoute(rawRoute);
-      
-      // Snap route to roads for better visualization
-      snapPointsToRoads(rawRoute).then(snapped => {
-        setSnappedRoute(snapped);
-      });
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
     } else {
       setLiveRoute([]);
-      setSnappedRoute([]);
     }
   }, [routeData]);
-
-  // Update live route with GPS corrections
-  useEffect(() => {
-    if (!selectedShipment || !selectedShipment.trackerId) {
-      setLiveRoute([]);
-      setSnappedRoute([]);
-      return;
-    }
-    // Get the expected time range for the selected shipment
-    const legs = selectedShipment.legs || [];
-    const firstLeg = legs[0] || {};
-    const lastLeg = legs[legs.length - 1] || {};
-    const expectedStart = new Date(firstLeg.shipDate);
-    const expectedEnd = new Date(lastLeg.arrivalDate);
-
-    let isCurrent = true;
-
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => {
-      // Optionally log or authenticate
-    };
-    ws.onmessage = (event) => {
-      if (!isCurrent) return;
-      try {
-        const message = JSON.parse(event.data);
-        if (
-          message.operationType === 'insert' &&
-          String(message.tracker_id) === String(selectedShipment.trackerId)
-        ) {
-          const { geolocation, new_record } = message;
-          
-          // Use local timestamp if available, otherwise convert UTC
-          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
-          
-          // Check if the timestamp is within the expected range (using local time now)
-          if (new_record?.timestamp_local) {
-            const dt = new Date(new_record.timestamp_local);
-            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
-              return;
-            }
-          }
-          
-          const lat = parseFloat(geolocation?.Lat);
-          const lng = parseFloat(geolocation?.Lng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            setLiveRoute((prevRoute) => {
-              const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [lat, lng];
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                const updatedRoute = [...prevRoute, newPoint];
-                
-                // Update snapped route with new point
-                if (updatedRoute.length >= 2) {
-                  // Only snap the last few points to avoid re-processing the entire route
-                  const lastSegment = updatedRoute.slice(-5); // Last 5 points
-                  snapPointsToRoads(lastSegment).then(snappedSegment => {
-                    setSnappedRoute(prevSnapped => {
-                      // Replace the last few points with snapped version
-                      const newSnapped = [...prevSnapped];
-                      if (snappedSegment.length > 0) {
-                        // Remove last few points and add snapped segment
-                        newSnapped.splice(-Math.min(4, newSnapped.length), Math.min(4, newSnapped.length), ...snappedSegment);
-                      }
-                      return newSnapped;
-                    });
-                  });
-                }
-                
-                return updatedRoute;
-              }
-              return prevRoute;
-            });
-          }
-          
-          // Update sensor data with local timestamps
-          if (new_record) {
-            if (new_record.Temp !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, temperature: parseFloat(new_record.Temp) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Hum !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, humidity: parseFloat(new_record.Hum) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Batt !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, battery: parseFloat(new_record.Batt) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, speed: parseFloat(new_record.Speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    };
-    ws.onerror = () => {};
-    ws.onclose = () => {};
-
-    return () => {
-      isCurrent = false;
-      ws.close();
-    };
-  }, [selectedShipment, userTimezone]);
 
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
@@ -1081,116 +918,6 @@ const Shipments = () => {
   // Clear hover marker when mouse leaves chart
   const handleChartMouseLeave = () => {
     setHoverMarker(null);
-  };
-
-  // Route snapping function using OpenRouteService
-  const snapRouteToRoads = async (coordinates) => {
-    if (!coordinates || coordinates.length < 2) return coordinates;
-    
-    try {
-      setIsSnappingRoute(true);
-      
-      // Convert coordinates to the format expected by OpenRouteService
-      const coordinatesFormatted = coordinates.map(coord => [coord[1], coord[0]]); // [lng, lat]
-      
-      // Split into chunks if too many points (API has limits)
-      const chunkSize = 25;
-      const chunks = [];
-      for (let i = 0; i < coordinatesFormatted.length; i += chunkSize) {
-        chunks.push(coordinatesFormatted.slice(i, i + chunkSize));
-      }
-      
-      let snappedCoordinates = [];
-      
-      for (const chunk of chunks) {
-        if (chunk.length < 2) {
-          // If chunk has only one point, add it as is
-          snappedCoordinates.push(...chunk.map(coord => [coord[1], coord[0]]));
-          continue;
-        }
-        
-        try {
-          const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {
-            method: 'POST',
-            headers: {
-              'Authorization': '5b3ce3597851110001cf62489c3a4ea1d4af45d885734bc5b6a5c5c2', // Free API key
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              coordinates: chunk,
-              format: 'geojson',
-              options: {
-                avoid_features: ['ferries'],
-                avoid_borders: 'controlled'
-              }
-            })
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.features && data.features[0] && data.features[0].geometry) {
-              const routeCoords = data.features[0].geometry.coordinates.map(coord => [coord[1], coord[0]]); // Convert back to [lat, lng]
-              snappedCoordinates.push(...routeCoords);
-            } else {
-              // Fallback to original coordinates if API fails
-              snappedCoordinates.push(...chunk.map(coord => [coord[1], coord[0]]));
-            }
-          } else {
-            // Fallback to original coordinates if API fails
-            snappedCoordinates.push(...chunk.map(coord => [coord[1], coord[0]]));
-          }
-          
-          // Add small delay between requests to respect rate limits
-          if (chunks.indexOf(chunk) < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (error) {
-          console.warn('Route snapping failed for chunk, using original coordinates:', error);
-          snappedCoordinates.push(...chunk.map(coord => [coord[1], coord[0]]));
-        }
-      }
-      
-      return snappedCoordinates;
-    } catch (error) {
-      console.warn('Route snapping failed, using original coordinates:', error);
-      return coordinates;
-    } finally {
-      setIsSnappingRoute(false);
-    }
-  };
-
-  // Alternative simpler approach using map matching
-  const snapPointsToRoads = async (coordinates) => {
-    if (!coordinates || coordinates.length < 2) return coordinates;
-    
-    try {
-      // Use Mapbox Map Matching API (more accurate for GPS tracks)
-      const coordinatesString = coordinates
-        .map(coord => `${coord[1]},${coord[0]}`) // lng,lat format
-        .join(';');
-      
-      const response = await fetch(
-        `https://api.mapbox.com/matching/v5/mapbox/driving/${coordinatesString}?` +
-        `access_token=pk.eyJ1IjoidHMtbG9naWNzIiwiYSI6ImNtNGtjaThyZDBnZW8ycXE0dnQxODQ1OXcifQ.rJ1bZg0SbxqyBlrFnRq7qg&` +
-        `geometries=geojson&` +
-        `radiuses=${coordinates.map(() => '25').join(';')}&` + // 25 meter tolerance
-        `steps=false&` +
-        `overview=full`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.matchings && data.matchings[0] && data.matchings[0].geometry) {
-          return data.matchings[0].geometry.coordinates.map(coord => [coord[1], coord[0]]); // Convert to [lat, lng]
-        }
-      }
-      
-      // Fallback to original coordinates
-      return coordinates;
-    } catch (error) {
-      console.warn('GPS map matching failed, using original coordinates:', error);
-      return coordinates;
-    }
   };
 
   return (
@@ -1462,41 +1189,13 @@ const Shipments = () => {
                         {/* Fit map to show the entire route */}
                         <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
                         
-                        {/* Raw GPS track (semi-transparent) */}
+                        {/* Solid blue line showing the actual GPS route taken */}
                         <Polyline 
                           positions={liveRoute} 
-                          color="#90CAF9" 
-                          weight={2}
-                          opacity={0.4}
-                          dashArray="5, 5"
+                          color="#2196f3" 
+                          weight={4}
+                          opacity={0.8}
                         />
-                        
-                        {/* Snapped route (main route line) */}
-                        {snappedRoute.length > 0 && (
-                          <Polyline 
-                            positions={snappedRoute} 
-                            color="#2196f3" 
-                            weight={4}
-                            opacity={0.8}
-                          />
-                        )}
-                        
-                        {/* Show loading indicator while snapping */}
-                        {isSnappingRoute && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '10px',
-                            right: '10px',
-                            background: 'white',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                            fontSize: '12px',
-                            zIndex: 1000
-                          }}>
-                            📡 Correcting GPS route...
-                          </div>
-                        )}
                         
                         {/* Dashed line from last GPS point to destination (if not at destination) */}
                         {destinationCoord && liveRoute.length > 0 && (
@@ -1535,11 +1234,6 @@ const Shipments = () => {
                               <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
                               <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
                               <small>Last updated: {new Date().toLocaleTimeString()}</small>
-                              {snappedRoute.length > 0 && (
-                                <>
-                                  <br/><small style={{ color: '#666' }}>🛣️ Route corrected for roads</small>
-                                </>
-                              )}
                             </div>
                           </Popup>
                         </Marker>
@@ -1700,7 +1394,8 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' :
+                              ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
@@ -2408,41 +2103,13 @@ const Shipments = () => {
                   {/* Fit map to show the entire route */}
                   <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
                   
-                  {/* Raw GPS track (semi-transparent) */}
+                  {/* Solid blue line showing the actual GPS route taken */}
                   <Polyline 
                     positions={liveRoute} 
-                    color="#90CAF9" 
-                    weight={2}
-                    opacity={0.4}
-                    dashArray="5, 5"
+                    color="#2196f3" 
+                    weight={4}
+                    opacity={0.8}
                   />
-                  
-                  {/* Snapped route (main route line) */}
-                  {snappedRoute.length > 0 && (
-                    <Polyline 
-                      positions={snappedRoute} 
-                      color="#2196f3" 
-                      weight={4}
-                      opacity={0.8}
-                    />
-                  )}
-                  
-                  {/* Show loading indicator while snapping */}
-                  {isSnappingRoute && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: 'white',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                      fontSize: '12px',
-                      zIndex: 1000
-                    }}>
-                      📡 Correcting GPS route...
-                    </div>
-                  )}
                   
                   {/* Dashed line from last GPS point to destination (if not at destination) */}
                   {destinationCoord && liveRoute.length > 0 && (
@@ -2481,11 +2148,6 @@ const Shipments = () => {
                         <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
                         <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
                         <small>Last updated: {new Date().toLocaleTimeString()}</small>
-                        {snappedRoute.length > 0 && (
-                          <>
-                            <br/><small style={{ color: '#666' }}>🛣️ Route corrected for roads</small>
-                          </>
-                        )}
                       </div>
                     </Popup>
                   </Marker>
