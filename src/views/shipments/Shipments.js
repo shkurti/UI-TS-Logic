@@ -625,58 +625,6 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
 
-  // --- Kalman Filter Implementation with Optional Speed Input ---
-  class KalmanFilter1D {
-    // Optionally use speed as control input (u)
-    constructor({ R = 0.0001, Q = 0.00001, A = 1, B = 0.00001, C = 1 } = {}) {
-      this.R = R; // measurement noise
-      this.Q = Q; // process noise
-      this.A = A;
-      this.B = B; // B is small, as GPS speed is in km/h and position is in degrees
-      this.C = C;
-      this.cov = NaN;
-      this.x = NaN;
-    }
-    filter(z, u = 0) {
-      if (isNaN(this.x)) {
-        this.x = (1 / this.C) * z;
-        this.cov = (1 / this.C) * this.Q * (1 / this.C);
-      } else {
-        // Prediction step
-        const predX = this.A * this.x + this.B * u;
-        const predCov = this.A * this.cov * this.A + this.R;
-        // Kalman gain
-        const K = predCov * this.C * (1 / (this.C * predCov * this.C + this.Q));
-        // Correction step
-        this.x = predX + K * (z - this.C * predX);
-        this.cov = predCov - K * this.C * predCov;
-      }
-      return this.x;
-    }
-    reset() {
-      this.cov = NaN;
-      this.x = NaN;
-    }
-  }
-
-  // Helper to filter an array of [lat, lng] points, optionally using speed (in km/h)
-  function kalmanFilterRoute(route, speedArr) {
-    if (!route || route.length === 0) return [];
-    const latKF = new KalmanFilter1D();
-    const lngKF = new KalmanFilter1D();
-    // If speedArr is provided, use it as control input (u)
-    return route.map(([lat, lng], idx) => {
-      const speed = speedArr && speedArr[idx] ? speedArr[idx] : 0;
-      // Convert speed from km/h to degrees per second (approximate, for small B)
-      // 1 degree latitude ~ 111km, so deg = km / 111
-      const speedDeg = speed / 111 / 3600; // per second, assuming 1s interval
-      return [
-        latKF.filter(lat, speedDeg),
-        lngKF.filter(lng, speedDeg)
-      ];
-    });
-  }
-
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
     if (!selectedShipment || !selectedShipment.trackerId) {
@@ -719,39 +667,12 @@ const Shipments = () => {
           
           const lat = parseFloat(geolocation?.Lat);
           const lng = parseFloat(geolocation?.Lng);
-          // Use speed if available
-          const speed =
-            new_record?.speed !== undefined
-              ? parseFloat(new_record.speed)
-              : new_record?.Speed !== undefined
-                ? parseFloat(new_record.Speed)
-                : 0;
           if (!isNaN(lat) && !isNaN(lng)) {
             setLiveRoute((prevRoute) => {
-              // --- Kalman filter for live GPS, use speed as control input ---
-              const latKF = new KalmanFilter1D();
-              const lngKF = new KalmanFilter1D();
-              // Try to use previous speeds if available
-              let prevSpeeds = [];
-              if (prevRoute.length > 0 && prevRoute[0].length === 3) {
-                prevSpeeds = prevRoute.map(([, , s]) => s);
-              }
-              prevRoute.forEach(([plat, plng], idx) => {
-                const ps = prevSpeeds[idx] || 0;
-                // Convert speed to degrees per second
-                const speedDeg = ps / 111 / 3600;
-                latKF.filter(plat, speedDeg);
-                lngKF.filter(plng, speedDeg);
-              });
-              const speedDeg = speed / 111 / 3600;
-              const filtered = [
-                latKF.filter(lat, speedDeg),
-                lngKF.filter(lng, speedDeg),
-                speed
-              ];
               const lastPoint = prevRoute[prevRoute.length - 1];
-              if (!lastPoint || lastPoint[0] !== filtered[0] || lastPoint[1] !== filtered[1]) {
-                return [...prevRoute, filtered];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
               }
               return prevRoute;
             });
@@ -818,18 +739,12 @@ const Shipments = () => {
     };
   }, [selectedShipment, userTimezone]);
 
-  // When a shipment is selected, initialize liveRoute from routeData (apply Kalman filter, use speed if available)
+  // When a shipment is selected, initialize liveRoute from routeData
   useEffect(() => {
     if (routeData && routeData.length > 0) {
-      const rawRoute = routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)]);
-      const speedArr = routeData.map((r) =>
-        r.speed !== undefined
-          ? parseFloat(r.speed)
-          : r.Speed !== undefined
-            ? parseFloat(r.Speed)
-            : 0
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
       );
-      setLiveRoute(kalmanFilterRoute(rawRoute, speedArr));
     } else {
       setLiveRoute([]);
     }
@@ -1004,6 +919,63 @@ const Shipments = () => {
   const handleChartMouseLeave = () => {
     setHoverMarker(null);
   };
+
+  // --- OpenRouteService API Key (replace with your own key) ---
+  const ORS_API_KEY = 'YOUR_ORS_API_KEY_HERE'; // <-- Set your key here
+
+  // Helper to snap a route to the road using OpenRouteService Directions API
+  async function snapRouteToRoad(route) {
+    if (!ORS_API_KEY || !route || route.length < 2) return route;
+    try {
+      // ORS expects [lng, lat] pairs
+      const coordinates = route.map(([lat, lng]) => [lng, lat]);
+      const body = {
+        coordinates,
+        format: 'geojson'
+      };
+      const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+        method: 'POST',
+        headers: {
+          'Authorization': ORS_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) return route;
+      const data = await res.json();
+      // Extract snapped [lat, lng] from geojson
+      if (
+        data &&
+        data.features &&
+        data.features[0] &&
+        data.features[0].geometry &&
+        data.features[0].geometry.coordinates
+      ) {
+        return data.features[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      }
+    } catch (e) {
+      // Fallback to original route
+    }
+    return route;
+  }
+
+  // --- Snapped route state ---
+  const [snappedRoute, setSnappedRoute] = useState([]);
+
+  // Snap the route whenever liveRoute changes
+  useEffect(() => {
+    let ignore = false;
+    async function snap() {
+      if (liveRoute && liveRoute.length > 1) {
+        const snapped = await snapRouteToRoad(liveRoute);
+        if (!ignore) setSnappedRoute(snapped);
+      } else {
+        setSnappedRoute([]);
+      }
+    }
+    snap();
+    return () => { ignore = true; };
+  }, [liveRoute]);
 
   return (
     <div style={{ 
@@ -1276,7 +1248,7 @@ const Shipments = () => {
                         
                         {/* Solid blue line showing the actual GPS route taken */}
                         <Polyline 
-                          positions={liveRoute} 
+                          positions={snappedRoute.length > 1 ? snappedRoute : liveRoute} 
                           color="#2196f3" 
                           weight={4}
                           opacity={0.8}
@@ -1479,7 +1451,8 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' :
+                              ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
@@ -2013,7 +1986,6 @@ const Shipments = () => {
                           <div style={{ 
                             textAlign: 'center', 
                             padding: '40px 20px', 
-                            
                             color: '#666',
                             fontSize: '14px'
                           }}>
@@ -2190,7 +2162,7 @@ const Shipments = () => {
                   
                   {/* Solid blue line showing the actual GPS route taken */}
                   <Polyline 
-                    positions={liveRoute} 
+                    positions={snappedRoute.length > 1 ? snappedRoute : liveRoute} 
                     color="#2196f3" 
                     weight={4}
                     opacity={0.8}
