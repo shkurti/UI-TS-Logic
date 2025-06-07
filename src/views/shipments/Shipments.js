@@ -1172,6 +1172,7 @@ const Shipments = () => {
                     key={mapKey}
                     center={[42.798939, -74.658409]}
                     zoom={5}
+                    minZoom={2}
                     style={{ height: '100%', width: '100%' }}
                     className="custom-map-container"
                     zoomControl={true}
@@ -2080,6 +2081,7 @@ const Shipments = () => {
               key={mapKey}
               center={[42.798939, -74.658409]}
               zoom={5}
+              minZoom={2}
               style={{ 
                 height: 'calc(100vh - 40px)',
                 width: '100%',
