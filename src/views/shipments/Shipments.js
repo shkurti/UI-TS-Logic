@@ -556,8 +556,10 @@ const Shipments = () => {
   // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
+      // Only run if we have a selected shipment and no modal is open
       if (
         selectedShipment &&
+        !isModalOpen &&
         (!routeData || routeData.length === 0) &&
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
@@ -582,13 +584,18 @@ const Shipments = () => {
           }
         }
       }
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
+      // Clear if no selected shipment or modal is open
+      if (!selectedShipment || isModalOpen) {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        if (!isModalOpen) {
+          setDestinationCoord(null);
+        }
+      }
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
+  }, [selectedShipment, routeData, isModalOpen]);
 
   // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
@@ -600,16 +607,17 @@ const Shipments = () => {
         { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
       ]);
       setDestinationCoord(newShipmentPreview[1]);
-    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+    } else if (!isModalOpen && !selectedShipment) {
       setPreviewMarkers([]);
       setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment]);
 
   // Ensure destinationCoord is always set when GPS data is loaded
   useEffect(() => {
     const setDestinationFromShipment = async () => {
+      // Only run if we have a selected shipment with route data
       if (
         selectedShipment &&
         routeData.length > 0 &&
@@ -631,12 +639,14 @@ const Shipments = () => {
           }
         }
       }
-      // Only clear if not in preview mode
-      if (!isModalOpen) setDestinationCoord(null);
+      // Clear if no selected shipment and not in modal
+      if (!selectedShipment && !isModalOpen) {
+        setDestinationCoord(null);
+      }
     };
     setDestinationFromShipment();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
+  }, [selectedShipment, routeData, isModalOpen]);
 
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
@@ -1144,21 +1154,7 @@ const Shipments = () => {
                     color="light"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setSelectedShipment(null)
-                      // Clear all shipment-related state immediately
-                      setStartCoord(null)
-                      setDestinationCoord(null)
-                      setNewShipmentPreview(null)
-                      setPreviewMarkers([])
-                      setLiveRoute([])
-                      setRouteData([])
-                      setTemperatureData([])
-                      setHumidityData([])
-                      setBatteryData([])
-                      setSpeedData([])
-                      setHoverMarker(null)
-                    }}
+                    onClick={() => setSelectedShipment(null)}
                     style={{ padding: '6px 12px' }}
                   >
                     <BsArrowLeft size={14} />
@@ -1729,21 +1725,7 @@ const Shipments = () => {
                           color="light"
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setSelectedShipment(null)
-                            // Clear all shipment-related state immediately
-                            setStartCoord(null)
-                            setDestinationCoord(null)
-                            setNewShipmentPreview(null)
-                            setPreviewMarkers([])
-                            setLiveRoute([])
-                            setRouteData([])
-                            setTemperatureData([])
-                            setHumidityData([])
-                            setBatteryData([])
-                            setSpeedData([])
-                            setHoverMarker(null)
-                          }}
+                          onClick={() => setSelectedShipment(null)}
                           style={{ padding: '6px 12px' }}
                         >
                           <BsArrowLeft size={14} />
@@ -2027,7 +2009,7 @@ const Shipments = () => {
                                   <LineChart 
                                     data={temperatureData}
                                    
-                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
                                   >
@@ -2798,7 +2780,7 @@ const Shipments = () => {
         </CModalBody>
         <CModalFooter style={{ 
           border: 'none', 
-          padding: isMobile ? '12px 16px' : '24px 32px', 
+          padding: '12px 16px', 
           background: '#f8f9fa' 
         }}>
           <div style={{ 
