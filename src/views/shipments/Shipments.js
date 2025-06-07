@@ -82,55 +82,6 @@ function FitWorld({ trigger }) {
   return null
 }
 
-// US state centroids (abbreviated for brevity, add more as needed)
-const STATE_CENTROIDS = {
-  'AL': [32.806671, -86.791130], 'AK': [61.370716, -152.404419], 'AZ': [33.729759, -111.431221],
-  'AR': [34.969704, -92.373123], 'CA': [36.116203, -119.681564], 'CO': [39.059811, -105.311104],
-  'CT': [41.597782, -72.755371], 'DE': [39.318523, -75.507141], 'FL': [27.766279, -81.686783],
-  'GA': [33.040619, -83.643074], 'HI': [21.094318, -157.498337], 'ID': [44.240459, -114.478828],
-  'IL': [40.349457, -88.986137], 'IN': [39.849426, -86.258278], 'IA': [42.011539, -93.210526],
-  'KS': [38.526600, -96.726486], 'KY': [37.668140, -84.670067], 'LA': [31.169546, -91.867805],
-  'ME': [44.693947, -69.381927], 'MD': [39.063946, -76.802101], 'MA': [42.230171, -71.530106],
-  'MI': [43.326618, -84.536095], 'MN': [45.694454, -93.900192], 'MS': [32.741646, -89.678696],
-  'MO': [38.456085, -92.288368], 'MT': [46.921925, -110.454353], 'NE': [41.125370, -98.268082],
-  'NV': [38.313515, -117.055374], 'NH': [43.452492, -71.563896], 'NJ': [40.298904, -74.521011],
-  'NM': [34.840515, -106.248482], 'NY': [42.165726, -74.948051], 'NC': [35.630066, -79.806419],
-  'ND': [47.528912, -99.784012], 'OH': [40.388783, -82.764915], 'OK': [35.565342, -96.928917],
-  'OR': [44.572021, -122.070938], 'PA': [40.590752, -77.209755], 'RI': [41.680893, -71.511780],
-  'SC': [33.856892, -80.945007], 'SD': [44.299782, -99.438828], 'TN': [35.747845, -86.692345],
-  'TX': [31.054487, -97.563461], 'UT': [40.150032, -111.862434], 'VT': [44.045876, -72.710686],
-  'VA': [37.769337, -78.169968], 'WA': [47.400902, -121.490494], 'WV': [38.491226, -80.954570],
-  'WI': [44.268543, -89.616508], 'WY': [42.755966, -107.302490],
-}
-
-// Helper: Extract US state abbreviation from address (simple version)
-function extractState(address) {
-  if (!address) return null
-  // Try to match ", XX " or ", XX," or " XX " at end, where XX is state
-  const match = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:,|$)/i)
-  if (match) {
-    return match[1].toUpperCase()
-  }
-  // Try last word if it's a state
-  const parts = address.trim().split(/\s+/)
-  const last = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').toUpperCase()
-  if (STATE_CENTROIDS[last]) return last
-  return null
-}
-
-// Compute shipments per state (only for those with a centroid)
-const shipmentsPerState = React.useMemo(() => {
-  const counts = {}
-  shipments.forEach(shipment => {
-    const addr = shipment.legs?.[0]?.shipFromAddress
-    const state = extractState(addr)
-    if (state && STATE_CENTROIDS[state]) {
-      counts[state] = (counts[state] || 0) + 1
-    }
-  })
-  return counts
-}, [shipments])
-
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -994,6 +945,89 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
+  // Helper: Geocode cache for state center coordinates
+  const stateCenterCache = {}
+
+  // Helper: Extract US state abbreviation from address (simple version)
+  function extractState(address) {
+    if (!address) return null
+    // Try to match ", XX " or ", XX," or " XX " at end, where XX is state
+    const match = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:,|$)/i)
+    if (match) {
+      return match[1].toUpperCase()
+    }
+    // Try last word if it's a state
+    const parts = address.trim().split(/\s+/)
+    const last = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').toUpperCase()
+    if (last.length === 2) return last
+    return null
+  }
+
+  // Helper: Get center coordinate for a state from all its shipment origins
+  async function getStateCenter(state, addresses) {
+    // If cached, return
+    if (stateCenterCache[state]) return stateCenterCache[state]
+    // Geocode all addresses for this state, get their [lat, lng]
+    const coords = []
+    for (const addr of addresses) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } })
+        const data = await res.json()
+        if (data && data.length > 0) {
+          coords.push([parseFloat(data[0].lat), parseFloat(data[0].lon)])
+        }
+      } catch {}
+    }
+    // Calculate centroid
+    if (coords.length > 0) {
+      const lat = coords.reduce((sum, c) => sum + c[0], 0) / coords.length
+      const lng = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
+      stateCenterCache[state] = [lat, lng]
+      return [lat, lng]
+    }
+    return null
+  }
+
+  // Compute shipments per state and their addresses
+  const [stateMarkers, setStateMarkers] = React.useState([])
+
+  useEffect(() => {
+    // Only compute when not viewing a shipment
+    if (selectedShipment) {
+      setStateMarkers([])
+      return
+    }
+    // Group addresses by state
+    const stateToAddresses = {}
+    shipments.forEach(shipment => {
+      const addr = shipment.legs?.[0]?.shipFromAddress
+      const state = extractState(addr)
+      if (state) {
+        if (!stateToAddresses[state]) stateToAddresses[state] = []
+        stateToAddresses[state].push(addr)
+      }
+    })
+    // For each state, get count and center
+    const states = Object.keys(stateToAddresses)
+    if (states.length === 0) {
+      setStateMarkers([])
+      return
+    }
+    let cancelled = false
+    Promise.all(states.map(async state => {
+      const center = await getStateCenter(state, stateToAddresses[state])
+      return center
+        ? { state, count: stateToAddresses[state].length, center }
+        : null
+    })).then(results => {
+      if (!cancelled) {
+        setStateMarkers(results.filter(Boolean))
+      }
+    })
+    return () => { cancelled = true }
+  }, [shipments, selectedShipment])
+
   return (
     <div style={{ 
       display: 'flex',
@@ -1119,63 +1153,6 @@ const Shipments = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-
-              {/* Map with state shipment circles */}
-              <div style={{ height: 220, marginBottom: 16 }}>
-                <MapContainer
-                  key={mapKey}
-                  center={[39.8283, -98.5795]} // Center of US
-                  zoom={4}
-                  minZoom={3}
-                  style={{ height: '100%', width: '100%' }}
-                  className="custom-map-container"
-                  zoomControl={true}
-                  attributionControl={true}
-                >
-                  {fitWorld && <FitWorld trigger={mapKey} />}
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  {/* Show state shipment circles */}
-                  {Object.entries(shipmentsPerState).map(([state, count]) => (
-                    <CircleMarker
-                      key={state}
-                      center={STATE_CENTROIDS[state]}
-                      radius={18}
-                      fillColor="#1976d2"
-                      color="#fff"
-                      fillOpacity={0.85}
-                      weight={2}
-                    >
-                      <Popup>
-                        <strong>{state}</strong><br />
-                        {count} shipment{count > 1 ? 's' : ''}
-                      </Popup>
-                      {/* SVG text for count */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '-9px',
-                          top: '-9px',
-                          width: '36px',
-                          height: '36px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          pointerEvents: 'none',
-                          fontWeight: 'bold',
-                          color: '#fff',
-                          fontSize: '16px',
-                          textShadow: '0 1px 4px #000'
-                        }}
-                      >
-                        {count}
-                      </div>
-                    </CircleMarker>
-                  ))}
-                </MapContainer>
               </div>
             </div>
           ) : (
@@ -1404,6 +1381,43 @@ const Shipments = () => {
                         </Popup>
                       </Marker>
                     )}
+                    {/* Show state shipment circles only when no shipment selected */}
+                    {!selectedShipment && stateMarkers.map(({ state, count, center }) => (
+                      <CircleMarker
+                        key={state}
+                        center={center}
+                        radius={22}
+                        fillColor="#1976d2"
+                        color="#fff"
+                        fillOpacity={0.85}
+                        weight={2}
+                      >
+                        <Popup>
+                          <strong>{state}</strong><br />
+                          {count} shipment{count > 1 ? 's' : ''}
+                        </Popup>
+                        {/* SVG text for count */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '-11px',
+                            top: '-11px',
+                            width: '44px',
+                            height: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                            fontWeight: 'bold',
+                            color: '#fff',
+                            fontSize: '18px',
+                            textShadow: '0 1px 4px #000'
+                          }}
+                        >
+                          {count}
+                        </div>
+                      </CircleMarker>
+                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -2186,8 +2200,8 @@ const Shipments = () => {
           }}>
             <MapContainer
               key={mapKey}
-              center={[39.8283, -98.5795]}
-              zoom={4}
+              center={[42.798939, -74.658409]}
+              zoom={5}
               minZoom={3}
               style={{ 
                 height: 'calc(100vh - 40px)',
@@ -2203,49 +2217,14 @@ const Shipments = () => {
               zoomControl={true}
               attributionControl={true}
             >
+              {/* Fit world if on list */}
               {fitWorld && <FitWorld trigger={mapKey} />}
               <MapInvalidator sidebarCollapsed={sidebarCollapsed} selectedShipment={selectedShipment} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
-              {/* Show state shipment circles only when no shipment selected */}
-              {!selectedShipment && Object.entries(shipmentsPerState).map(([state, count]) => (
-                <CircleMarker
-                  key={state}
-                  center={STATE_CENTROIDS[state]}
-                  radius={22}
-                  fillColor="#1976d2"
-                  color="#fff"
-                  fillOpacity={0.85}
-                  weight={2}
-                >
-                  <Popup>
-                    <strong>{state}</strong><br />
-                    {count} shipment{count > 1 ? 's' : ''}
-                  </Popup>
-                  {/* SVG text for count */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-11px',
-                      top: '-11px',
-                      width: '44px',
-                      height: '44px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      pointerEvents: 'none',
-                      fontWeight: 'bold',
-                      color: '#fff',
-                      fontSize: '18px',
-                      textShadow: '0 1px 4px #000'
-                    }}
-                  >
-                    {count}
-                  </div>
-                </CircleMarker>
-              ))}
+              
               {/* Always show start and destination markers if available */}
               {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
