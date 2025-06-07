@@ -995,23 +995,17 @@ const Shipments = () => {
           width: ${size}px;
           height: ${size}px;
           display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
           font-weight: bold;
-          font-size: ${count >= 100 ? '10px' : count >= 10 ? '12px' : '14px'};
+          font-size: ${count >= 100 ? '14px' : count >= 10 ? '16px' : '18px'};
           border: 3px solid white;
           box-shadow: 0 3px 10px rgba(0,0,0,0.4);
           font-family: Arial, sans-serif;
           cursor: pointer;
           transition: transform 0.2s ease;
         ">
-          <div style="font-size: ${count >= 100 ? '12px' : count >= 10 ? '14px' : '16px'}; line-height: 1;">
-            ${count}
-          </div>
-          <div style="font-size: 8px; line-height: 1; opacity: 0.9; margin-top: -2px;">
-            ${count === 1 ? 'shipment' : 'shipments'}
-          </div>
+          ${count}
         </div>
         <style>
           .shipment-cluster-marker:hover div {
@@ -2329,7 +2323,7 @@ const Shipments = () => {
                                 📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
                               </div>
                               <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
-                                {shipmentCount}{shipmentCount > 1 ? 's' : ''}
+                                {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
                               </div>
                             </div>
                           )
