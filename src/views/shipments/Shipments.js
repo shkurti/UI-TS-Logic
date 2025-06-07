@@ -73,6 +73,15 @@ function MapInvalidator({ sidebarCollapsed, selectedShipment }) {
   return null
 }
 
+// Add FitWorld component
+function FitWorld({ trigger }) {
+  const map = useMap()
+  useEffect(() => {
+    map.fitWorld()
+  }, [trigger, map])
+  return null
+}
+
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -920,6 +929,20 @@ const Shipments = () => {
     setHoverMarker(null);
   };
 
+  // Add mapKey and fitWorld state
+  const [mapKey, setMapKey] = useState(0)
+  const [fitWorld, setFitWorld] = useState(true)
+
+  // When selectedShipment changes, update fitWorld and mapKey
+  useEffect(() => {
+    if (!selectedShipment) {
+      setFitWorld(true)
+      setMapKey((k) => k + 1) // force map remount
+    } else {
+      setFitWorld(false)
+    }
+  }, [selectedShipment])
+
   return (
     <div style={{ 
       display: 'flex',
@@ -1146,6 +1169,7 @@ const Shipments = () => {
                 
                 <div style={{ height: isMapExpanded ? 'calc(100% - 48px)' : '202px' }}>
                   <MapContainer
+                    key={mapKey}
                     center={[42.798939, -74.658409]}
                     zoom={5}
                     style={{ height: '100%', width: '100%' }}
@@ -1153,6 +1177,8 @@ const Shipments = () => {
                     zoomControl={true}
                     attributionControl={true}
                   >
+                    {/* Fit world if on list */}
+                    {fitWorld && <FitWorld trigger={mapKey} />}
                     <MapInvalidator sidebarCollapsed={false} selectedShipment={isMapExpanded} />
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -2051,6 +2077,7 @@ const Shipments = () => {
             minWidth: 0
           }}>
             <MapContainer
+              key={mapKey}
               center={[42.798939, -74.658409]}
               zoom={5}
               style={{ 
@@ -2067,6 +2094,8 @@ const Shipments = () => {
               zoomControl={true}
               attributionControl={true}
             >
+              {/* Fit world if on list */}
+              {fitWorld && <FitWorld trigger={mapKey} />}
               <MapInvalidator sidebarCollapsed={sidebarCollapsed} selectedShipment={selectedShipment} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
