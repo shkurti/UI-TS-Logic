@@ -139,10 +139,10 @@ const Shipments = () => {
 
   // Add state for hover marker
   const [hoverMarker, setHoverMarker] = useState(null)
-  
-  // Add state for shipment counts by state
-  const [shipmentsByState, setShipmentsByState] = useState({})
-  const [stateCoordinates, setStateCoordinates] = useState({})
+
+  // Add new state for shipment clustering
+  const [shipmentClusters, setShipmentClusters] = useState([])
+  const [isLoadingClusters, setIsLoadingClusters] = useState(false)
 
   // Add responsive detection
   useEffect(() => {
@@ -872,6 +872,159 @@ const Shipments = () => {
     });
   };
 
+  // Add shipment clustering logic
+  useEffect(() => {
+    const createShipmentClusters = async () => {
+      if (!shipments || shipments.length === 0) {
+        setShipmentClusters([])
+        return
+      }
+
+      setIsLoadingClusters(true)
+      
+      try {
+        // Get unique origin addresses and geocode them
+        const originAddresses = [...new Set(
+          shipments
+            .map(s => s.legs?.[0]?.shipFromAddress)
+            .filter(addr => addr && addr.trim() !== '')
+        )]
+
+        // Geocode all addresses with progress tracking
+        const geocodedAddresses = await Promise.all(
+          originAddresses.map(async (address) => {
+            const coords = await geocodeAddress(address)
+            return { address, coords }
+          })
+        )
+
+        // Filter out failed geocodes
+        const validGeocodes = geocodedAddresses.filter(item => item.coords)
+
+        // Create clusters using a simple distance-based algorithm
+        const clusters = []
+        const CLUSTER_DISTANCE = 2.0 // degrees (~200km)
+
+        // Use for...of loop instead of forEach to properly handle async/await
+        for (const { address, coords } of validGeocodes) {
+          // Count shipments for this address
+          const shipmentCount = shipments.filter(
+            s => s.legs?.[0]?.shipFromAddress === address
+          ).length
+
+          // Find existing cluster within distance
+          let existingCluster = clusters.find(cluster => {
+            const distance = Math.sqrt(
+              Math.pow(cluster.lat - coords[0], 2) + 
+              Math.pow(cluster.lng - coords[1], 2)
+            )
+            return distance <= CLUSTER_DISTANCE
+          })
+
+          if (existingCluster) {
+            // Add to existing cluster
+            existingCluster.count += shipmentCount
+            existingCluster.addresses.push(address)
+            // Update cluster center (weighted average)
+            const totalCount = existingCluster.count
+            existingCluster.lat = ((existingCluster.lat * (totalCount - shipmentCount)) + (coords[0] * shipmentCount)) / totalCount
+            existingCluster.lng = ((existingCluster.lng * (totalCount - shipmentCount)) + (coords[1] * shipmentCount)) / totalCount
+          } else {
+            // Create new cluster
+            const region = await getRegionName(coords[0], coords[1]) // Get region name
+            clusters.push({
+              id: `cluster-${clusters.length}`,
+              lat: coords[0],
+              lng: coords[1],
+              count: shipmentCount,
+              addresses: [address],
+              region: region
+            })
+          }
+        }
+
+        setShipmentClusters(clusters)
+      } catch (error) {
+        console.error('Error creating shipment clusters:', error)
+        setShipmentClusters([])
+      } finally {
+        setIsLoadingClusters(false)
+      }
+    }
+
+    createShipmentClusters()
+  }, [shipments])
+
+  // Helper function to get region name from coordinates
+  const getRegionName = async (lat, lng) => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`
+      const response = await fetch(url, { 
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } 
+      })
+      const data = await response.json()
+      
+      if (data && data.address) {
+        // Try to get state/province, then country
+        return data.address.state || 
+               data.address.province || 
+               data.address.region || 
+               data.address.country || 
+               'Unknown Region'
+      }
+    } catch (error) {
+      console.error('Error getting region name:', error)
+    }
+    return 'Unknown Region'
+  }
+
+  // Create cluster marker icon
+  const createClusterIcon = (count, region) => {
+    const size = Math.min(60, Math.max(30, 20 + (count * 3))) // Dynamic size based on count
+    const color = count >= 10 ? '#d32f2f' : 
+                  count >= 5 ? '#f57c00' : 
+                  count >= 2 ? '#1976d2' : '#4caf50'
+    
+    return L.divIcon({
+      className: 'shipment-cluster-marker',
+      html: `
+        <div style="
+          background: ${color};
+          color: white;
+          border-radius: 50%;
+          width: ${size}px;
+          height: ${size}px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: ${count >= 100 ? '10px' : count >= 10 ? '12px' : '14px'};
+          border: 3px solid white;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+          font-family: Arial, sans-serif;
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        ">
+          <div style="font-size: ${count >= 100 ? '12px' : count >= 10 ? '14px' : '16px'}; line-height: 1;">
+            ${count}
+          </div>
+          <div style="font-size: 8px; line-height: 1; opacity: 0.9; margin-top: -2px;">
+            ${count === 1 ? 'shipment' : 'shipments'}
+          </div>
+        </div>
+        <style>
+          .shipment-cluster-marker:hover div {
+            transform: scale(1.1);
+          }
+        </style>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2],
+    })
+  }
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
   }
@@ -946,136 +1099,6 @@ const Shipments = () => {
       setFitWorld(false)
     }
   }, [selectedShipment])
-
-  // Helper function to extract state from address
-  const extractStateFromAddress = (address) => {
-    if (!address) return null
-    
-    // Common US state patterns in addresses
-    const statePatterns = [
-      // Full state names
-      /\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming)\b/i,
-      // State abbreviations
-      /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/i
-    ]
-    
-    for (const pattern of statePatterns) {
-      const match = address.match(pattern)
-      if (match) {
-        return match[0].toUpperCase()
-      }
-    }
-    
-    return null
-  }
-
-  // Helper function to normalize state names to abbreviations
-  const normalizeStateName = (stateName) => {
-    const stateMap = {
-      'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR', 'CALIFORNIA': 'CA',
-      'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE', 'FLORIDA': 'FL', 'GEORGIA': 'GA',
-      'HAWAII': 'HI', 'IDAHO': 'ID', 'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA',
-      'KANSAS': 'KS', 'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
-      'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS', 'MISSOURI': 'MO',
-      'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV', 'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ',
-      'NEW MEXICO': 'NM', 'NEW YORK': 'NY', 'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH',
-      'OKLAHOMA': 'OK', 'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
-      'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT', 'VERMONT': 'VT',
-      'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV', 'WISCONSIN': 'WI', 'WYOMING': 'WY'
-    }
-    
-    return stateMap[stateName.toUpperCase()] || stateName.toUpperCase()
-  }
-
-  // US state center coordinates
-  const stateCoords = {
-    'AL': [32.806671, -86.791130], 'AK': [61.370716, -152.404419], 'AZ': [33.729759, -111.431221],
-    'AR': [34.736009, -92.331122], 'CA': [36.116203, -119.681564], 'CO': [39.059811, -105.311104],
-    'CT': [41.767, -72.677], 'DE': [39.161921, -75.526755], 'FL': [27.4518, -81.5158],
-    'GA': [32.9866, -83.6487], 'HI': [21.1098, -157.5311], 'ID': [44.931109, -116.237651],
-    'IL': [40.349457, -88.986137], 'IN': [39.790942, -86.147685], 'IA': [42.032974, -93.581543],
-    'KS': [38.572954, -98.580480], 'KY': [37.608621, -84.86311], 'LA': [30.677, -91.867],
-    'ME': [45.367584, -68.972168], 'MD': [39.161921, -76.526755], 'MA': [42.2352, -71.0275],
-    'MI': [44.182205, -84.506836], 'MN': [46.39241, -94.63623], 'MS': [32.354668, -89.398528],
-    'MO': [38.572954, -92.60376], 'MT': [47.052166, -109.633309], 'NE': [41.492537, -99.901813],
-    'NV': [38.4199, -117.1219], 'NH': [43.452492, -71.563896], 'NJ': [40.221741, -74.756138],
-    'NM': [34.97273, -105.032363], 'NY': [42.659829, -75.615], 'NC': [35.771, -78.638],
-    'ND': [47.446, -100.336], 'OH': [40.367474, -82.996216], 'OK': [35.482309, -97.534994],
-    'OR': [44.931109, -123.029159], 'PA': [40.269789, -76.875613], 'RI': [41.82355, -71.422132],
-    'SC': [33.836082, -81.163727], 'SD': [44.367966, -100.336378], 'TN': [35.746512, -86.068502],
-    'TX': [31.106, -97.6475], 'UT': [39.161921, -111.313726], 'VT': [44.26639, -72.5808],
-    'VA': [37.54, -78.64], 'WA': [47.042418, -120.893077], 'WV': [38.349497, -80.61991],
-    'WI': [44.95, -89.5], 'WY': [42.906847, -107.556085]
-  }
-
-  // Count shipments by state when shipments change
-  useEffect(() => {
-    const countShipmentsByState = () => {
-      const stateCounts = {}
-      
-      shipments.forEach(shipment => {
-        // Count origin states
-        const originAddress = shipment.legs?.[0]?.shipFromAddress
-        if (originAddress) {
-          const originState = extractStateFromAddress(originAddress)
-          if (originState) {
-            const normalizedState = normalizeStateName(originState)
-            stateCounts[normalizedState] = (stateCounts[normalizedState] || 0) + 1
-          }
-        }
-        
-        // Count destination states
-        const destAddress = shipment.legs?.[shipment.legs.length - 1]?.stopAddress
-        if (destAddress) {
-          const destState = extractStateFromAddress(destAddress)
-          if (destState) {
-            const normalizedState = normalizeStateName(destState)
-            stateCounts[normalizedState] = (stateCounts[normalizedState] || 0) + 1
-          }
-        }
-      })
-      
-      setShipmentsByState(stateCounts)
-    }
-    
-    countShipmentsByState()
-  }, [shipments])
-
-  // Create state marker icon
-  const stateMarkerIcon = (count) => {
-    const size = Math.min(60, Math.max(30, 20 + count * 3)) // Dynamic size based on count
-    const color = count > 10 ? '#ff4444' : count > 5 ? '#ff9800' : '#4CAF50'
-    
-    return L.divIcon({
-      className: 'state-shipment-marker',
-      html: `<div style="
-        background: ${color};
-        color: white;
-        border-radius: 50%;
-        width: ${size}px;
-        height: ${size}px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: ${Math.min(16, 10 + count)}px;
-        border: 3px solid white;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-        font-family: Arial, sans-serif;
-        animation: pulse-state 2s infinite;
-      ">${count}</div>
-      <style>
-        @keyframes pulse-state {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-          100% { transform: scale(1); }
-        }
-      </style>`,
-      iconSize: [size, size],
-      iconAnchor: [size/2, size/2],
-      popupAnchor: [0, -size/2],
-    })
-  }
 
   return (
     <div style={{ 
@@ -1320,6 +1343,35 @@ const Shipments = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
+                    {/* Show shipment clusters when no specific shipment is selected */}
+                    {!selectedShipment && shipmentClusters.map((cluster) => (
+                      <Marker
+                        key={cluster.id}
+                        position={[cluster.lat, cluster.lng]}
+                        icon={createClusterIcon(cluster.count, cluster.region)}
+                      >
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>📊 {cluster.region}</strong><br/>
+                            <strong>Shipments:</strong> {cluster.count}<br/>
+                            <strong>Origins:</strong><br/>
+                            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '12px', marginTop: '8px' }}>
+                              {cluster.addresses.slice(0, 5).map((addr, idx) => (
+                                <div key={idx} style={{ marginBottom: '4px', padding: '2px 0' }}>
+                                  • {addr.length > 40 ? addr.substring(0, 37) + '...' : addr}
+                                </div>
+                              ))}
+                              {cluster.addresses.length > 5 && (
+                                <div style={{ fontStyle: 'italic', color: '#666', marginTop: '4px' }}>
+                                  ...and {cluster.addresses.length - 5} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                    
                     {/* Always show start and destination markers if available */}
                     {startCoord && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
@@ -1411,39 +1463,6 @@ const Shipments = () => {
                         />
                       )
                     )}
-
-                    {/* State shipment count markers - only show when no specific shipment is selected */}
-                    {!selectedShipment && Object.entries(shipmentsByState).map(([state, count]) => {
-                      const coords = stateCoords[state]
-                      if (!coords || count === 0) return null
-                      
-                      return (
-                        <Marker
-                          key={`state-${state}`}
-                          position={coords}
-                          icon={stateMarkerIcon(count)}
-                        >
-                          <Popup>
-                            <div style={{ minWidth: '200px', textAlign: 'center' }}>
-                              <strong>📊 {state} Shipments</strong><br/>
-                              <div style={{ 
-                                fontSize: '24px', 
-                                fontWeight: 'bold', 
-                                color: '#2196f3',
-                                margin: '8px 0'
-                              }}>
-                                {count}
-                              </div>
-                              <small>
-                                Total shipments involving {state}
-                                <br/>
-                                (origins + destinations)
-                              </small>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      )
-                    })}
 
                     {/* Hover marker for sensor data */}
                     {hoverMarker && (
@@ -1985,6 +2004,7 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={temperatureData}
+                                   
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
@@ -2270,6 +2290,61 @@ const Shipments = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
+              {/* Show shipment clusters when no specific shipment is selected */}
+              {!selectedShipment && shipmentClusters.map((cluster) => (
+                <Marker
+                  key={cluster.id}
+                  position={[cluster.lat, cluster.lng]}
+                  icon={createClusterIcon(cluster.count, cluster.region)}
+                >
+                  <Popup>
+                    <div style={{ minWidth: '250px' }}>
+                      <strong style={{ fontSize: '16px', color: '#1976d2' }}>
+                        📊 {cluster.region}
+                      </strong>
+                      <div style={{ margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                        <strong>Total Shipments:</strong> <span style={{ color: '#d32f2f', fontSize: '18px' }}>{cluster.count}</span>
+                      </div>
+                      <strong>Origin Addresses:</strong>
+                      <div style={{ 
+                        maxHeight: '150px', 
+                        overflowY: 'auto', 
+                        fontSize: '13px', 
+                        marginTop: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        padding: '8px'
+                      }}>
+                        {cluster.addresses.map((addr, idx) => {
+                          const shipmentCount = shipments.filter(
+                            s => s.legs?.[0]?.shipFromAddress === addr
+                          ).length
+                          return (
+                            <div key={idx} style={{ 
+                              marginBottom: '6px', 
+                              padding: '4px 0',
+                              borderBottom: idx < cluster.addresses.length - 1 ? '1px solid #eee' : 'none'
+                            }}>
+                              <div style={{ fontWeight: '500' }}>
+                                📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
+                              </div>
+                              <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
+                                {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {isLoadingClusters && (
+                        <div style={{ textAlign: 'center', margin: '8px 0', color: '#666' }}>
+                          <small>Loading cluster data...</small>
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+              
               {/* Always show start and destination markers if available */}
               {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
@@ -2362,39 +2437,6 @@ const Shipments = () => {
                 )
               )}
 
-              {/* State shipment count markers - only show when no specific shipment is selected */}
-              {!selectedShipment && Object.entries(shipmentsByState).map(([state, count]) => {
-                const coords = stateCoords[state]
-                if (!coords || count === 0) return null
-                
-                return (
-                  <Marker
-                    key={`state-${state}`}
-                    position={coords}
-                    icon={stateMarkerIcon(count)}
-                  >
-                    <Popup>
-                      <div style={{ minWidth: '200px', textAlign: 'center' }}>
-                        <strong>📊 {state} Shipments</strong><br/>
-                        <div style={{ 
-                          fontSize: '24px', 
-                          fontWeight: 'bold', 
-                          color: '#2196f3',
-                          margin: '8px 0'
-                        }}>
-                          {count}
-                        </div>
-                        <small>
-                          Total shipments involving {state}
-                          <br/>
-                          (origins + destinations)
-                        </small>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              })}
-
               {/* Hover marker for sensor data */}
               {hoverMarker && (
                 <Marker 
@@ -2432,9 +2474,27 @@ const Shipments = () => {
                 <h6 style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#333' }}>
                   Shipment Tracking
                 </h6>
-                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '12px' }}>
-                  Open the sidebar to view and manage shipments
+                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                  {shipmentClusters.length > 0 
+                    ? `Showing ${shipmentClusters.length} regions with shipments`
+                    : 'Open the sidebar to view and manage shipments'
+                  }
                 </p>
+                {isLoadingClusters && (
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ 
+                        width: '12px', 
+                        height: '12px', 
+                        border: '2px solid #ddd', 
+                        borderTop: '2px solid #1976d2',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      Loading clusters...
+                    </div>
+                  </div>
+                )}
                 <CButton
                   color="primary"
                   size="sm"
