@@ -556,10 +556,8 @@ const Shipments = () => {
   // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
-      // Only run if we have a selected shipment and no modal is open
       if (
         selectedShipment &&
-        !isModalOpen &&
         (!routeData || routeData.length === 0) &&
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
@@ -584,18 +582,13 @@ const Shipments = () => {
           }
         }
       }
-      // Clear if no selected shipment or modal is open
-      if (!selectedShipment || isModalOpen) {
-        setNewShipmentPreview(null);
-        setPreviewMarkers([]);
-        if (!isModalOpen) {
-          setDestinationCoord(null);
-        }
-      }
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData, isModalOpen]);
+  }, [selectedShipment, routeData]);
 
   // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
@@ -607,17 +600,16 @@ const Shipments = () => {
         { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
       ]);
       setDestinationCoord(newShipmentPreview[1]);
-    } else if (!isModalOpen && !selectedShipment) {
+    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
       setPreviewMarkers([]);
       setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, legs, selectedShipment]);
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
   // Ensure destinationCoord is always set when GPS data is loaded
   useEffect(() => {
     const setDestinationFromShipment = async () => {
-      // Only run if we have a selected shipment with route data
       if (
         selectedShipment &&
         routeData.length > 0 &&
@@ -639,14 +631,29 @@ const Shipments = () => {
           }
         }
       }
-      // Clear if no selected shipment and not in modal
-      if (!selectedShipment && !isModalOpen) {
-        setDestinationCoord(null);
-      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
     };
     setDestinationFromShipment();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData, isModalOpen]);
+  }, [selectedShipment, routeData]);
+
+  // Add this effect after all useState declarations
+  useEffect(() => {
+    if (!selectedShipment) {
+      setStartCoord(null);
+      setDestinationCoord(null);
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setLiveRoute([]);
+      setRouteData([]);
+      setTemperatureData([]);
+      setHumidityData([]);
+      setBatteryData([]);
+      setSpeedData([]);
+      setHoverMarker(null);
+    }
+  }, [selectedShipment]);
 
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
@@ -1035,11 +1042,6 @@ const Shipments = () => {
 
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
-    clearAllShipmentState() // Use comprehensive clearing instead of just setSelectedShipment(null)
-  }
-
-  // Add comprehensive state clearing function
-  const clearAllShipmentState = () => {
     setSelectedShipment(null)
     setStartCoord(null)
     setDestinationCoord(null)
@@ -1170,7 +1172,20 @@ const Shipments = () => {
                     color="light"
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedShipment(null)}
+                    onClick={() => {
+                      setSelectedShipment(null);
+                      setStartCoord(null);
+                      setDestinationCoord(null);
+                      setNewShipmentPreview(null);
+                      setPreviewMarkers([]);
+                      setLiveRoute([]);
+                      setRouteData([]);
+                      setTemperatureData([]);
+                      setHumidityData([]);
+                      setBatteryData([]);
+                      setSpeedData([]);
+                      setHoverMarker(null);
+                    }}
                     style={{ padding: '6px 12px' }}
                   >
                     <BsArrowLeft size={14} />
@@ -1741,7 +1756,20 @@ const Shipments = () => {
                           color="light"
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedShipment(null)}
+                          onClick={() => {
+                            setSelectedShipment(null);
+                            setStartCoord(null);
+                            setDestinationCoord(null);
+                            setNewShipmentPreview(null);
+                            setPreviewMarkers([]);
+                            setLiveRoute([]);
+                            setRouteData([]);
+                            setTemperatureData([]);
+                            setHumidityData([]);
+                            setBatteryData([]);
+                            setSpeedData([]);
+                            setHoverMarker(null);
+                          }}
                           style={{ padding: '6px 12px' }}
                         >
                           <BsArrowLeft size={14} />
@@ -2025,7 +2053,7 @@ const Shipments = () => {
                                   <LineChart 
                                     data={temperatureData}
                                    
-                                    margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
                                   >
@@ -2417,6 +2445,22 @@ const Shipments = () => {
                       const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
                                             Math.abs(lastLng - destLng) < distanceThreshold;
                       
+                      if (!isAtDestination) {
+                        return (
+                          <Polyline
+                            positions={[lastGpsPoint, destinationCoord]}
+                            color="#ff9800"
+                            weight={3}
+                            opacity={0.7}
+                            dashArray="10, 10"
+                          />
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
+                  
+                  {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
@@ -2780,7 +2824,7 @@ const Shipments = () => {
         </CModalBody>
         <CModalFooter style={{ 
           border: 'none', 
-          padding: '12px 16px', 
+          padding: isMobile ? '12px 16px' : '24px 32px', 
           background: '#f8f9fa' 
         }}>
           <div style={{ 
