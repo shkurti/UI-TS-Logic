@@ -36,17 +36,6 @@ import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2, BsSearch, 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import L from 'leaflet'
 
-// Define US States Data (simplified for example)
-const US_STATES_DATA = {
-  CA: { name: 'California', coords: [36.7783, -119.4179] },
-  TX: { name: 'Texas', coords: [31.9686, -99.9018] },
-  FL: { name: 'Florida', coords: [27.6648, -81.5158] },
-  NY: { name: 'New York', coords: [40.7128, -74.0060] },
-  IL: { name: 'Illinois', coords: [40.0000, -89.0000] },
-  // Add more states as needed
-};
-
-
 const customIcon = window.L
   ? window.L.icon({
       iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -150,9 +139,10 @@ const Shipments = () => {
 
   // Add state for hover marker
   const [hoverMarker, setHoverMarker] = useState(null)
-
+  
   // Add state for shipment counts by state
-  const [shipmentCountsByState, setShipmentCountsByState] = useState({});
+  const [shipmentsByState, setShipmentsByState] = useState({})
+  const [stateCoordinates, setStateCoordinates] = useState({})
 
   // Add responsive detection
   useEffect(() => {
@@ -204,37 +194,6 @@ const Shipments = () => {
     fetchShipments()
     fetchTrackers()
   }, [])
-
-  // Calculate shipment counts by state
-  useEffect(() => {
-    if (shipments.length > 0) {
-      const counts = {};
-      shipments.forEach(shipment => {
-        const shipFromAddress = shipment.legs?.[0]?.shipFromAddress;
-        if (shipFromAddress) {
-          const upperAddress = shipFromAddress.toUpperCase();
-          for (const abbr in US_STATES_DATA) {
-            const stateInfo = US_STATES_DATA[abbr];
-            // More robust state matching:
-            // 1. Check for ", ST" (e.g., ", CA")
-            // 2. Check for " STATE_NAME" (e.g., " CALIFORNIA")
-            // 3. Check for ", STATE_NAME" (e.g., ", CALIFORNIA")
-            // This handles variations like "City, ST ZIP" or "City, State ZIP"
-            const regexStateAbbr = new RegExp(`,\\s*${abbr}\\b`, 'i'); // \b for word boundary
-            const regexStateName = new RegExp(`\\b${stateInfo.name.toUpperCase()}\\b`, 'i');
-
-            if (regexStateAbbr.test(shipFromAddress) || regexStateName.test(upperAddress)) {
-              counts[abbr] = (counts[abbr] || 0) + 1;
-              break; // Found state for this shipment
-            }
-          }
-        }
-      });
-      setShipmentCountsByState(counts);
-    } else {
-      setShipmentCountsByState({});
-    }
-  }, [shipments]);
 
   const addLeg = () => {
     setLegs([
@@ -988,6 +947,136 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
+  // Helper function to extract state from address
+  const extractStateFromAddress = (address) => {
+    if (!address) return null
+    
+    // Common US state patterns in addresses
+    const statePatterns = [
+      // Full state names
+      /\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming)\b/i,
+      // State abbreviations
+      /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/i
+    ]
+    
+    for (const pattern of statePatterns) {
+      const match = address.match(pattern)
+      if (match) {
+        return match[0].toUpperCase()
+      }
+    }
+    
+    return null
+  }
+
+  // Helper function to normalize state names to abbreviations
+  const normalizeStateName = (stateName) => {
+    const stateMap = {
+      'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR', 'CALIFORNIA': 'CA',
+      'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE', 'FLORIDA': 'FL', 'GEORGIA': 'GA',
+      'HAWAII': 'HI', 'IDAHO': 'ID', 'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA',
+      'KANSAS': 'KS', 'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+      'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS', 'MISSOURI': 'MO',
+      'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV', 'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ',
+      'NEW MEXICO': 'NM', 'NEW YORK': 'NY', 'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH',
+      'OKLAHOMA': 'OK', 'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+      'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT', 'VERMONT': 'VT',
+      'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV', 'WISCONSIN': 'WI', 'WYOMING': 'WY'
+    }
+    
+    return stateMap[stateName.toUpperCase()] || stateName.toUpperCase()
+  }
+
+  // US state center coordinates
+  const stateCoords = {
+    'AL': [32.806671, -86.791130], 'AK': [61.370716, -152.404419], 'AZ': [33.729759, -111.431221],
+    'AR': [34.736009, -92.331122], 'CA': [36.116203, -119.681564], 'CO': [39.059811, -105.311104],
+    'CT': [41.767, -72.677], 'DE': [39.161921, -75.526755], 'FL': [27.4518, -81.5158],
+    'GA': [32.9866, -83.6487], 'HI': [21.1098, -157.5311], 'ID': [44.931109, -116.237651],
+    'IL': [40.349457, -88.986137], 'IN': [39.790942, -86.147685], 'IA': [42.032974, -93.581543],
+    'KS': [38.572954, -98.580480], 'KY': [37.608621, -84.86311], 'LA': [30.677, -91.867],
+    'ME': [45.367584, -68.972168], 'MD': [39.161921, -76.526755], 'MA': [42.2352, -71.0275],
+    'MI': [44.182205, -84.506836], 'MN': [46.39241, -94.63623], 'MS': [32.354668, -89.398528],
+    'MO': [38.572954, -92.60376], 'MT': [47.052166, -109.633309], 'NE': [41.492537, -99.901813],
+    'NV': [38.4199, -117.1219], 'NH': [43.452492, -71.563896], 'NJ': [40.221741, -74.756138],
+    'NM': [34.97273, -105.032363], 'NY': [42.659829, -75.615], 'NC': [35.771, -78.638],
+    'ND': [47.446, -100.336], 'OH': [40.367474, -82.996216], 'OK': [35.482309, -97.534994],
+    'OR': [44.931109, -123.029159], 'PA': [40.269789, -76.875613], 'RI': [41.82355, -71.422132],
+    'SC': [33.836082, -81.163727], 'SD': [44.367966, -100.336378], 'TN': [35.746512, -86.068502],
+    'TX': [31.106, -97.6475], 'UT': [39.161921, -111.313726], 'VT': [44.26639, -72.5808],
+    'VA': [37.54, -78.64], 'WA': [47.042418, -120.893077], 'WV': [38.349497, -80.61991],
+    'WI': [44.95, -89.5], 'WY': [42.906847, -107.556085]
+  }
+
+  // Count shipments by state when shipments change
+  useEffect(() => {
+    const countShipmentsByState = () => {
+      const stateCounts = {}
+      
+      shipments.forEach(shipment => {
+        // Count origin states
+        const originAddress = shipment.legs?.[0]?.shipFromAddress
+        if (originAddress) {
+          const originState = extractStateFromAddress(originAddress)
+          if (originState) {
+            const normalizedState = normalizeStateName(originState)
+            stateCounts[normalizedState] = (stateCounts[normalizedState] || 0) + 1
+          }
+        }
+        
+        // Count destination states
+        const destAddress = shipment.legs?.[shipment.legs.length - 1]?.stopAddress
+        if (destAddress) {
+          const destState = extractStateFromAddress(destAddress)
+          if (destState) {
+            const normalizedState = normalizeStateName(destState)
+            stateCounts[normalizedState] = (stateCounts[normalizedState] || 0) + 1
+          }
+        }
+      })
+      
+      setShipmentsByState(stateCounts)
+    }
+    
+    countShipmentsByState()
+  }, [shipments])
+
+  // Create state marker icon
+  const stateMarkerIcon = (count) => {
+    const size = Math.min(60, Math.max(30, 20 + count * 3)) // Dynamic size based on count
+    const color = count > 10 ? '#ff4444' : count > 5 ? '#ff9800' : '#4CAF50'
+    
+    return L.divIcon({
+      className: 'state-shipment-marker',
+      html: `<div style="
+        background: ${color};
+        color: white;
+        border-radius: 50%;
+        width: ${size}px;
+        height: ${size}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: ${Math.min(16, 10 + count)}px;
+        border: 3px solid white;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        font-family: Arial, sans-serif;
+        animation: pulse-state 2s infinite;
+      ">${count}</div>
+      <style>
+        @keyframes pulse-state {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+      </style>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2],
+    })
+  }
+
   return (
     <div style={{ 
       display: 'flex',
@@ -1230,22 +1319,6 @@ const Shipments = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
-
-                    {/* Render state summary markers - Mobile */}
-                    {!selectedShipment && Object.entries(shipmentCountsByState).map(([stateAbbr, count]) => {
-                      const stateData = US_STATES_DATA[stateAbbr];
-                      if (stateData && count > 0) {
-                        return (
-                          <Marker key={`mobile-${stateAbbr}`} position={stateData.coords} icon={stateSummaryIcon(count)}>
-                            <Popup>
-                              <div style={{fontSize: '14px', fontWeight: 'bold'}}>{stateData.name}</div>
-                              <div style={{fontSize: '12px'}}>{count} shipment{count > 1 ? 's' : ''} starting here.</div>
-                            </Popup>
-                          </Marker>
-                        );
-                      }
-                      return null;
-                    })}
                     
                     {/* Always show start and destination markers if available */}
                     {startCoord && (
@@ -1338,6 +1411,39 @@ const Shipments = () => {
                         />
                       )
                     )}
+
+                    {/* State shipment count markers - only show when no specific shipment is selected */}
+                    {!selectedShipment && Object.entries(shipmentsByState).map(([state, count]) => {
+                      const coords = stateCoords[state]
+                      if (!coords || count === 0) return null
+                      
+                      return (
+                        <Marker
+                          key={`state-${state}`}
+                          position={coords}
+                          icon={stateMarkerIcon(count)}
+                        >
+                          <Popup>
+                            <div style={{ minWidth: '200px', textAlign: 'center' }}>
+                              <strong>📊 {state} Shipments</strong><br/>
+                              <div style={{ 
+                                fontSize: '24px', 
+                                fontWeight: 'bold', 
+                                color: '#2196f3',
+                                margin: '8px 0'
+                              }}>
+                                {count}
+                              </div>
+                              <small>
+                                Total shipments involving {state}
+                                <br/>
+                                (origins + destinations)
+                              </small>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      )
+                    })}
 
                     {/* Hover marker for sensor data */}
                     {hoverMarker && (
@@ -2163,22 +2269,6 @@ const Shipments = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
-
-              {/* Render state summary markers - Desktop */}
-              {!selectedShipment && Object.entries(shipmentCountsByState).map(([stateAbbr, count]) => {
-                const stateData = US_STATES_DATA[stateAbbr];
-                if (stateData && count > 0) {
-                  return (
-                    <Marker key={`desktop-${stateAbbr}`} position={stateData.coords} icon={stateSummaryIcon(count)}>
-                      <Popup>
-                        <div style={{fontSize: '14px', fontWeight: 'bold'}}>{stateData.name}</div>
-                        <div style={{fontSize: '12px'}}>{count} shipment{count > 1 ? 's' : ''} starting here.</div>
-                      </Popup>
-                    </Marker>
-                  );
-                }
-                return null;
-              })}
               
               {/* Always show start and destination markers if available */}
               {startCoord && (
@@ -2271,6 +2361,39 @@ const Shipments = () => {
                   />
                 )
               )}
+
+              {/* State shipment count markers - only show when no specific shipment is selected */}
+              {!selectedShipment && Object.entries(shipmentsByState).map(([state, count]) => {
+                const coords = stateCoords[state]
+                if (!coords || count === 0) return null
+                
+                return (
+                  <Marker
+                    key={`state-${state}`}
+                    position={coords}
+                    icon={stateMarkerIcon(count)}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '200px', textAlign: 'center' }}>
+                        <strong>📊 {state} Shipments</strong><br/>
+                        <div style={{ 
+                          fontSize: '24px', 
+                          fontWeight: 'bold', 
+                          color: '#2196f3',
+                          margin: '8px 0'
+                        }}>
+                          {count}
+                        </div>
+                        <small>
+                          Total shipments involving {state}
+                          <br/>
+                          (origins + destinations)
+                        </small>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              })}
 
               {/* Hover marker for sensor data */}
               {hoverMarker && (
