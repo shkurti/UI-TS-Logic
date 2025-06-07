@@ -1026,20 +1026,9 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null)
-    setStartCoord(null)
-    setDestinationCoord(null)
-    setNewShipmentPreview(null)
-    setPreviewMarkers([])
-    setLiveRoute([])
-    setRouteData([])
-    setTemperatureData([])
-    setHumidityData([])
-    setBatteryData([])
-    setSpeedData([])
-    setHoverMarker(null)
   }
 
-  // --- Add this effect after all useState declarations (after the last useState) ---
+  // Place this effect after all useState declarations, before any other useEffect
   useEffect(() => {
     if (!selectedShipment) {
       setStartCoord(null);
@@ -1054,7 +1043,74 @@ const Shipments = () => {
       setSpeedData([]);
       setHoverMarker(null);
     }
-  }, [selectedShipment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment])
+
+  // Helper function to find GPS coordinates for a timestamp
+  const findCoordinatesForTimestamp = (timestamp) => {
+    if (!routeData || routeData.length === 0) return null;
+    
+    // Find the exact match or closest timestamp
+    const exactMatch = routeData.find(record => record.timestamp === timestamp);
+    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
+      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
+    }
+    
+    // If no exact match, find the closest timestamp
+    const sortedData = [...routeData].sort((a, b) => 
+      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
+      Math.abs(new Date(b.timestamp) - new Date(timestamp))
+    );
+    
+    const closest = sortedData[0];
+    if (closest && closest.latitude && closest.longitude) {
+      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
+    }
+    
+    return null;
+  };
+
+  // Handle chart hover events
+  const handleChartHover = (data, sensorType) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const payload = data.activePayload[0].payload;
+      const timestamp = payload.timestamp;
+      const coordinates = findCoordinatesForTimestamp(timestamp);
+      
+      if (coordinates) {
+        setHoverMarker({
+          position: coordinates,
+          timestamp: timestamp,
+          sensorType: sensorType,
+          value: payload[sensorType.toLowerCase()],
+          unit: sensorType === 'Temperature' ? '°C' : 
+                sensorType === 'Humidity' ? '%' : 
+                sensorType === 'Battery' ? '%' : ' km/h'
+        });
+      }
+    } else {
+      setHoverMarker(null);
+    }
+  };
+
+  // Clear hover marker when mouse leaves chart
+  const handleChartMouseLeave = () => {
+    setHoverMarker(null);
+  };
+
+  // Add mapKey and fitWorld state
+  const [mapKey, setMapKey] = useState(0)
+  const [fitWorld, setFitWorld] = useState(true)
+
+  // When selectedShipment changes, update fitWorld and mapKey
+  useEffect(() => {
+    if (!selectedShipment) {
+      setFitWorld(true)
+      setMapKey((k) => k + 1) // force map remount
+    } else {
+      setFitWorld(false)
+    }
+  }, [selectedShipment])
 
   return (
     <div style={{ 
@@ -1106,20 +1162,7 @@ const Shipments = () => {
                     color="light"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setSelectedShipment(null);
-                      setStartCoord(null);
-                      setDestinationCoord(null);
-                      setNewShipmentPreview(null);
-                      setPreviewMarkers([]);
-                      setLiveRoute([]);
-                      setRouteData([]);
-                      setTemperatureData([]);
-                      setHumidityData([]);
-                      setBatteryData([]);
-                      setSpeedData([]);
-                      setHoverMarker(null);
-                    }}
+                    onClick={() => setSelectedShipment(null)}
                     style={{ padding: '6px 12px' }}
                   >
                     <BsArrowLeft size={14} />
@@ -1690,20 +1733,7 @@ const Shipments = () => {
                           color="light"
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setSelectedShipment(null);
-                            setStartCoord(null);
-                            setDestinationCoord(null);
-                            setNewShipmentPreview(null);
-                            setPreviewMarkers([]);
-                            setLiveRoute([]);
-                            setRouteData([]);
-                            setTemperatureData([]);
-                            setHumidityData([]);
-                            setBatteryData([]);
-                            setSpeedData([]);
-                            setHoverMarker(null);
-                          }}
+                          onClick={() => setSelectedShipment(null)}
                           style={{ padding: '6px 12px' }}
                         >
                           <BsArrowLeft size={14} />
@@ -1986,7 +2016,6 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={temperatureData}
-                                   
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
