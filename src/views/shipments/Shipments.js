@@ -1033,6 +1033,9 @@ const Shipments = () => {
     setLiveRoute([])
     setNewShipmentPreview(null)
     setPreviewMarkers([])
+    // Force map remount to clear all markers
+    setMapKey((k) => k + 1)
+    setFitWorld(true)
   }
 
   // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
@@ -1045,6 +1048,9 @@ const Shipments = () => {
       setLiveRoute([])
       setNewShipmentPreview(null)
       setPreviewMarkers([])
+      // Force map remount to clear all markers
+      setMapKey((k) => k + 1)
+      setFitWorld(true)
     }
   }, [selectedShipment])
 
