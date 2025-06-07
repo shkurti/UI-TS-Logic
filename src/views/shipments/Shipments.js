@@ -945,89 +945,6 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
-  // Helper: Geocode cache for state center coordinates
-  const stateCenterCache = {}
-
-  // Helper: Extract US state abbreviation from address (simple version)
-  function extractState(address) {
-    if (!address) return null
-    // Try to match ", XX " or ", XX," or " XX " at end, where XX is state
-    const match = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:,|$)/i)
-    if (match) {
-      return match[1].toUpperCase()
-    }
-    // Try last word if it's a state
-    const parts = address.trim().split(/\s+/)
-    const last = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').toUpperCase()
-    if (last.length === 2) return last
-    return null
-  }
-
-  // Helper: Get center coordinate for a state from all its shipment origins
-  async function getStateCenter(state, addresses) {
-    // If cached, return
-    if (stateCenterCache[state]) return stateCenterCache[state]
-    // Geocode all addresses for this state, get their [lat, lng]
-    const coords = []
-    for (const addr of addresses) {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`
-        const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } })
-        const data = await res.json()
-        if (data && data.length > 0) {
-          coords.push([parseFloat(data[0].lat), parseFloat(data[0].lon)])
-        }
-      } catch {}
-    }
-    // Calculate centroid
-    if (coords.length > 0) {
-      const lat = coords.reduce((sum, c) => sum + c[0], 0) / coords.length
-      const lng = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
-      stateCenterCache[state] = [lat, lng]
-      return [lat, lng]
-    }
-    return null
-  }
-
-  // Compute shipments per state and their addresses
-  const [stateMarkers, setStateMarkers] = React.useState([])
-
-  useEffect(() => {
-    // Only compute when not viewing a shipment
-    if (selectedShipment) {
-      setStateMarkers([])
-      return
-    }
-    // Group addresses by state
-    const stateToAddresses = {}
-    shipments.forEach(shipment => {
-      const addr = shipment.legs?.[0]?.shipFromAddress
-      const state = extractState(addr)
-      if (state) {
-        if (!stateToAddresses[state]) stateToAddresses[state] = []
-        stateToAddresses[state].push(addr)
-      }
-    })
-    // For each state, get count and center
-    const states = Object.keys(stateToAddresses)
-    if (states.length === 0) {
-      setStateMarkers([])
-      return
-    }
-    let cancelled = false
-    Promise.all(states.map(async state => {
-      const center = await getStateCenter(state, stateToAddresses[state])
-      return center
-        ? { state, count: stateToAddresses[state].length, center }
-        : null
-    })).then(results => {
-      if (!cancelled) {
-        setStateMarkers(results.filter(Boolean))
-      }
-    })
-    return () => { cancelled = true }
-  }, [shipments, selectedShipment])
-
   return (
     <div style={{ 
       display: 'flex',
@@ -1381,43 +1298,6 @@ const Shipments = () => {
                         </Popup>
                       </Marker>
                     )}
-                    {/* Show state shipment circles only when no shipment selected */}
-                    {!selectedShipment && stateMarkers.map(({ state, count, center }) => (
-                      <CircleMarker
-                        key={state}
-                        center={center}
-                        radius={22}
-                        fillColor="#1976d2"
-                        color="#fff"
-                        fillOpacity={0.85}
-                        weight={2}
-                      >
-                        <Popup>
-                          <strong>{state}</strong><br />
-                          {count} shipment{count > 1 ? 's' : ''}
-                        </Popup>
-                        {/* SVG text for count */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: '-11px',
-                            top: '-11px',
-                            width: '44px',
-                            height: '44px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            pointerEvents: 'none',
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            fontSize: '18px',
-                            textShadow: '0 1px 4px #000'
-                          }}
-                        >
-                          {count}
-                        </div>
-                      </CircleMarker>
-                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -1543,7 +1423,8 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' :
+                              ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
