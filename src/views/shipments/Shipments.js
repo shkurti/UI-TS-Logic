@@ -1025,25 +1025,27 @@ const Shipments = () => {
 
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
-    setSelectedShipment(null)
+    setSelectedShipment(null) // Always reset to show the shipments list
+    // Clear all route-related state when going back to list
+    setStartCoord(null)
+    setDestinationCoord(null)
+    setRouteData([])
+    setLiveRoute([])
+    setNewShipmentPreview(null)
+    setPreviewMarkers([])
   }
 
-  // Place this effect after all useState declarations, before any other useEffect
+  // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
   useEffect(() => {
     if (!selectedShipment) {
-      setStartCoord(null);
-      setDestinationCoord(null);
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setLiveRoute([]);
-      setRouteData([]);
-      setTemperatureData([]);
-      setHumidityData([]);
-      setBatteryData([]);
-      setSpeedData([]);
-      setHoverMarker(null);
+      // Clear all route-related state
+      setStartCoord(null)
+      setDestinationCoord(null)
+      setRouteData([])
+      setLiveRoute([])
+      setNewShipmentPreview(null)
+      setPreviewMarkers([])
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment])
 
   // Helper function to find GPS coordinates for a timestamp
@@ -2016,6 +2018,7 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={temperatureData}
+                                   
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
