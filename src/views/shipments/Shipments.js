@@ -140,6 +140,9 @@ const Shipments = () => {
   // Add state for hover marker
   const [hoverMarker, setHoverMarker] = useState(null)
 
+  // Add state for shipment count markers by state
+  const [stateMarkers, setStateMarkers] = useState([])
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -945,6 +948,115 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
+  // Helper: Extract state from address (simple US state extraction)
+  const extractState = (address) => {
+    if (!address) return null
+    // Try to match ", XX " or ", XX," or " XX " at end, where XX is state
+    const match = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:,|$)/i)
+    if (match) {
+      return match[1].toUpperCase()
+    }
+    // Try last word if it's a state
+    const parts = address.trim().split(/\s+/)
+    const last = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').toUpperCase()
+    if (last.length === 2) return last
+    return null
+  }
+
+  // Helper: Geocode cache for state center coordinates
+  const stateCenterCache = {}
+
+  // Helper: Get center coordinate for a state from all its shipment origins
+  const getStateCenter = async (addresses) => {
+    // Geocode all addresses for this state, get their [lat, lng]
+    const coords = []
+    for (const addr of addresses) {
+      if (stateCenterCache[addr]) {
+        coords.push(stateCenterCache[addr])
+        continue
+      }
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } })
+        const data = await res.json()
+        if (data && data.length > 0) {
+          const c = [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+          stateCenterCache[addr] = c
+          coords.push(c)
+        }
+      } catch {}
+    }
+    // Calculate centroid
+    if (coords.length > 0) {
+      const lat = coords.reduce((sum, c) => sum + c[0], 0) / coords.length
+      const lng = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
+      return [lat, lng]
+    }
+    return null
+  }
+
+  // Compute shipments per state and their addresses
+  useEffect(() => {
+    // Only compute when not viewing a specific shipment
+    if (selectedShipment) {
+      setStateMarkers([])
+      return
+    }
+    // Group addresses by state
+    const stateToAddresses = {}
+    shipments.forEach(shipment => {
+      const addr = shipment.legs?.[0]?.shipFromAddress
+      const state = extractState(addr)
+      if (state) {
+        if (!stateToAddresses[state]) stateToAddresses[state] = []
+        stateToAddresses[state].push(addr)
+      }
+    })
+    const states = Object.keys(stateToAddresses)
+    if (states.length === 0) {
+      setStateMarkers([])
+      return
+    }
+    let cancelled = false
+    Promise.all(states.map(async state => {
+      const center = await getStateCenter(stateToAddresses[state])
+      return center
+        ? { state, count: stateToAddresses[state].length, center }
+        : null
+    })).then(results => {
+      if (!cancelled) {
+        setStateMarkers(results.filter(Boolean))
+      }
+    })
+    return () => { cancelled = true }
+  }, [shipments, selectedShipment])
+
+  // ...existing code...
+
+  // Helper to create state count marker
+  const stateCountIcon = (count) =>
+    L.divIcon({
+      className: 'state-count-marker',
+      html: `<div style="
+        background: #1976d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border: 3px solid #fff;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+        font-family: Arial, sans-serif;
+      ">${count}</div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18],
+    })
+
   return (
     <div style={{ 
       display: 'flex',
@@ -1188,6 +1300,24 @@ const Shipments = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
+                    {/* Show state shipment count markers only when no shipment selected */}
+                    {!selectedShipment && stateMarkers.map(({ state, count, center }) => (
+                      <Marker
+                        key={state}
+                        position={center}
+                        icon={stateCountIcon(count)}
+                      >
+                        <Popup>
+                          <div style={{ minWidth: '150px', textAlign: 'center' }}>
+                            <strong>📍 {state}</strong><br />
+                            <span style={{ fontSize: '14px', color: '#666' }}>
+                              {count} shipment{count > 1 ? 's' : ''} starting here
+                            </span>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+
                     {/* Always show start and destination markers if available */}
                     {startCoord && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
@@ -2106,6 +2236,24 @@ const Shipments = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
+              {/* Show state shipment count markers only when no shipment selected */}
+              {!selectedShipment && stateMarkers.map(({ state, count, center }) => (
+                <Marker
+                  key={state}
+                  position={center}
+                  icon={stateCountIcon(count)}
+                >
+                  <Popup>
+                    <div style={{ minWidth: '150px', textAlign: 'center' }}>
+                      <strong>📍 {state}</strong><br />
+                      <span style={{ fontSize: '14px', color: '#666' }}>
+                        {count} shipment{count > 1 ? 's' : ''} starting here
+                      </span>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
               {/* Always show start and destination markers if available */}
               {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
