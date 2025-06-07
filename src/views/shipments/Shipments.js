@@ -1026,6 +1026,18 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
+    // Explicitly clear all shipment-related state
+    setStartCoord(null)
+    setDestinationCoord(null)
+    setNewShipmentPreview(null)
+    setPreviewMarkers([])
+    setLiveRoute([])
+    setRouteData([])
+    setTemperatureData([])
+    setHumidityData([])
+    setBatteryData([])
+    setSpeedData([])
+    setHoverMarker(null)
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1089,6 +1101,13 @@ const Shipments = () => {
     if (!selectedShipment) {
       setFitWorld(true)
       setMapKey((k) => k + 1) // force map remount
+      // Clear coordinates when no shipment is selected
+      setStartCoord(null)
+      setDestinationCoord(null)
+      setNewShipmentPreview(null)
+      setPreviewMarkers([])
+      setLiveRoute([])
+      setRouteData([])
     } else {
       setFitWorld(false)
     }
