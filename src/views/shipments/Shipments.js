@@ -638,23 +638,6 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData]);
 
-  // Add this effect after all useState declarations
-  useEffect(() => {
-    if (!selectedShipment) {
-      setStartCoord(null);
-      setDestinationCoord(null);
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setLiveRoute([]);
-      setRouteData([]);
-      setTemperatureData([]);
-      setHumidityData([]);
-      setBatteryData([]);
-      setSpeedData([]);
-      setHoverMarker(null);
-    }
-  }, [selectedShipment]);
-
   // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
   useEffect(() => {
     if (!selectedShipment || !selectedShipment.trackerId) {
@@ -1056,71 +1039,22 @@ const Shipments = () => {
     setHoverMarker(null)
   }
 
-  // Helper function to find GPS coordinates for a timestamp
-  const findCoordinatesForTimestamp = (timestamp) => {
-    if (!routeData || routeData.length === 0) return null;
-    
-    // Find the exact match or closest timestamp
-    const exactMatch = routeData.find(record => record.timestamp === timestamp);
-    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
-      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
-    }
-    
-    // If no exact match, find the closest timestamp
-    const sortedData = [...routeData].sort((a, b) => 
-      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
-      Math.abs(new Date(b.timestamp) - new Date(timestamp))
-    );
-    
-    const closest = sortedData[0];
-    if (closest && closest.latitude && closest.longitude) {
-      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
-    }
-    
-    return null;
-  };
-
-  // Handle chart hover events
-  const handleChartHover = (data, sensorType) => {
-    if (data && data.activePayload && data.activePayload.length > 0) {
-      const payload = data.activePayload[0].payload;
-      const timestamp = payload.timestamp;
-      const coordinates = findCoordinatesForTimestamp(timestamp);
-      
-      if (coordinates) {
-        setHoverMarker({
-          position: coordinates,
-          timestamp: timestamp,
-          sensorType: sensorType,
-          value: payload[sensorType.toLowerCase()],
-          unit: sensorType === 'Temperature' ? '°C' : 
-                sensorType === 'Humidity' ? '%' : 
-                sensorType === 'Battery' ? '%' : ' km/h'
-        });
-      }
-    } else {
-      setHoverMarker(null);
-    }
-  };
-
-  // Clear hover marker when mouse leaves chart
-  const handleChartMouseLeave = () => {
-    setHoverMarker(null);
-  };
-
-  // Add mapKey and fitWorld state
-  const [mapKey, setMapKey] = useState(0)
-  const [fitWorld, setFitWorld] = useState(true)
-
-  // When selectedShipment changes, update fitWorld and mapKey
+  // --- Add this effect after all useState declarations (after the last useState) ---
   useEffect(() => {
     if (!selectedShipment) {
-      setFitWorld(true)
-      setMapKey((k) => k + 1) // force map remount
-    } else {
-      setFitWorld(false)
+      setStartCoord(null);
+      setDestinationCoord(null);
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setLiveRoute([]);
+      setRouteData([]);
+      setTemperatureData([]);
+      setHumidityData([]);
+      setBatteryData([]);
+      setSpeedData([]);
+      setHoverMarker(null);
     }
-  }, [selectedShipment])
+  }, [selectedShipment]);
 
   return (
     <div style={{ 
