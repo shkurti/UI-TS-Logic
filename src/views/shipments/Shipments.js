@@ -938,6 +938,8 @@ const Shipments = () => {
     if (!selectedShipment) {
       setFitWorld(true)
       setMapKey((k) => k + 1) // force map remount
+      setStartCoord(null)      // clear start marker
+      setDestinationCoord(null) // clear destination marker
     } else {
       setFitWorld(false)
     }
