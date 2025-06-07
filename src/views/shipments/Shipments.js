@@ -2329,7 +2329,7 @@ const Shipments = () => {
                                 📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
                               </div>
                               <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
-                                {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
+                                {shipmentCount}{shipmentCount > 1 ? 's' : ''}
                               </div>
                             </div>
                           )
