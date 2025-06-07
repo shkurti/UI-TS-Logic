@@ -36,6 +36,17 @@ import { BsThermometerHalf, BsDroplet, BsBatteryHalf, BsSpeedometer2, BsSearch, 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import L from 'leaflet'
 
+// Define US States Data (simplified for example)
+const US_STATES_DATA = {
+  CA: { name: 'California', coords: [36.7783, -119.4179] },
+  TX: { name: 'Texas', coords: [31.9686, -99.9018] },
+  FL: { name: 'Florida', coords: [27.6648, -81.5158] },
+  NY: { name: 'New York', coords: [40.7128, -74.0060] },
+  IL: { name: 'Illinois', coords: [40.0000, -89.0000] },
+  // Add more states as needed
+};
+
+
 const customIcon = window.L
   ? window.L.icon({
       iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -140,6 +151,9 @@ const Shipments = () => {
   // Add state for hover marker
   const [hoverMarker, setHoverMarker] = useState(null)
 
+  // Add state for shipment counts by state
+  const [shipmentCountsByState, setShipmentCountsByState] = useState({});
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -190,6 +204,37 @@ const Shipments = () => {
     fetchShipments()
     fetchTrackers()
   }, [])
+
+  // Calculate shipment counts by state
+  useEffect(() => {
+    if (shipments.length > 0) {
+      const counts = {};
+      shipments.forEach(shipment => {
+        const shipFromAddress = shipment.legs?.[0]?.shipFromAddress;
+        if (shipFromAddress) {
+          const upperAddress = shipFromAddress.toUpperCase();
+          for (const abbr in US_STATES_DATA) {
+            const stateInfo = US_STATES_DATA[abbr];
+            // More robust state matching:
+            // 1. Check for ", ST" (e.g., ", CA")
+            // 2. Check for " STATE_NAME" (e.g., " CALIFORNIA")
+            // 3. Check for ", STATE_NAME" (e.g., ", CALIFORNIA")
+            // This handles variations like "City, ST ZIP" or "City, State ZIP"
+            const regexStateAbbr = new RegExp(`,\\s*${abbr}\\b`, 'i'); // \b for word boundary
+            const regexStateName = new RegExp(`\\b${stateInfo.name.toUpperCase()}\\b`, 'i');
+
+            if (regexStateAbbr.test(shipFromAddress) || regexStateName.test(upperAddress)) {
+              counts[abbr] = (counts[abbr] || 0) + 1;
+              break; // Found state for this shipment
+            }
+          }
+        }
+      });
+      setShipmentCountsByState(counts);
+    } else {
+      setShipmentCountsByState({});
+    }
+  }, [shipments]);
 
   const addLeg = () => {
     setLegs([
@@ -1185,6 +1230,22 @@ const Shipments = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+
+                    {/* Render state summary markers - Mobile */}
+                    {!selectedShipment && Object.entries(shipmentCountsByState).map(([stateAbbr, count]) => {
+                      const stateData = US_STATES_DATA[stateAbbr];
+                      if (stateData && count > 0) {
+                        return (
+                          <Marker key={`mobile-${stateAbbr}`} position={stateData.coords} icon={stateSummaryIcon(count)}>
+                            <Popup>
+                              <div style={{fontSize: '14px', fontWeight: 'bold'}}>{stateData.name}</div>
+                              <div style={{fontSize: '12px'}}>{count} shipment{count > 1 ? 's' : ''} starting here.</div>
+                            </Popup>
+                          </Marker>
+                        );
+                      }
+                      return null;
+                    })}
                     
                     {/* Always show start and destination markers if available */}
                     {startCoord && (
@@ -1421,8 +1482,7 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' :
-                              ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
@@ -2103,6 +2163,22 @@ const Shipments = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
+
+              {/* Render state summary markers - Desktop */}
+              {!selectedShipment && Object.entries(shipmentCountsByState).map(([stateAbbr, count]) => {
+                const stateData = US_STATES_DATA[stateAbbr];
+                if (stateData && count > 0) {
+                  return (
+                    <Marker key={`desktop-${stateAbbr}`} position={stateData.coords} icon={stateSummaryIcon(count)}>
+                      <Popup>
+                        <div style={{fontSize: '14px', fontWeight: 'bold'}}>{stateData.name}</div>
+                        <div style={{fontSize: '12px'}}>{count} shipment{count > 1 ? 's' : ''} starting here.</div>
+                      </Popup>
+                    </Marker>
+                  );
+                }
+                return null;
+              })}
               
               {/* Always show start and destination markers if available */}
               {startCoord && (
