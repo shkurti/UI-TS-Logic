@@ -1035,7 +1035,23 @@ const Shipments = () => {
 
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
-    setSelectedShipment(null) // Always reset to show the shipments list
+    clearAllShipmentState() // Use comprehensive clearing instead of just setSelectedShipment(null)
+  }
+
+  // Add comprehensive state clearing function
+  const clearAllShipmentState = () => {
+    setSelectedShipment(null)
+    setStartCoord(null)
+    setDestinationCoord(null)
+    setNewShipmentPreview(null)
+    setPreviewMarkers([])
+    setLiveRoute([])
+    setRouteData([])
+    setTemperatureData([])
+    setHumidityData([])
+    setBatteryData([])
+    setSpeedData([])
+    setHoverMarker(null)
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -2401,22 +2417,6 @@ const Shipments = () => {
                       const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
                                             Math.abs(lastLng - destLng) < distanceThreshold;
                       
-                      if (!isAtDestination) {
-                        return (
-                          <Polyline
-                            positions={[lastGpsPoint, destinationCoord]}
-                            color="#ff9800"
-                            weight={3}
-                            opacity={0.7}
-                            dashArray="10, 10"
-                          />
-                        );
-                      }
-                      return null;
-                    })()
-                  )}
-                  
-                  {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
