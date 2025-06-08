@@ -1416,7 +1416,7 @@ const Shipments = () => {
                         </Popup>
                       </Marker>
                     )}
-                    {destinationCoord && (
+                    {destinationCoord && selectedShipment && (
                       <Marker position={destinationCoord} icon={numberIcon('2')}>
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
@@ -2389,7 +2389,7 @@ const Shipments = () => {
                   </Popup>
                 </Marker>
               )}
-              {destinationCoord && (
+              {destinationCoord && selectedShipment && (
                 <Marker position={destinationCoord} icon={numberIcon('2')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
