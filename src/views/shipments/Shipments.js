@@ -1026,6 +1026,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
+    
     // Clear all route-related state when going back to list
     setStartCoord(null)
     setDestinationCoord(null)
@@ -1033,39 +1034,37 @@ const Shipments = () => {
     setLiveRoute([])
     setNewShipmentPreview(null)
     setPreviewMarkers([])
-    // Force map remount to clear all markers
-    setMapKey((k) => k + 1)
-    setFitWorld(true)
+    setHoverMarker(null) // Clear hover marker as well
+    
+    // Force map remount to clear all markers with a slight delay to ensure state is cleared
+    setTimeout(() => {
+      setMapKey((k) => k + 1)
+      setFitWorld(true)
+    }, 50) // Small delay to ensure all state updates are processed
   }
 
   // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
   useEffect(() => {
     if (!selectedShipment) {
-      // Clear all route-related state
-      setStartCoord(null)
-      setDestinationCoord(null)
-      setRouteData([])
-      setLiveRoute([])
-      setNewShipmentPreview(null)
-      setPreviewMarkers([])
-      // Force map remount to clear all markers
-      setMapKey((k) => k + 1)
-      setFitWorld(true)
+      // Clear all route-related state with a more comprehensive cleanup
+      const clearAllMarkers = () => {
+        setStartCoord(null)
+        setDestinationCoord(null)
+        setRouteData([])
+        setLiveRoute([])
+        setNewShipmentPreview(null)
+        setPreviewMarkers([])
+        setHoverMarker(null)
+        
+        // Force map remount to clear all markers
+        setMapKey((k) => k + 1)
+        setFitWorld(true)
+      }
+      
+      // Use setTimeout to ensure all state updates are processed
+      setTimeout(clearAllMarkers, 100)
     }
   }, [selectedShipment])
-
-  // Additional effect to ensure markers get cleared when needed
-  useEffect(() => {
-    // This will run whenever mapKey changes (which happens when going back to list)
-    // The timeout ensures this runs after the map remounts
-    if (!selectedShipment) {
-      const timer = setTimeout(() => {
-        setDestinationCoord(null)
-        setStartCoord(null)
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [mapKey, selectedShipment]);
 
   // Helper function to find GPS coordinates for a timestamp
   const findCoordinatesForTimestamp = (timestamp) => {
@@ -1406,7 +1405,7 @@ const Shipments = () => {
                     ))}
                     
                     {/* Always show start and destination markers if available */}
-                    {startCoord && selectedShipment && (
+                    {startCoord && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
@@ -1417,7 +1416,7 @@ const Shipments = () => {
                         </Popup>
                       </Marker>
                     )}
-                    {destinationCoord && selectedShipment && (
+                    {destinationCoord && (
                       <Marker position={destinationCoord} icon={numberIcon('2')}>
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
@@ -2379,7 +2378,7 @@ const Shipments = () => {
               ))}
               
               {/* Always show start and destination markers if available */}
-              {startCoord && selectedShipment && (
+              {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
@@ -2390,7 +2389,7 @@ const Shipments = () => {
                   </Popup>
                 </Marker>
               )}
-              {destinationCoord && selectedShipment && (
+              {destinationCoord && (
                 <Marker position={destinationCoord} icon={numberIcon('2')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
@@ -2809,37 +2808,37 @@ const Shipments = () => {
         </CModalBody>
         <CModalFooter style={{ 
           border: 'none', 
-              onClick={() => setIsModalOpen(false)}2px', 
-              style={{'#f8f9fa' 
+          padding: isMobile ? '12px 16px' : '24px 32px', 
+          background: '#f8f9fa' 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '12px', 
+            width: '100%', 
+            justifyContent: 'flex-end' 
+          }}>
+            <CButton 
+              color="secondary" 
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              style={{
                 borderRadius: '8px',
                 padding: '12px 24px',
                 fontWeight: '600',
-                order: isMobile ? 2 : 1column' : 'row',
-              }} '12px', 
-            >idth: '100%', 
-              Cancelontent: 'flex-end' 
-            </CButton>
-            <CButton 
-              color="primary" " 
-              onClick={submitForm}
-              style={{{() => setIsModalOpen(false)}
-                borderRadius: '8px',
-                padding: '12px 24px',
-                fontWeight: '600',x',
-                boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
-                order: isMobile ? 1 : 2
+                order: isMobile ? 2 : 1
               }}
             >
-              Create Shipment
+              Cancel
             </CButton>
-          </div>tton 
-        </CModalFooter>imary" 
-      </CModal>nClick={submitForm}
-    </div>    style={{
-  )             borderRadius: '8px',
-}               padding: '12px 24px',
+            <CButton 
+              color="primary" 
+              onClick={submitForm}
+              style={{
+                borderRadius: '8px',
+                padding: '12px 24px',
                 fontWeight: '600',
-export default Shipmentsw: '0 4px 12px rgba(13, 110, 253, 0.3)',
+                boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
                 order: isMobile ? 1 : 2
               }}
             >
