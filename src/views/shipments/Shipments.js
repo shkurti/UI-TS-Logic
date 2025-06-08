@@ -1023,42 +1023,115 @@ const Shipments = () => {
     setSidebarCollapsed(!sidebarCollapsed)
   }
 
-  const openSidebarToList = () => {
-    setSidebarCollapsed(false)
-    setSelectedShipment(null) // Always reset to show the shipments list
-    // Clear all route-related state when going back to list
-    clearAllMapData()
-  }
-
-  // New helper function to centralize map clearing logic
-  const clearAllMapData = () => {
-    // Clear all coordinate and route data
+  // Define a safe way to clear map data without causing blank page issues
+  const safeResetMapData = () => {
+    // Clear coordinates
     setStartCoord(null)
     setDestinationCoord(null)
     setRouteData([])
     setLiveRoute([])
     setNewShipmentPreview(null)
     setPreviewMarkers([])
-    setHoverMarker(null) // Also clear any hover markers
+    setHoverMarker(null)
     
-    // Force a complete map remount with new key
-    setMapKey(Date.now()) // Use timestamp for guaranteed uniqueness
+    // Use a simple increment for map refresh that won't cause rendering issues
+    setMapKey(prev => prev + 1)
     setFitWorld(true)
+  }
+
+  const openSidebarToList = () => {
+    setSidebarCollapsed(false)
+    setSelectedShipment(null) // Always reset to show the shipments list
+    // Use our safer method for clearing map data
+    safeResetMapData()
   }
 
   // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
   useEffect(() => {
     if (!selectedShipment) {
-      clearAllMapData()
+      // Use our safer method for clearing map data
+      safeResetMapData()
     }
   }, [selectedShipment])
 
-  // Add cleanup when component unmounts
+  // Add this effect to clear map markers when component unmounts or remounts
   useEffect(() => {
     return () => {
-      clearAllMapData()
+      // Cleanup markers when component unmounts
+      setStartCoord(null)
+      setDestinationCoord(null)
+      setRouteData([])
+      setLiveRoute([])
+      setNewShipmentPreview(null)
+      setPreviewMarkers([])
     }
   }, [])
+
+  // Helper function to find GPS coordinates for a timestamp
+  const findCoordinatesForTimestamp = (timestamp) => {
+    if (!routeData || routeData.length === 0) return null;
+    
+    // Find the exact match or closest timestamp
+    const exactMatch = routeData.find(record => record.timestamp === timestamp);
+    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
+      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
+    }
+    
+    // If no exact match, find the closest timestamp
+    const sortedData = [...routeData].sort((a, b) => 
+      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
+      Math.abs(new Date(b.timestamp) - new Date(timestamp))
+    );
+    
+    const closest = sortedData[0];
+    if (closest && closest.latitude && closest.longitude) {
+      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
+    }
+    
+    return null;
+  };
+
+  // Handle chart hover events
+  const handleChartHover = (data, sensorType) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const payload = data.activePayload[0].payload;
+      const timestamp = payload.timestamp;
+      const coordinates = findCoordinatesForTimestamp(timestamp);
+      
+      if (coordinates) {
+        setHoverMarker({
+          position: coordinates,
+          timestamp: timestamp,
+          sensorType: sensorType,
+          value: payload[sensorType.toLowerCase()],
+          unit: sensorType === 'Temperature' ? '°C' : 
+                sensorType === 'Humidity' ? '%' : 
+                sensorType === 'Battery' ? '%' : ' km/h'
+        });
+      }
+    } else {
+      setHoverMarker(null);
+    }
+  };
+
+  // Clear hover marker when mouse leaves chart
+  const handleChartMouseLeave = () => {
+    setHoverMarker(null);
+  };
+
+  // Add mapKey and fitWorld state
+  const [mapKey, setMapKey] = useState(0)
+  const [fitWorld, setFitWorld] = useState(true)
+
+  // When selectedShipment changes, update fitWorld and mapKey
+  useEffect(() => {
+    if (!selectedShipment) {
+      setFitWorld(true)
+      setMapKey((k) => k + 1) // force map remount
+    } else {
+      setFitWorld(false)
+    }
+  }, [selectedShipment])
 
   return (
     <div style={{ 
@@ -2007,7 +2080,7 @@ const Shipments = () => {
                                     onMouseMove={(data) => handleChartHover(data, 'Humidity')}
                                     onMouseLeave={handleChartMouseLeave}
                                   >
-                                                                       <CartesianGrid strokeDasharray="3 3" />
+                                    <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
                                     <YAxis fontSize={10} width={40} />
                                     <Tooltip
