@@ -1027,98 +1027,38 @@ const Shipments = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
     // Clear all route-related state when going back to list
+    clearAllMapData()
+  }
+
+  // New helper function to centralize map clearing logic
+  const clearAllMapData = () => {
+    // Clear all coordinate and route data
     setStartCoord(null)
     setDestinationCoord(null)
     setRouteData([])
     setLiveRoute([])
     setNewShipmentPreview(null)
     setPreviewMarkers([])
-    // Force map remount to clear all markers
-    setMapKey((k) => k + 1)
+    setHoverMarker(null) // Also clear any hover markers
+    
+    // Force a complete map remount with new key
+    setMapKey(Date.now()) // Use timestamp for guaranteed uniqueness
     setFitWorld(true)
   }
 
   // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
   useEffect(() => {
     if (!selectedShipment) {
-      // Clear all route-related state
-      setStartCoord(null)
-      setDestinationCoord(null)
-      setRouteData([])
-      setLiveRoute([])
-      setNewShipmentPreview(null)
-      setPreviewMarkers([])
-      // Force map remount to clear all markers
-      setMapKey((k) => k + 1)
-      setFitWorld(true)
+      clearAllMapData()
     }
   }, [selectedShipment])
 
-  // Helper function to find GPS coordinates for a timestamp
-  const findCoordinatesForTimestamp = (timestamp) => {
-    if (!routeData || routeData.length === 0) return null;
-    
-    // Find the exact match or closest timestamp
-    const exactMatch = routeData.find(record => record.timestamp === timestamp);
-    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
-      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
-    }
-    
-    // If no exact match, find the closest timestamp
-    const sortedData = [...routeData].sort((a, b) => 
-      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
-      Math.abs(new Date(b.timestamp) - new Date(timestamp))
-    );
-    
-    const closest = sortedData[0];
-    if (closest && closest.latitude && closest.longitude) {
-      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
-    }
-    
-    return null;
-  };
-
-  // Handle chart hover events
-  const handleChartHover = (data, sensorType) => {
-    if (data && data.activePayload && data.activePayload.length > 0) {
-      const payload = data.activePayload[0].payload;
-      const timestamp = payload.timestamp;
-      const coordinates = findCoordinatesForTimestamp(timestamp);
-      
-      if (coordinates) {
-        setHoverMarker({
-          position: coordinates,
-          timestamp: timestamp,
-          sensorType: sensorType,
-          value: payload[sensorType.toLowerCase()],
-          unit: sensorType === 'Temperature' ? '°C' : 
-                sensorType === 'Humidity' ? '%' : 
-                sensorType === 'Battery' ? '%' : ' km/h'
-        });
-      }
-    } else {
-      setHoverMarker(null);
-    }
-  };
-
-  // Clear hover marker when mouse leaves chart
-  const handleChartMouseLeave = () => {
-    setHoverMarker(null);
-  };
-
-  // Add mapKey and fitWorld state
-  const [mapKey, setMapKey] = useState(0)
-  const [fitWorld, setFitWorld] = useState(true)
-
-  // When selectedShipment changes, update fitWorld and mapKey
+  // Add cleanup when component unmounts
   useEffect(() => {
-    if (!selectedShipment) {
-      setFitWorld(true)
-      setMapKey((k) => k + 1) // force map remount
-    } else {
-      setFitWorld(false)
+    return () => {
+      clearAllMapData()
     }
-  }, [selectedShipment])
+  }, [])
 
   return (
     <div style={{ 
@@ -2067,7 +2007,7 @@ const Shipments = () => {
                                     onMouseMove={(data) => handleChartHover(data, 'Humidity')}
                                     onMouseLeave={handleChartMouseLeave}
                                   >
-                                    <CartesianGrid strokeDasharray="3 3" />
+                                                                       <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
                                     <YAxis fontSize={10} width={40} />
                                     <Tooltip
