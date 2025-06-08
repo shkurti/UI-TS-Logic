@@ -1026,45 +1026,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    
-    // Clear all route-related state when going back to list
-    setStartCoord(null)
-    setDestinationCoord(null)
-    setRouteData([])
-    setLiveRoute([])
-    setNewShipmentPreview(null)
-    setPreviewMarkers([])
-    setHoverMarker(null) // Clear hover marker as well
-    
-    // Force map remount to clear all markers with a slight delay to ensure state is cleared
-    setTimeout(() => {
-      setMapKey((k) => k + 1)
-      setFitWorld(true)
-    }, 50) // Small delay to ensure all state updates are processed
   }
-
-  // When a user clicks back to list from a shipment detail, ensure coordinates are cleared
-  useEffect(() => {
-    if (!selectedShipment) {
-      // Clear all route-related state with a more comprehensive cleanup
-      const clearAllMarkers = () => {
-        setStartCoord(null)
-        setDestinationCoord(null)
-        setRouteData([])
-        setLiveRoute([])
-        setNewShipmentPreview(null)
-        setPreviewMarkers([])
-        setHoverMarker(null)
-        
-        // Force map remount to clear all markers
-        setMapKey((k) => k + 1)
-        setFitWorld(true)
-      }
-      
-      // Use setTimeout to ensure all state updates are processed
-      setTimeout(clearAllMarkers, 100)
-    }
-  }, [selectedShipment])
 
   // Helper function to find GPS coordinates for a timestamp
   const findCoordinatesForTimestamp = (timestamp) => {
@@ -1405,7 +1367,7 @@ const Shipments = () => {
                     ))}
                     
                     {/* Always show start and destination markers if available */}
-                    {startCoord && (
+                    {startCoord && selectedShipment && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
@@ -2045,6 +2007,7 @@ const Shipments = () => {
                                     <XAxis dataKey="timestamp" tick={false} />
                                     <YAxis fontSize={10} width={40} />
                                     <Tooltip
+
                                       formatter={(value) => [`${value}°C`, 'Temperature']}
                                       labelFormatter={(label) => `Time: ${label}`}
                                     />
@@ -2378,7 +2341,7 @@ const Shipments = () => {
               ))}
               
               {/* Always show start and destination markers if available */}
-              {startCoord && (
+              {startCoord && selectedShipment && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
