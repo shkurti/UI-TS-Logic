@@ -614,7 +614,7 @@ const Shipments = () => {
         const validCoords = coords.filter(coord => coord !== null);
         
         if (validCoords.length >= 2) {
-          setNewShipmentPreview(validCoords);
+          // Don't set newShipmentPreview here to avoid circular connections
           setPreviewMarkers(
             validCoords.map((coord, index) => ({
               position: coord,
@@ -641,6 +641,18 @@ const Shipments = () => {
   // Show all leg markers when shipment is selected
   useEffect(() => {
     if (selectedShipment && allLegCoords.length > 0) {
+      // Don't set newShipmentPreview to avoid duplicate polylines
+      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+    } else if (!selectedShipment) {
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+  }, [selectedShipment, allLegCoords]);
+
+  // Show dashed lines connecting all leg points when no GPS data
+  useEffect(() => {
+    if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
       setNewShipmentPreview(allLegCoords.map(leg => leg.position));
       setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
       setPreviewMarkers(
