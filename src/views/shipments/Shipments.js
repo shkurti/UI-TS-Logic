@@ -1388,16 +1388,18 @@ const Shipments = () => {
                         </Marker>
                       </>
                     ) : (
+                      // Remove this fallback polyline - it's creating the circular connection
                       // Show dashed line between start and destination when no GPS data yet
-                      startCoord && destinationCoord && (
-                        <Polyline 
-                          positions={[startCoord, destinationCoord]} 
-                          color="#9e9e9e" 
-                          weight={3}
-                          opacity={0.6}
-                          dashArray="15, 15" 
-                        />
-                      )
+                      // startCoord && destinationCoord && (
+                      //   <Polyline 
+                      //     positions={[startCoord, destinationCoord]} 
+                      //     color="#9e9e9e" 
+                      //     weight={3}
+                      //     opacity={0.6}
+                      //     dashArray="15, 15" 
+                      //   />
+                      // )
+                      null
                     )}
 
                     {/* ONLY show preview polylines during modal creation */}
@@ -2415,16 +2417,18 @@ const Shipments = () => {
                   </Marker>
                 </>
               ) : (
+                // Remove this fallback polyline - it's creating the circular connection
                 // Show dashed line between start and destination when no GPS data yet
-                startCoord && destinationCoord && (
-                  <Polyline 
-                    positions={[startCoord, destinationCoord]} 
-                    color="#9e9e9e" 
-                    weight={3}
-                    opacity={0.6}
-                    dashArray="15, 15" 
-                  />
-                )
+                // startCoord && destinationCoord && (
+                //   <Polyline 
+                //     positions={[startCoord, destinationCoord]} 
+                //     color="#9e9e9e" 
+                //     weight={3}
+                //     opacity={0.6}
+                //     dashArray="15, 15" 
+                //   />
+                // )
+                null
               )}
 
               {/* Hover marker for sensor data */}
