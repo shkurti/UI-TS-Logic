@@ -320,6 +320,7 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
+      setLiveRoute([]) // Clear live route
       return
     }
 
@@ -334,6 +335,15 @@ const Shipments = () => {
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
+        
+        // Process GPS route data for live route display
+        const gpsRoute = data
+          .filter(record => record.latitude && record.longitude && 
+                          !isNaN(parseFloat(record.latitude)) && 
+                          !isNaN(parseFloat(record.longitude)))
+          .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)])
+        
+        setLiveRoute(gpsRoute)
         
         // Process sensor data - timestamps are now in local time
         setTemperatureData(
@@ -378,6 +388,7 @@ const Shipments = () => {
         )
       } else {
         setRouteData([])
+        setLiveRoute([])
         setTemperatureData([])
         setHumidityData([])
         setBatteryData([])
@@ -385,6 +396,7 @@ const Shipments = () => {
       }
     } catch (e) {
       setRouteData([])
+      setLiveRoute([])
       setTemperatureData([])
       setHumidityData([])
       setBatteryData([])
@@ -1283,7 +1295,7 @@ const Shipments = () => {
                           </div>
                         </Popup>
                       </Marker>
-                    )} */}
+                    } */}
                     
                     {/* Show all leg markers when shipment is selected */}
                     {selectedShipment && allLegCoords.map((legCoord, index) => (
@@ -1988,7 +2000,7 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={humidityData}
-                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                                    margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Humidity')}
                                     onMouseLeave={handleChartMouseLeave}
                                   >
