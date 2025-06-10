@@ -616,6 +616,45 @@ const Shipments = () => {
     }
   }, [selectedShipment, allLegCoords]);
 
+  // Remove this entire useEffect - it's causing the circular path
+  // useEffect(() => {
+  //   if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
+  //     setNewShipmentPreview(allLegCoords.map(leg => leg.position));
+  //     setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+  //     setPreviewMarkers(
+  //       allLegCoords.map((legCoord, index) => ({
+  //         position: legCoord.position,
+  //         label: (index + 1).toString(),
+  //         popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
+  //       }))
+  //     );
+  //   } else {
+  //     setNewShipmentPreview(null);
+  //     setPreviewMarkers([]);
+  //     setDestinationCoord(null);
+  //   }
+  // }, [selectedShipment, allLegCoords]);
+
+  // Remove any preview polylines that might show circular connections
+  // Only show the individual leg-to-leg polylines
+  useEffect(() => {
+    if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
+      setNewShipmentPreview(allLegCoords.map(leg => leg.position));
+      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+      setPreviewMarkers(
+        allLegCoords.map((legCoord, index) => ({
+          position: legCoord.position,
+          label: (index + 1).toString(),
+          popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
+        }))
+      );
+    } else {
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+  }, [selectedShipment, allLegCoords]);
+
   // Show dashed lines connecting all leg points when no GPS data
   useEffect(() => {
     if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
@@ -1460,7 +1499,8 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* Show dashed lines connecting all leg points when no GPS data */}
+                    {/* Remove any preview polylines that might show circular connections */}
+                    {/* Only show the individual leg-to-leg polylines */}
                     {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                       allLegCoords.slice(0, -1).map((legCoord, index) => (
                         <Polyline
@@ -1975,6 +2015,7 @@ const Shipments = () => {
                                   <div style={{ marginBottom: '8px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                       <strong style={{ 
+                                        
                                         color: '#2196f3', 
                                         fontSize: '14px'
                                       }}>
@@ -2480,7 +2521,8 @@ const Shipments = () => {
                 </Marker>
               ))}
               
-              {/* Show dashed lines connecting all leg points when no GPS data */}
+              {/* Remove any preview polylines that might show circular connections */}
+              {/* Only show the individual leg-to-leg polylines */}
               {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                 allLegCoords.slice(0, -1).map((legCoord, index) => (
                   <Polyline
