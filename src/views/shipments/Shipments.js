@@ -144,6 +144,9 @@ const Shipments = () => {
   const [shipmentClusters, setShipmentClusters] = useState([])
   const [isLoadingClusters, setIsLoadingClusters] = useState(false)
 
+  // Add state for all leg coordinates
+  const [allLegCoords, setAllLegCoords] = useState([])
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -521,7 +524,7 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
-  // When a shipment is selected, geocode and store start/destination coords
+  // When a shipment is selected, geocode and store all leg coordinates
   useEffect(() => {
     const setCoordsFromShipment = async () => {
       if (
@@ -529,22 +532,47 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
+        const addresses = [];
         const firstLeg = selectedShipment.legs[0];
-        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
-        const from = firstLeg?.shipFromAddress;
-        const to = lastLeg?.stopAddress;
-        if (from && to && from.trim() !== '' && to.trim() !== '') {
-          const [fromCoord, toCoord] = await Promise.all([
-            geocodeAddress(from),
-            geocodeAddress(to),
-          ]);
-          setStartCoord(fromCoord);
-          setDestinationCoord(toCoord);
+        
+        // Add ship from address
+        if (firstLeg?.shipFromAddress) {
+          addresses.push(firstLeg.shipFromAddress);
+        }
+        
+        // Add all stop addresses
+        selectedShipment.legs.forEach(leg => {
+          if (leg?.stopAddress) {
+            addresses.push(leg.stopAddress);
+          }
+        });
+        
+        // Geocode all addresses
+        const coords = await Promise.all(
+          addresses.map(addr => geocodeAddress(addr))
+        );
+        
+        // Filter out null results and create coordinate objects
+        const validCoords = coords
+          .map((coord, index) => ({
+            position: coord,
+            address: addresses[index],
+            markerNumber: index + 1
+          }))
+          .filter(item => item.position !== null);
+        
+        setAllLegCoords(validCoords);
+        
+        // Set individual coords for backward compatibility
+        if (validCoords.length > 0) {
+          setStartCoord(validCoords[0].position);
+          setDestinationCoord(validCoords[validCoords.length - 1].position);
         } else {
           setStartCoord(null);
           setDestinationCoord(null);
         }
       } else {
+        setAllLegCoords([]);
         setStartCoord(null);
         setDestinationCoord(null);
       }
@@ -553,7 +581,7 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
 
-  // Show a line between full addresses when a shipment is selected and there is no routeData
+  // Show a line between all addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
       if (
@@ -562,33 +590,72 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
+        const addresses = [];
         const firstLeg = selectedShipment.legs[0];
-        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
-        const from = firstLeg?.shipFromAddress;
-        const to = lastLeg?.stopAddress;
-        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
-          const [fromCoord, toCoord] = await Promise.all([
-            geocodeAddress(from),
-            geocodeAddress(to),
-          ]);
-          if (fromCoord && toCoord) {
-            setNewShipmentPreview([fromCoord, toCoord]);
-            setDestinationCoord(toCoord);
-            setPreviewMarkers([
-              { position: fromCoord, label: '1', popup: `Start: ${from}` },
-              { position: toCoord, label: '2', popup: `End: ${to}` }
-            ]);
-            return;
+        
+        // Add ship from address
+        if (firstLeg?.shipFromAddress) {
+          addresses.push(firstLeg.shipFromAddress);
+        }
+        
+        // Add all stop addresses
+        selectedShipment.legs.forEach(leg => {
+          if (leg?.stopAddress) {
+            addresses.push(leg.stopAddress);
           }
+        });
+        
+        // Geocode all addresses
+        const coords = await Promise.all(
+          addresses.map(addr => geocodeAddress(addr))
+        );
+        
+        // Filter out null results
+        const validCoords = coords.filter(coord => coord !== null);
+        
+        if (validCoords.length >= 2) {
+          setNewShipmentPreview(validCoords);
+          setPreviewMarkers(
+            validCoords.map((coord, index) => ({
+              position: coord,
+              label: (index + 1).toString(),
+              popup: `${index === 0 ? 'Start' : index === validCoords.length - 1 ? 'End' : 'Stop ' + index}: ${addresses[index]}`
+            }))
+          );
+          setDestinationCoord(validCoords[validCoords.length - 1]);
+          return;
         }
       }
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
+      if (!isModalOpen) {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+      }
     };
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
+  }, [selectedShipment, routeData, isModalOpen]);
+
+  // Remove old route display logic and replace with:
+
+  // Show all leg markers when shipment is selected
+  useEffect(() => {
+    if (selectedShipment && allLegCoords.length > 0) {
+      setNewShipmentPreview(allLegCoords.map(leg => leg.position));
+      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+      setPreviewMarkers(
+        allLegCoords.map((legCoord, index) => ({
+          position: legCoord.position,
+          label: (index + 1).toString(),
+          popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
+        }))
+      );
+    } else {
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+  }, [selectedShipment, allLegCoords]);
 
   // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
@@ -1390,11 +1457,53 @@ const Shipments = () => {
                       </Marker>
                     )}
                     
+                    {/* Show all leg markers when shipment is selected */}
+                    {selectedShipment && allLegCoords.map((legCoord, index) => (
+                      <Marker 
+                        key={`leg-${index}`} 
+                        position={legCoord.position} 
+                        icon={numberIcon(legCoord.markerNumber.toString())}
+                      >
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>
+                              {index === 0 ? '🚀 Departure Point' : 
+                               index === allLegCoords.length - 1 ? '🏁 Destination Point' : 
+                               `🛑 Stop ${index}`}
+                            </strong><br/>
+                            {legCoord.address}
+                            <br/><small>
+                              {index === 0 ? 'Start of shipment journey' :
+                               index === allLegCoords.length - 1 ? 'End of shipment journey' :
+                               `Intermediate stop #${index}`}
+                            </small>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                    
+                    {/* Show dashed lines connecting all leg points when no GPS data */}
+                    {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
+                      allLegCoords.slice(0, -1).map((legCoord, index) => (
+                        <Polyline
+                          key={`leg-line-${index}`}
+                          positions={[legCoord.position, allLegCoords[index + 1].position]}
+                          color="#9e9e9e"
+                          weight={3}
+                          opacity={0.6}
+                          dashArray="15, 15"
+                        />
+                      ))
+                    }
+                    
                     {/* Enhanced shipment route display */}
                     {liveRoute.length > 0 ? (
                       <>
-                        {/* Fit map to show the entire route */}
-                        <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
+                        {/* Fit map to show the entire route including all leg points */}
+                        <FitBounds route={[
+                          ...liveRoute, 
+                          ...allLegCoords.map(leg => leg.position)
+                        ]} />
                         
                         {/* Solid blue line showing the actual GPS route taken */}
                         <Polyline 
@@ -1404,24 +1513,28 @@ const Shipments = () => {
                           opacity={0.8}
                         />
                         
-                        {/* Dashed line from last GPS point to destination (if not at destination) */}
-                        {destinationCoord && liveRoute.length > 0 && (
+                        {/* Dashed line from last GPS point to next unvisited destination */}
+                        {allLegCoords.length > 0 && liveRoute.length > 0 && (
                           (() => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                            const destLat = destinationCoord[0];
-                            const destLng = destinationCoord[1];
-                            const lastLat = lastGpsPoint[0];
-                            const lastLng = lastGpsPoint[1];
                             
-                            // Only show dashed line if current location is not at destination
-                            const distanceThreshold = 0.001; // ~100 meters
-                            const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
-                                                  Math.abs(lastLng - destLng) < distanceThreshold;
+                            // Find the next destination that hasn't been reached
+                            let nextDestination = null;
+                            for (const legCoord of allLegCoords) {
+                              const distanceThreshold = 0.005; // ~500 meters
+                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                              
+                              if (!isAtThisDestination) {
+                                nextDestination = legCoord.position;
+                                break;
+                              }
+                            }
                             
-                            if (!isAtDestination) {
+                            if (nextDestination) {
                               return (
                                 <Polyline
-                                  positions={[lastGpsPoint, destinationCoord]}
+                                  positions={[lastGpsPoint, nextDestination]}
                                   color="#ff9800"
                                   weight={3}
                                   opacity={0.7}
@@ -2364,11 +2477,53 @@ const Shipments = () => {
                 </Marker>
               )}
               
+              {/* Show all leg markers when shipment is selected */}
+              {selectedShipment && allLegCoords.map((legCoord, index) => (
+                <Marker 
+                  key={`leg-${index}`} 
+                  position={legCoord.position} 
+                  icon={numberIcon(legCoord.markerNumber.toString())}
+                >
+                  <Popup>
+                    <div style={{ minWidth: '200px' }}>
+                      <strong>
+                        {index === 0 ? '🚀 Departure Point' : 
+                         index === allLegCoords.length - 1 ? '🏁 Destination Point' : 
+                         `🛑 Stop ${index}`}
+                      </strong><br/>
+                      {legCoord.address}
+                      <br/><small>
+                        {index === 0 ? 'Start of shipment journey' :
+                         index === allLegCoords.length - 1 ? 'End of shipment journey' :
+                         `Intermediate stop #${index}`}
+                      </small>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+              
+              {/* Show dashed lines connecting all leg points when no GPS data */}
+              {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
+                allLegCoords.slice(0, -1).map((legCoord, index) => (
+                  <Polyline
+                    key={`leg-line-${index}`}
+                    positions={[legCoord.position, allLegCoords[index + 1].position]}
+                    color="#9e9e9e"
+                    weight={3}
+                    opacity={0.6}
+                    dashArray="15, 15"
+                  />
+                ))
+              }
+              
               {/* Enhanced shipment route display */}
               {liveRoute.length > 0 ? (
                 <>
-                  {/* Fit map to show the entire route */}
-                  <FitBounds route={[...liveRoute, ...(destinationCoord ? [destinationCoord] : [])]} />
+                  {/* Fit map to show the entire route including all leg points */}
+                  <FitBounds route={[
+                    ...liveRoute, 
+                    ...allLegCoords.map(leg => leg.position)
+                  ]} />
                   
                   {/* Solid blue line showing the actual GPS route taken */}
                   <Polyline 
@@ -2378,24 +2533,28 @@ const Shipments = () => {
                     opacity={0.8}
                   />
                   
-                  {/* Dashed line from last GPS point to destination (if not at destination) */}
-                  {destinationCoord && liveRoute.length > 0 && (
+                  {/* Dashed line from last GPS point to next unvisited destination */}
+                  {allLegCoords.length > 0 && liveRoute.length > 0 && (
                     (() => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                      const destLat = destinationCoord[0];
-                      const destLng = destinationCoord[1];
-                      const lastLat = lastGpsPoint[0];
-                      const lastLng = lastGpsPoint[1];
                       
-                      // Only show dashed line if current location is not at destination
-                      const distanceThreshold = 0.001; // ~100 meters
-                      const isAtDestination = Math.abs(lastLat - destLat) < distanceThreshold && 
-                                            Math.abs(lastLng - destLng) < distanceThreshold;
+                      // Find the next destination that hasn't been reached
+                      let nextDestination = null;
+                      for (const legCoord of allLegCoords) {
+                        const distanceThreshold = 0.005; // ~500 meters
+                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                        
+                        if (!isAtThisDestination) {
+                          nextDestination = legCoord.position;
+                          break;
+                        }
+                      }
                       
-                      if (!isAtDestination) {
+                      if (nextDestination) {
                         return (
                           <Polyline
-                            positions={[lastGpsPoint, destinationCoord]}
+                            positions={[lastGpsPoint, nextDestination]}
                             color="#ff9800"
                             weight={3}
                             opacity={0.7}
