@@ -932,6 +932,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
+    setLiveRoute([]) // Clear live route when going back to list
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -995,6 +996,7 @@ const Shipments = () => {
     if (!selectedShipment) {
       setFitWorld(true)
       setMapKey((k) => k + 1) // force map remount
+      setLiveRoute([]) // Clear live route when no shipment selected
     } else {
       setFitWorld(false)
     }
@@ -1998,7 +2000,7 @@ const Shipments = () => {
                               </div>
                               <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart 
+                                                                   <LineChart 
                                     data={humidityData}
                                     margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Humidity')}
@@ -2324,7 +2326,7 @@ const Shipments = () => {
                     </div>
                   </Popup>
                 </Marker>
-              )} */}
+              } */}
               
               {/* Show all leg markers when shipment is selected */}
               {selectedShipment && allLegCoords.map((legCoord, index) => (
