@@ -616,67 +616,10 @@ const Shipments = () => {
     }
   }, [selectedShipment, allLegCoords]);
 
-  // Remove this entire useEffect - it's causing the circular path
-  // useEffect(() => {
-  //   if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
-  //     setNewShipmentPreview(allLegCoords.map(leg => leg.position));
-  //     setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
-  //     setPreviewMarkers(
-  //       allLegCoords.map((legCoord, index) => ({
-  //         position: legCoord.position,
-  //         label: (index + 1).toString(),
-  //         popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
-  //       }))
-  //     );
-  //   } else {
-  //     setNewShipmentPreview(null);
-  //     setPreviewMarkers([]);
-  //     setDestinationCoord(null);
-  //   }
-  // }, [selectedShipment, allLegCoords]);
-
-  // Remove any preview polylines that might show circular connections
-  // Only show the individual leg-to-leg polylines
+  // Remove any polylines from newShipmentPreview for multi-leg shipments
+  // newShipmentPreview should only be used for modal preview
   useEffect(() => {
-    if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
-      setNewShipmentPreview(allLegCoords.map(leg => leg.position));
-      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
-      setPreviewMarkers(
-        allLegCoords.map((legCoord, index) => ({
-          position: legCoord.position,
-          label: (index + 1).toString(),
-          popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
-        }))
-      );
-    } else {
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
-    }
-  }, [selectedShipment, allLegCoords]);
-
-  // Show dashed lines connecting all leg points when no GPS data
-  useEffect(() => {
-    if (selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0)) {
-      setNewShipmentPreview(allLegCoords.map(leg => leg.position));
-      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
-      setPreviewMarkers(
-        allLegCoords.map((legCoord, index) => ({
-          position: legCoord.position,
-          label: (index + 1).toString(),
-          popup: `${index === 0 ? 'Start' : index === allLegCoords.length - 1 ? 'End' : 'Stop ' + index}: ${legCoord.address}`
-        }))
-      );
-    } else {
-      setNewShipmentPreview(null);
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
-    }
-  }, [selectedShipment, allLegCoords]);
-
-  // Also update preview markers for modal preview (always use full address)
-  useEffect(() => {
-    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+    if (newShipmentPreview && newShipmentPreview.length === 2) {
       const from = legs[0]?.shipFromAddress;
       const to = legs[legs.length - 1]?.stopAddress;
       setPreviewMarkers([
@@ -1499,7 +1442,7 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* Remove any preview polylines that might show circular connections */}
+                    {/* Remove any polylines that might show circular connections */}
                     {/* Only show the individual leg-to-leg polylines */}
                     {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                       allLegCoords.slice(0, -1).map((legCoord, index) => (
@@ -2521,7 +2464,7 @@ const Shipments = () => {
                 </Marker>
               ))}
               
-              {/* Remove any preview polylines that might show circular connections */}
+              {/* Remove any polylines that might show circular connections */}
               {/* Only show the individual leg-to-leg polylines */}
               {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                 allLegCoords.slice(0, -1).map((legCoord, index) => (
