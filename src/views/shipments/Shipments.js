@@ -640,179 +640,22 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, legs]);
 
-  // Remove any polylines from newShipmentPreview for multi-leg shipments
-  // newShipmentPreview should only be used for modal preview
-  useEffect(() => {
-    if (newShipmentPreview && newShipmentPreview.length === 2) {
-      const from = legs[0]?.shipFromAddress;
-      const to = legs[legs.length - 1]?.stopAddress;
-      setPreviewMarkers([
-        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
-        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
-      ]);
-      setDestinationCoord(newShipmentPreview[1]);
-    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
-      setPreviewMarkers([]);
-      setDestinationCoord(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
-
-  // Ensure destinationCoord is always set when GPS data is loaded
-  useEffect(() => {
-    const setDestinationFromShipment = async () => {
-      if (
-        selectedShipment &&
-        routeData.length > 0 &&
-        selectedShipment.legs &&
-        selectedShipment.legs.length > 0
-      ) {
-        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
-        const to = lastLeg?.stopAddress;
-        if (to && to.trim() !== '') {
-          const toCoord = await geocodeAddress(to);
-          if (
-            Array.isArray(toCoord) &&
-            toCoord.length === 2 &&
-            !isNaN(toCoord[0]) &&
-            !isNaN(toCoord[1])
-          ) {
-            setDestinationCoord(toCoord);
-            return;
-          }
-        }
-      }
-      // Only clear if not in preview mode
-      if (!isModalOpen) setDestinationCoord(null);
-    };
-    setDestinationFromShipment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData]);
-
-  // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
-  useEffect(() => {
-    if (!selectedShipment || !selectedShipment.trackerId) {
-      setLiveRoute([]);
-      return;
-    }
-    // Get the expected time range for the selected shipment
-    const legs = selectedShipment.legs || [];
-    const firstLeg = legs[0] || {};
-    const lastLeg = legs[legs.length - 1] || {};
-    const expectedStart = new Date(firstLeg.shipDate);
-    const expectedEnd = new Date(lastLeg.arrivalDate);
-
-    let isCurrent = true;
-
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => {
-      // Optionally log or authenticate
-    };
-    ws.onmessage = (event) => {
-      if (!isCurrent) return;
-      try {
-        const message = JSON.parse(event.data);
-        if (
-          message.operationType === 'insert' &&
-          String(message.tracker_id) === String(selectedShipment.trackerId)
-        ) {
-          const { geolocation, new_record } = message;
-          
-          // Use local timestamp if available, otherwise convert UTC
-          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
-          
-          // Check if the timestamp is within the expected range (using local time now)
-          if (new_record?.timestamp_local) {
-            const dt = new Date(new_record.timestamp_local);
-            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
-              return;
-            }
-          }
-          
-          const lat = parseFloat(geolocation?.Lat);
-          const lng = parseFloat(geolocation?.Lng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            setLiveRoute((prevRoute) => {
-              const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [lat, lng];
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                return [...prevRoute, newPoint];
-              }
-              return prevRoute;
-            });
-          }
-          
-          // Update sensor data with local timestamps
-          if (new_record) {
-            if (new_record.Temp !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, temperature: parseFloat(new_record.Temp) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Hum !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, humidity: parseFloat(new_record.Hum) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Batt !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, battery: parseFloat(new_record.Batt) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, speed: parseFloat(new_record.Speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    };
-    ws.onerror = () => {};
-    ws.onclose = () => {};
-
-    return () => {
-      isCurrent = false;
-      ws.close();
-    };
-  }, [selectedShipment, userTimezone]);
-
-  // When a shipment is selected, initialize liveRoute from routeData
-  useEffect(() => {
-    if (routeData && routeData.length > 0) {
-      setLiveRoute(
-        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
-      );
-    } else {
-      setLiveRoute([]);
-    }
-  }, [routeData]);
+  // Remove this entire duplicate useEffect - it's still setting preview markers
+  // useEffect(() => {
+  //   if (newShipmentPreview && newShipmentPreview.length === 2) {
+  //     const from = legs[0]?.shipFromAddress;
+  //     const to = legs[legs.length - 1]?.stopAddress;
+  //     setPreviewMarkers([
+  //       { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+  //       { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+  //     ]);
+  //     setDestinationCoord(newShipmentPreview[1]);
+  //   } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+  //     setPreviewMarkers([]);
+  //     setDestinationCoord(null);
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
@@ -1556,24 +1399,29 @@ const Shipments = () => {
                       )
                     )}
 
-                    {/* Hover marker for sensor data */}
-                    {hoverMarker && (
-                      <Marker 
-                        position={hoverMarker.position} 
-                        icon={hoverMarkerIcon(hoverMarker.sensorType)}
-                      >
-                        <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>{hoverMarker.sensorType} Reading</strong><br/>
-                            <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
-                            <strong>Time:</strong> {hoverMarker.timestamp}<br/>
-                            <strong>Location:</strong><br/>
-                            <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
-                            <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
-                          </div>
-                        </Popup>
-                      </Marker>
+                    {/* ONLY show preview polylines during modal creation */}
+                    {newShipmentPreview && isModalOpen && (
+                      <Polyline 
+                        positions={newShipmentPreview} 
+                        color="#2196f3" 
+                        weight={3}
+                        opacity={0.7}
+                        dashArray="10, 10"
+                      />
                     )}
+
+                    {/* Show preview markers ONLY during modal creation */}
+                    {previewMarkers.map((marker, index) => (
+                      isModalOpen && (
+                        <Marker
+                          key={`preview-${index}`}
+                          position={marker.position}
+                          icon={numberIcon(marker.label)}
+                        >
+                          <Popup>{marker.popup}</Popup>
+                        </Marker>
+                      )
+                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -2151,8 +1999,7 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                              </div>
-                            </div>
+                              </div>                            </div>
 
                             {/* Battery Chart */}
                             <div style={{ 
