@@ -590,41 +590,9 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        const addresses = [];
-        const firstLeg = selectedShipment.legs[0];
-        
-        // Add ship from address
-        if (firstLeg?.shipFromAddress) {
-          addresses.push(firstLeg.shipFromAddress);
-        }
-        
-        // Add all stop addresses
-        selectedShipment.legs.forEach(leg => {
-          if (leg?.stopAddress) {
-            addresses.push(leg.stopAddress);
-          }
-        });
-        
-        // Geocode all addresses
-        const coords = await Promise.all(
-          addresses.map(addr => geocodeAddress(addr))
-        );
-        
-        // Filter out null results
-        const validCoords = coords.filter(coord => coord !== null);
-        
-        if (validCoords.length >= 2) {
-          // Don't set newShipmentPreview here to avoid circular connections
-          setPreviewMarkers(
-            validCoords.map((coord, index) => ({
-              position: coord,
-              label: (index + 1).toString(),
-              popup: `${index === 0 ? 'Start' : index === validCoords.length - 1 ? 'End' : 'Stop ' + index}: ${addresses[index]}`
-            }))
-          );
-          setDestinationCoord(validCoords[validCoords.length - 1]);
-          return;
-        }
+        // This effect is now only for setting preview markers, not polylines
+        // The polylines are handled by the allLegCoords effect below
+        return;
       }
       if (!isModalOpen) {
         setNewShipmentPreview(null);
@@ -635,8 +603,6 @@ const Shipments = () => {
     showSelectedShipmentLine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment, routeData, isModalOpen]);
-
-  // Remove old route display logic and replace with:
 
   // Show all leg markers when shipment is selected
   useEffect(() => {
