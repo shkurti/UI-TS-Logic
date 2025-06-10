@@ -1260,8 +1260,9 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
+                    {/* Remove the duplicate startCoord and destinationCoord markers */}
                     {/* Always show start and destination markers if available */}
-                    {startCoord && selectedShipment && (
+                    {/* {startCoord && selectedShipment && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
@@ -1282,7 +1283,7 @@ const Shipments = () => {
                           </div>
                         </Popup>
                       </Marker>
-                    )}
+                    )} */}
                     
                     {/* Show all leg markers when shipment is selected */}
                     {selectedShipment && allLegCoords.map((legCoord, index) => (
@@ -2286,8 +2287,9 @@ const Shipments = () => {
                 </Marker>
               ))}
               
+              {/* Remove the duplicate startCoord and destinationCoord markers */}
               {/* Always show start and destination markers if available */}
-              {startCoord && selectedShipment && (
+              {/* {startCoord && selectedShipment && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
                     <div style={{ minWidth: '200px' }}>
@@ -2308,7 +2310,7 @@ const Shipments = () => {
                     </div>
                   </Popup>
                 </Marker>
-              )}
+              )} */}
               
               {/* Show all leg markers when shipment is selected */}
               {selectedShipment && allLegCoords.map((legCoord, index) => (
