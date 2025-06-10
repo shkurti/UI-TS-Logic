@@ -607,14 +607,38 @@ const Shipments = () => {
   // Show all leg markers when shipment is selected
   useEffect(() => {
     if (selectedShipment && allLegCoords.length > 0) {
-      // Don't set newShipmentPreview to avoid duplicate polylines
+      // Only set destination coordinate, NO preview markers or polylines
       setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+      // Clear any preview markers and polylines for selected shipments
+      setPreviewMarkers([]);
+      setNewShipmentPreview(null);
     } else if (!selectedShipment) {
       setNewShipmentPreview(null);
       setPreviewMarkers([]);
       setDestinationCoord(null);
     }
   }, [selectedShipment, allLegCoords]);
+
+  // ONLY handle modal preview - NO selected shipment logic here
+  useEffect(() => {
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+      setDestinationCoord(newShipmentPreview[1]);
+    } else if (!isModalOpen) {
+      // Clear everything when modal closes
+      setPreviewMarkers([]);
+      if (!selectedShipment) {
+        setNewShipmentPreview(null);
+        setDestinationCoord(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, newShipmentPreview, legs]);
 
   // Remove any polylines from newShipmentPreview for multi-leg shipments
   // newShipmentPreview should only be used for modal preview
@@ -1442,7 +1466,7 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* Remove any polylines that might show circular connections */}
+                    {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
                     {/* Only show the individual leg-to-leg polylines */}
                     {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                       allLegCoords.slice(0, -1).map((legCoord, index) => (
@@ -2464,7 +2488,7 @@ const Shipments = () => {
                 </Marker>
               ))}
               
-              {/* Remove any polylines that might show circular connections */}
+              {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
               {/* Only show the individual leg-to-leg polylines */}
               {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
                 allLegCoords.slice(0, -1).map((legCoord, index) => (
