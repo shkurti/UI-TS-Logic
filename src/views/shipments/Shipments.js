@@ -1363,38 +1363,18 @@ const Shipments = () => {
                             
                             // Find the next destination that hasn't been reached
                             let nextDestination = null;
-                            const distanceThreshold = 0.05; // Increased threshold to ~5km for better detection
-                            
-                            console.log('Orange line logic - lastGpsPoint:', lastGpsPoint);
-                            console.log('Orange line logic - allLegCoords:', allLegCoords);
-                            
-                            // Check each leg coordinate in order to find the next unvisited one
-                            for (let i = 0; i < allLegCoords.length; i++) {
-                              const legCoord = allLegCoords[i];
-                              const distanceToLeg = Math.sqrt(
-                                Math.pow(lastGpsPoint[0] - legCoord.position[0], 2) + 
-                                Math.pow(lastGpsPoint[1] - legCoord.position[1], 2)
-                              );
+                            for (const legCoord of allLegCoords) {
+                              const distanceThreshold = 0.005; // ~500 meters
+                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
                               
-                              console.log(`Distance to leg ${i}:`, distanceToLeg, 'threshold:', distanceThreshold);
-                              
-                              // If we haven't reached this destination yet, this is our target
-                              if (distanceToLeg > distanceThreshold) {
+                              if (!isAtThisDestination) {
                                 nextDestination = legCoord.position;
-                                console.log('Next destination found:', nextDestination, 'at leg index:', i);
                                 break;
                               }
                             }
                             
-                            // If no next destination found, try connecting to the final destination
-                            if (!nextDestination && allLegCoords.length > 0) {
-                              nextDestination = allLegCoords[allLegCoords.length - 1].position;
-                              console.log('Using final destination as fallback:', nextDestination);
-                            }
-                            
-                            // Show the orange dashed line
                             if (nextDestination) {
-                              console.log('Rendering orange dashed line from', lastGpsPoint, 'to', nextDestination);
                               return (
                                 <Polyline
                                   positions={[lastGpsPoint, nextDestination]}
@@ -1404,8 +1384,6 @@ const Shipments = () => {
                                   dashArray="10, 10"
                                 />
                               );
-                            } else {
-                              console.log('No orange dashed line - no valid destination found');
                             }
                             return null;
                           })()
@@ -2414,38 +2392,18 @@ const Shipments = () => {
                       
                       // Find the next destination that hasn't been reached
                       let nextDestination = null;
-                      const distanceThreshold = 0.05; // Increased threshold to ~5km for better detection
-                      
-                      console.log('Orange line logic - lastGpsPoint:', lastGpsPoint);
-                      console.log('Orange line logic - allLegCoords:', allLegCoords);
-                      
-                      // Check each leg coordinate in order to find the next unvisited one
-                      for (let i = 0; i < allLegCoords.length; i++) {
-                        const legCoord = allLegCoords[i];
-                        const distanceToLeg = Math.sqrt(
-                          Math.pow(lastGpsPoint[0] - legCoord.position[0], 2) + 
-                          Math.pow(lastGpsPoint[1] - legCoord.position[1], 2)
-                        );
+                      for (const legCoord of allLegCoords) {
+                        const distanceThreshold = 0.005; // ~500 meters
+                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
                         
-                        console.log(`Distance to leg ${i}:`, distanceToLeg, 'threshold:', distanceThreshold);
-                        
-                        // If we haven't reached this destination yet, this is our target
-                        if (distanceToLeg > distanceThreshold) {
+                        if (!isAtThisDestination) {
                           nextDestination = legCoord.position;
-                          console.log('Next destination found:', nextDestination, 'at leg index:', i);
                           break;
                         }
                       }
                       
-                      // If no next destination found, try connecting to the final destination
-                      if (!nextDestination && allLegCoords.length > 0) {
-                        nextDestination = allLegCoords[allLegCoords.length - 1].position;
-                        console.log('Using final destination as fallback:', nextDestination);
-                      }
-                      
-                      // Show the orange dashed line
                       if (nextDestination) {
-                        console.log('Rendering orange dashed line from', lastGpsPoint, 'to', nextDestination);
                         return (
                           <Polyline
                             positions={[lastGpsPoint, nextDestination]}
@@ -2455,8 +2413,6 @@ const Shipments = () => {
                             dashArray="10, 10"
                           />
                         );
-                      } else {
-                        console.log('No orange dashed line - no valid destination found');
                       }
                       return null;
                     })()
