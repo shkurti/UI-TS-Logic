@@ -932,7 +932,8 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([]) // Clear live route when going back to list
+    setLiveRoute([] // Clear live route when going back to list
+    )
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1363,17 +1364,24 @@ const Shipments = () => {
                             
                             // Find the next destination that hasn't been reached
                             let nextDestination = null;
-                            for (const legCoord of allLegCoords) {
-                              const distanceThreshold = 0.005; // ~500 meters
-                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                            const distanceThreshold = 0.01; // ~1km threshold for considering "reached"
+                            
+                            // Check each leg coordinate in order to find the next unvisited one
+                            for (let i = 0; i < allLegCoords.length; i++) {
+                              const legCoord = allLegCoords[i];
+                              const distanceToLeg = Math.sqrt(
+                                Math.pow(lastGpsPoint[0] - legCoord.position[0], 2) + 
+                                Math.pow(lastGpsPoint[1] - legCoord.position[1], 2)
+                              );
                               
-                              if (!isAtThisDestination) {
+                              // If we haven't reached this destination yet, this is our target
+                              if (distanceToLeg > distanceThreshold) {
                                 nextDestination = legCoord.position;
                                 break;
                               }
                             }
                             
+                            // If we've reached all destinations, don't show any dashed line
                             if (nextDestination) {
                               return (
                                 <Polyline
@@ -2392,17 +2400,24 @@ const Shipments = () => {
                       
                       // Find the next destination that hasn't been reached
                       let nextDestination = null;
-                      for (const legCoord of allLegCoords) {
-                        const distanceThreshold = 0.005; // ~500 meters
-                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                      const distanceThreshold = 0.01; // ~1km threshold for considering "reached"
+                      
+                      // Check each leg coordinate in order to find the next unvisited one
+                      for (let i = 0; i < allLegCoords.length; i++) {
+                        const legCoord = allLegCoords[i];
+                        const distanceToLeg = Math.sqrt(
+                          Math.pow(lastGpsPoint[0] - legCoord.position[0], 2) + 
+                          Math.pow(lastGpsPoint[1] - legCoord.position[1], 2)
+                        );
                         
-                        if (!isAtThisDestination) {
+                        // If we haven't reached this destination yet, this is our target
+                        if (distanceToLeg > distanceThreshold) {
                           nextDestination = legCoord.position;
                           break;
                         }
                       }
                       
+                      // If we've reached all destinations, don't show any dashed line
                       if (nextDestination) {
                         return (
                           <Polyline
