@@ -1360,27 +1360,34 @@ const Shipments = () => {
                         {allLegCoords.length > 0 && liveRoute.length > 0 && (
                           (() => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                            const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
 
-                            // Find the first destination that has NOT been reached yet
-                            // We need to check legs in sequence order, not just distance
-                            const DISTANCE_THRESHOLD = 0.01; // Increased threshold to ~1km for better detection
+                            // Find which destinations have been visited by checking if any GPS point was close to them
+                            const visitedDestinations = new Set();
                             
-                            // Check each leg coordinate in order to find the first unvisited one
+                            // Check each GPS point against each destination to mark as visited
+                            liveRoute.forEach(gpsPoint => {
+                              allLegCoords.forEach((legCoord, index) => {
+                                const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
+                                const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
+                                const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                                
+                                if (distance <= DISTANCE_THRESHOLD) {
+                                  visitedDestinations.add(index);
+                                }
+                              });
+                            });
+
+                            // Find the first unvisited destination in sequence
                             let nextDestination = null;
                             for (let i = 0; i < allLegCoords.length; i++) {
-                              const legCoord = allLegCoords[i];
-                              const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                              const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                              const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                              
-                              // If we're not at this destination yet, this is our next target
-                              if (distance > DISTANCE_THRESHOLD) {
-                                nextDestination = legCoord.position;
+                              if (!visitedDestinations.has(i)) {
+                                nextDestination = allLegCoords[i].position;
                                 break;
                               }
                             }
                             
-                            // If all destinations have been visited, don't show any line
+                            // Only show line if there's an unvisited destination
                             if (nextDestination) {
                               return (
                                 <Polyline
@@ -1421,6 +1428,25 @@ const Shipments = () => {
                       //   />
                       // )
                       null
+                    )}
+
+                    {/* Hover marker for sensor data */}
+                    {hoverMarker && (
+                      <Marker 
+                        position={hoverMarker.position} 
+                        icon={hoverMarkerIcon(hoverMarker.sensorType)}
+                      >
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>{hoverMarker.sensorType} Reading</strong><br/>
+                            <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
+                            <strong>Time:</strong> {hoverMarker.timestamp}<br/>
+                            <strong>Location:</strong><br/>
+                            <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
+                            <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
+                          </div>
+                        </Popup>
+                      </Marker>
                     )}
 
                     {/* ONLY show preview polylines during modal creation */}
@@ -1649,577 +1675,170 @@ const Shipments = () => {
             overflow: 'hidden',
             flexShrink: 0
           }}>
-            {/* Sidebar Content - Only show when not collapsed */}
-            {!sidebarCollapsed && (
-              <>
-                {/* Sidebar Header */}
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  padding: '20px',
-                  color: 'white',
-                  position: 'relative',
-                  flexShrink: 0
-                }}>
-                  {!selectedShipment ? (
-                    <>
-                      <h4 style={{ 
-                        margin: 0, 
-                        marginBottom: '8px', 
-                        fontWeight: '700',
-                        fontSize: '1.5rem'
-                      }}>
-                        Shipment Management
-                      </h4>
-                      <p style={{ 
-                        margin: 0, 
-                        opacity: 0.9, 
-                        fontSize: '14px'
-                      }}>
-                        Track and manage shipments
-                      </p>
-                    </>
-                  ) : (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            {/* Sidebar Header */}
+            <div style={{
+              padding: '16px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderTopLeftRadius: '12px',
+              borderTopRightRadius: '12px'
+            }}>
+              <h5 style={{ margin: 0, fontWeight: '600' }}>Shipment Tracker</h5>
+              <CButton
+                color="light"
+                variant="outline"
+                size="sm"
+                onClick={toggleSidebar}
+                style={{ padding: '6px 12px' }}
+              >
+                {sidebarCollapsed ? '☰' : '✕'}
+              </CButton>
+            </div>
+
+            {/* Sidebar Content - Shipments List */}
+            <div style={{
+              padding: '16px',
+              flex: 1,
+              overflowY: 'auto',
+              position: 'relative'
+            }}>
+              {/* Search and Filter */}
+              <div style={{ marginBottom: '16px' }}>
+                <CInputGroup size="sm">
+                  <CInputGroupText>
+                    <BsSearch size={14} />
+                  </CInputGroupText>
+                  <CFormInput
+                    placeholder="Search shipments..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </CInputGroup>
+              </div>
+
+              {/* Shipments Table */}
+              <CTable hover responsive style={{ tableLayout: 'fixed' }}>
+                <CTableHead style={{ background: '#f8f9fa' }}>
+                  <CTableRow>
+                    <CTableHeaderCell style={{ width: '50px' }}></CTableHeaderCell>
+                    <CTableHeaderCell>Tracker ID</CTableHeaderCell>
+                    <CTableHeaderCell>From</CTableHeaderCell>
+                    <CTableHeaderCell>To</CTableHeaderCell>
+                    <CTableHeaderCell style={{ width: '120px' }}>Departure</CTableHeaderCell>
+                    <CTableHeaderCell style={{ width: '120px' }}>Arrival</CTableHeaderCell>
+                    <CTableHeaderCell style={{ width: '100px' }}>Status</CTableHeaderCell>
+                    <CTableHeaderCell style={{ width: '50px' }}></CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {filteredShipments.map((shipment, index) => (
+                    <CTableRow
+                      key={index}
+                      onClick={() => handleShipmentClick(shipment)}
+                      style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+                      className={selectedShipment === shipment ? 'table-active' : ''}
+                    >
+                      <CTableDataCell style={{ width: '50px' }}>
+                        {selectedShipment === shipment && (
+                          <BsArrowRightCircleFill size={20} color="#1976d2" />
+                        )}
+                      </CTableDataCell>
+                      <CTableDataCell style={{ fontWeight: '500' }}>
+                        #{shipment.trackerId}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {shipment.legs?.[0]?.shipFromAddress || 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {shipment.legs?.[shipment.legs.length - 1]?.stopAddress || 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {new Date(shipment.legs?.[0]?.shipDate).toLocaleString() || 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleString() || 'N/A'}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <CBadge color="primary" style={{ fontSize: '10px' }}>
+                          In Transit
+                        </CBadge>
+                      </CTableDataCell>
+                      <CTableDataCell style={{ width: '50px' }}>
                         <CButton
-                          color="light"
+                          color="danger"
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedShipment(null)}
-                          style={{ padding: '6px 12px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShipmentSelection(shipment._id, !selectedShipmentsForDeletion.includes(shipment._id))
+                          }}
+                          style={{ 
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            width: '100%',
+                            display: selectedShipmentsForDeletion.includes(shipment._id) ? 'flex' : 'none',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
                         >
-                          <BsArrowLeft size={14} />
+                          <BsTrash size={14} />
                         </CButton>
-                        <h5 style={{ 
-                          margin: 0, 
-                          fontWeight: '600',
-                          fontSize: '1.25rem'
-                        }}>
-                          Shipment #{selectedShipment.trackerId}
-                        </h5>
-                      </div>
-                      
-                      {/* Shipment Details Summary */}
-                      <div style={{
-                        background: 'rgba(255,255,255,0.1)',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        fontSize: '13px'
-                      }}>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 35) || 'N/A'}
-                          {selectedShipment.legs?.[0]?.shipFromAddress?.length > 35 ? '...' : ''}
-                        </div>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 35) || 'N/A'}
-                          {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 35 ? '...' : ''}
-                        </div>
-                        <div>
-                          <strong>Arrival:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      </CTableDataCell>
+                    </CTableRow>
+                  ))}
+                </CTableBody>
+              </CTable>
+
+              {/* No shipments message */}
+              {filteredShipments.length === 0 && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: '#666', 
+                  padding: '40px 0',
+                  fontSize: '14px'
+                }}>
+                  <BsBoxSeam size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  No shipments found. Please adjust your search or filters.
                 </div>
+              )}
 
-                {/* Sidebar Content */}
-                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  {!selectedShipment ? (
-                    <>
-                      {/* Action Buttons */}
-                      <div style={{ 
-                        padding: '16px', 
-                        borderBottom: '1px solid #e9ecef',
-                        flexShrink: 0
-                      }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '8px', 
-                          marginBottom: '16px' 
-                        }}>
-                          <CButton
-                            color="primary"
-                            onClick={() => setIsModalOpen(true)}
-                            style={{
-                              flex: 1,
-                              borderRadius: '8px',
-                              padding: '10px',
-                              fontWeight: '600',
-                              fontSize: '14px'
-                            }}
-                          >
-                            <BsPlus size={16} style={{ marginRight: '6px' }} />
-                            New Shipment
-                          </CButton>
-                          <CButton
-                            color="danger"
-                            variant="outline"
-                            disabled={selectedShipmentsForDeletion.length === 0}
-                            onClick={openDeleteModal}
-                            style={{
-                              borderRadius: '8px',
-                              padding: '10px 16px',
-                              fontSize: '14px'
-                            }}
-                          >
-                            <BsTrash size={14} />
-                            {selectedShipmentsForDeletion.length > 0 && (
-                              <span style={{ marginLeft: '6px' }}>
-                                ({selectedShipmentsForDeletion.length})
-                              </span>
-                            )}
-                          </CButton>
-                        </div>
-
-                        {/* Select All Checkbox */}
-                        {filteredShipments.length > 0 && (
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px', 
-                            marginBottom: '12px',
-                            fontSize: '14px',
-                            color: '#666'
-                          }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedShipmentsForDeletion.length === filteredShipments.length && filteredShipments.length > 0}
-                              onChange={(e) => handleSelectAllShipments(e.target.checked)}
-                              style={{ cursor: 'pointer' }}
-                            />
-                            <label style={{ cursor: 'pointer', userSelect: 'none' }}>
-                              Select All ({filteredShipments.length})
-                            </label>
-                            {selectedShipmentsForDeletion.length > 0 && (
-                              <span style={{ color: '#007bff', fontWeight: '500' }}>
-                                {selectedShipmentsForDeletion.length} selected
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Search */}
-                        <CInputGroup size="sm">
-                          <CInputGroupText>
-                            <BsSearch size={14} />
-                          </CInputGroupText>
-                          <CFormInput
-                            placeholder="Search shipments..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </CInputGroup>
-                      </div>
-
-                      {/* Shipments List */}
-                      <div style={{ 
-                        flex: 1, 
-                        overflow: 'auto',
-                        WebkitOverflowScrolling: 'touch'
-                      }}>
-                        <CListGroup flush>
-                          {filteredShipments.map((shipment, index) => (
-                            <CListGroupItem
-                              key={index}
-                              style={{
-                                border: 'none',
-                                borderBottom: '1px solid #f0f0f0',
-                                padding: '16px',
-                                transition: 'background 0.2s',
-                                backgroundColor: selectedShipmentsForDeletion.includes(shipment._id) ? '#e3f2fd' : 'transparent'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                                {/* Checkbox for selection */}
-                                <input
-                                  type="checkbox"
-                                  checked={selectedShipmentsForDeletion.includes(shipment._id)}
-                                  onChange={(e) => handleShipmentSelection(shipment._id, e.target.checked)}
-                                  style={{ 
-                                    cursor: 'pointer', 
-                                    marginTop: '4px',
-                                    transform: 'scale(1.1)'
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                
-                                {/* Shipment Content */}
-                                <div 
-                                  style={{ 
-                                    flex: 1, 
-                                    cursor: 'pointer' 
-                                  }}
-                                  onClick={() => handleShipmentClick(shipment)}
-                                >
-                                  <div style={{ marginBottom: '8px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <strong style={{ 
-                                        
-                                        color: '#2196f3', 
-                                        fontSize: '14px'
-                                      }}>
-                                        #{shipment.trackerId}
-                                      </strong>
-                                      <CBadge color="primary" style={{ fontSize: '10px' }}>
-                                        In Transit
-                                      </CBadge>
-                                    </div>
-                                  </div>
-                                  
-                                  <div style={{ 
-                                    fontSize: '12px', 
-                                    color: '#666', 
-                                    lineHeight: '1.4' 
-                                  }}>
-                                    <div style={{ marginBottom: '4px' }}>
-                                      <strong>From:</strong> {shipment.legs?.[0]?.shipFromAddress?.substring(0, 25) || 'N/A'}
-                                      {shipment.legs?.[0]?.shipFromAddress?.length > 25 ? '...' : ''}
-                                    </div>
-                                    <div style={{ marginBottom: '4px' }}>
-                                      <strong>To:</strong> {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.substring(0, 25) || 'N/A'}
-                                      {shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.length > 25 ? '...' : ''}
-                                    </div>
-                                    <div style={{ color: '#888' }}>
-                                      ETA: {new Date(shipment.legs?.[shipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </CListGroupItem>
-                          ))}
-                        </CListGroup>
-                        
-                        {filteredShipments.length === 0 && (
-                          <div style={{ 
-                            textAlign: 'center', 
-                            padding: '40px 20px', 
-                            color: '#666',
-                            fontSize: '14px'
-                          }}>
-                            <BsInfoCircle size={24} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                            <div>No shipments found</div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Shipment Detail Tabs */}
-                      <div style={{ 
-                        borderBottom: '1px solid #e9ecef', 
-                        padding: '0 16px',
-                        flexShrink: 0
-                      }}>
-                        <CNav variant="pills" style={{ 
-                          gap: '4px', 
-                          padding: '12px 0',
-                          flexWrap: 'wrap'
-                        }}>
-                          {['Sensors', 'Alerts', 'Reports'].map((tab) => (
-                            <CNavItem key={tab}>
-                              <CNavLink
-                                active={shipmentTab === tab}
-                                onClick={() => setShipmentTab(tab)}
-                                style={{
-                                  borderRadius: '6px',
-                                  padding: '8px 12px',
-                                  fontSize: '13px',
-                                  fontWeight: '500',
-                                  background: shipmentTab === tab ? '#e3f2fd' : 'transparent',
-                                  color: shipmentTab === tab ? '#1976d2' : '#666'
-                                }}
-                              >
-                                {tab === 'Sensors' && <BsThermometerHalf size={14} style={{ marginRight: '4px' }} />}
-                                {tab === 'Alerts' && <BsExclamationTriangle size={14} style={{ marginRight: '4px' }} />}
-                                {tab === 'Reports' && <BsFileText size={14} style={{ marginRight: '4px' }} />}
-                                {tab}
-                              </CNavLink>
-                            </CNavItem>
-                          ))}
-                        </CNav>
-                      </div>
-
-                      {/* Tab Content */}
-                      <div style={{ 
-                        flex: 1, 
-                        overflow: 'auto', 
-                        padding: '8px 0',
-                        WebkitOverflowScrolling: 'touch'
-                      }}>
-                        {shipmentTab === 'Sensors' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {/* Temperature Chart */}
-                            <div style={{ 
-                              border: '1px solid #e9ecef',
-                              margin: '0 16px',
-                              borderRadius: '8px',
-                              overflow: 'hidden'
-                            }}>
-                              <div style={{ 
-                                padding: '12px 16px', 
-                                background: '#f8f9fa', 
-                                fontSize: '14px', 
-                                fontWeight: '600',
-                                borderBottom: '1px solid #e9ecef'
-                              }}>
-                                <BsThermometerHalf style={{ marginRight: '8px', color: '#ff6b6b' }} />
-                                Temperature
-                              </div>
-                              <div style={{ padding: '0' }}>
-                                <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart 
-                                    data={temperatureData}
-                                   
-                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Temperature')}
-                                    onMouseLeave={handleChartMouseLeave}
-                                  >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} width={40} />
-                                    <Tooltip
-
-                                      formatter={(value) => [`${value}°C`, 'Temperature']}
-                                      labelFormatter={(label) => `Time: ${label}`}
-                                    />
-                                    <Line type="monotone" dataKey="temperature" stroke="#ff6b6b" strokeWidth={2} dot={false} />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>
-                            </div>
-
-                            {/* Humidity Chart */}
-                            <div style={{ 
-                              border: '1px solid #e9ecef',
-                              margin: '0 16px',
-                              borderRadius: '8px',
-                              overflow: 'hidden'
-                            }}>
-                              <div style={{ 
-                                padding: '12px 16px', 
- 
-                                background: '#f8f9fa', 
-                                fontSize: '14px', 
-                                fontWeight: '600',
-                                borderBottom: '1px solid #e9ecef'
-                              }}>
-                                <BsDroplet style={{ marginRight: '8px', color: '#4ecdc4' }} />
-                                Humidity
-                              </div>
-                              <div style={{ padding: '0' }}>
-                                <ResponsiveContainer width="100%" height={180}>
-                                                                   <LineChart 
-                                    data={humidityData}
-                                    margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Humidity')}
-                                    onMouseLeave={handleChartMouseLeave}
-                                  >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} width={40} />
-                                    <Tooltip
-                                      formatter={(value) => [`${value}%`, 'Humidity']}
-                                      labelFormatter={(label) => `Time: ${label}`}
-                                    />
-                                    <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>                            </div>
-
-                            {/* Battery Chart */}
-                            <div style={{ 
-                              border: '1px solid #e9ecef',
-                              margin: '0 16px',
-                              borderRadius: '8px',
-                              overflow: 'hidden'
-                            }}>
-                              <div style={{ 
-                                padding: '12px 16px', 
-                                background: '#f8f9fa', 
-                                fontSize: '14px', 
-                                fontWeight: '600',
-                                borderBottom: '1px solid #e9ecef'
-                              }}>
-                                <BsBatteryHalf style={{ marginRight: '8px', color: '#45b7d1' }} />
-                                Battery Level
-                              </div>
-                              <div style={{ padding: '0' }}>
-                                <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart 
-                                    data={batteryData}
-                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Battery')}
-                                    onMouseLeave={handleChartMouseLeave}
-                                  >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} width={40} />
-                                    <Tooltip
-                                      formatter={(value) => [`${value}%`, 'Battery']}
-                                      labelFormatter={(label) => `Time: ${label}`}
-                                    />
-                                    <Line type="monotone" dataKey="battery" stroke="#45b7d1" strokeWidth={2} dot={false} />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>
-                            </div>
-
-                            {/* Speed Chart */}
-                            <div style={{ 
-                              border: '1px solid #e9ecef',
-                              margin: '0 16px',
-                              borderRadius: '8px',
-                              overflow: 'hidden'
-                            }}>
-                              <div style={{ 
-                                padding: '12px 16px', 
-                                background: '#f8f9fa', 
-                                fontSize: '14px', 
-                                fontWeight: '600',
-                                borderBottom: '1px solid #e9ecef'
-                              }}>
-                                <BsSpeedometer2 style={{ marginRight: '8px', color: '#96ceb4' }} />
-                                Speed
-                              </div>
-                              <div style={{ padding: '0' }}>
-                                <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart 
-                                    data={speedData}
-                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Speed')}
-                                    onMouseLeave={handleChartMouseLeave}
-                                  >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="timestamp" tick={false} />
-                                    <YAxis fontSize={10} width={40} />
-                                    <Tooltip
-                                      formatter={(value) => [`${value} km/h`, 'Speed']}
-                                      labelFormatter={(label) => `Time: ${label}`}
-                                    />
-                                    <Line type="monotone" dataKey="speed" stroke="#96ceb4" strokeWidth={2} dot={false} />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {shipmentTab === 'Alerts' && (
-                          <div style={{ 
-                            textAlign: 'center', 
-                            padding: '40px 20px', 
-                            color: '#666',
-                            fontSize: '14px'
-                          }}>
-                            <BsExclamationTriangle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                            <div>No alerts for this shipment</div>
-                          </div>
-                        )}
-                        
-                        {shipmentTab === 'Reports' && (
-                          <div style={{ 
-                            textAlign: 'center', 
-                            padding: '40px 20px', 
-                            color: '#666',
-                            fontSize: '14px'
-                          }}>
-                            <BsFileText size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                            <div>Reports feature coming soon</div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Toggle Button - Always visible and properly positioned */}
-          <div style={{
-            position: 'fixed',
-            top: '60px',
-            left: sidebarCollapsed 
-              ? '20px' 
-              : (selectedShipment ? '470px' : '420px'),
-            zIndex: 1001,
-            transition: 'left 0.3s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            <CButton
-              color="primary"
-              size="sm"
-              onClick={toggleSidebar}
-              style={{
-                borderRadius: '50%',
-                width: '44px',
-                height: '44px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                border: '2px solid white',
-                fontSize: '16px',
-                fontWeight: 'bold'
-              }}
-            >
-              {sidebarCollapsed ? '☰' : '✕'}
-            </CButton>
-
-            {/* Selected Shipment Info - Show when shipment selected and sidebar collapsed */}
-            {sidebarCollapsed && selectedShipment && (
+              {/* Floating Action Button for adding shipments */}
               <div style={{
-                background: 'white',
-                borderRadius: '12px',
-                padding: '16px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                width: '350px',
-                maxWidth: 'calc(100vw - 60px)'
+                position: 'absolute',
+                bottom: '16px',
+                right: '16px',
+                zIndex: 1000
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div>
-                    <h6 style={{ margin: 0, marginBottom: '4px', fontWeight: '600', color: '#333' }}>
-                      Shipment #{selectedShipment.trackerId}
-                    </h6>
-                    <CBadge color="primary" style={{ fontSize: '10px' }}>
-                      In Transit
-                    </CBadge>
-                  </div>
-                  <CButton
-                    color="secondary"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSidebarCollapsed(false)}
-                    style={{
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      fontSize: '11px'
-                    }}
-                  >
-                    Details
-                  </CButton>
-                </div>
-                
-                <div style={{ fontSize: '12px', color: '#666' }}>
-                  <div style={{ marginBottom: '4px' }}>
-                    <strong>From:</strong> {selectedShipment.legs?.[0]?.shipFromAddress?.substring(0, 30) || 'N/A'}
-                    {selectedShipment.legs?.[0]?.shipFromAddress?.length > 30 ? '...' : ''}
-                  </div>
-                  <div style={{ marginBottom: '4px' }}>
-                    <strong>To:</strong> {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.substring(0, 30) || 'N/A'}
-                    {selectedShipment.legs?.[selectedShipment.legs.length - 1]?.stopAddress?.length > 30 ? '...' : ''}
-                  </div>
-                  <div>
-                    <strong>ETA:</strong> {new Date(selectedShipment.legs?.[selectedShipment.legs.length - 1]?.arrivalDate).toLocaleDateString() || 'N/A'}
-                  </div>
-                </div>
+                <CButton
+                  color="primary"
+                  size="lg"
+                  onClick={() => setIsModalOpen(true)}
+                  style={{
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    border: 'none',
+                    transition: 'transform 0.2s',
+                    fontSize: '24px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  <BsPlus />
+                </CButton>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Full Page Map */}
+          {/* Main Content - Map and Shipment Details */}
           <div style={{ 
             flex: 1, 
             position: 'relative',
@@ -2397,27 +2016,34 @@ const Shipments = () => {
                   {allLegCoords.length > 0 && liveRoute.length > 0 && (
                     (() => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                      const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
 
-                      // Find the first destination that has NOT been reached yet
-                      // We need to check legs in sequence order, not just distance
-                      const DISTANCE_THRESHOLD = 0.01; // Increased threshold to ~1km for better detection
+                      // Find which destinations have been visited by checking if any GPS point was close to them
+                      const visitedDestinations = new Set();
                       
-                      // Check each leg coordinate in order to find the first unvisited one
+                      // Check each GPS point against each destination to mark as visited
+                      liveRoute.forEach(gpsPoint => {
+                        allLegCoords.forEach((legCoord, index) => {
+                          const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
+                          const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
+                          const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                          
+                          if (distance <= DISTANCE_THRESHOLD) {
+                            visitedDestinations.add(index);
+                          }
+                        });
+                      });
+
+                      // Find the first unvisited destination in sequence
                       let nextDestination = null;
                       for (let i = 0; i < allLegCoords.length; i++) {
-                        const legCoord = allLegCoords[i];
-                        const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                        const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                        
-                        // If we're not at this destination yet, this is our next target
-                        if (distance > DISTANCE_THRESHOLD) {
-                          nextDestination = legCoord.position;
+                        if (!visitedDestinations.has(i)) {
+                          nextDestination = allLegCoords[i].position;
                           break;
                         }
                       }
                       
-                      // If all destinations have been visited, don't show any line
+                      // Only show line if there's an unvisited destination
                       if (nextDestination) {
                         return (
                           <Polyline
