@@ -932,7 +932,8 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([]) // Clear live route when going back to list
+    setLiveRoute([] // Clear live route when going back to list
+    )
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1473,44 +1474,38 @@ const Shipments = () => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
                             const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
 
-                            // Find the current journey progress by checking distances to each leg
-                            let currentLegIndex = 0;
-                            let minDistance = Infinity;
+                            // Calculate journey progress by determining which legs have been visited
+                            const visitedLegs = new Set();
                             
-                            // Find which leg we're closest to (current progress)
+                            // Check each leg to see if we've been close to it during the journey
                             allLegCoords.forEach((legCoord, index) => {
-                              const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                              const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                              const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                              const hasVisited = liveRoute.some(gpsPoint => {
+                                const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
+                                const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
+                                const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                                return distance <= DISTANCE_THRESHOLD;
+                              });
                               
-                              if (distance < minDistance) {
-                                minDistance = distance;
-                                currentLegIndex = index;
+                              if (hasVisited) {
+                                visitedLegs.add(index);
                               }
                             });
 
-                            // If we're very close to current leg (within threshold), look for next leg
-                            if (minDistance <= DISTANCE_THRESHOLD) {
-                              currentLegIndex = Math.min(currentLegIndex + 1, allLegCoords.length - 1);
-                            }
-
-                            // Find the next unvisited destination starting from current progress
-                            let nextDestination = null;
-                            for (let i = currentLegIndex; i < allLegCoords.length; i++) {
-                              const legCoord = allLegCoords[i];
-                              const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                              const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                              const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                              
-                              // If this destination is not yet reached, it's our target
-                              if (distance > DISTANCE_THRESHOLD) {
-                                nextDestination = legCoord.position;
+                            // Find the highest visited leg index to determine current progress
+                            let currentProgress = -1;
+                            for (let i = allLegCoords.length - 1; i >= 0; i--) {
+                              if (visitedLegs.has(i)) {
+                                currentProgress = i;
                                 break;
                               }
                             }
+
+                            // The next destination should be the next leg in sequence
+                            const nextLegIndex = currentProgress + 1;
                             
-                            // Only show line if there's an unvisited destination ahead
-                            if (nextDestination) {
+                            // Only show line if there's a next destination
+                            if (nextLegIndex < allLegCoords.length) {
+                              const nextDestination = allLegCoords[nextLegIndex].position;
                               return (
                                 <Polyline
                                   positions={[lastGpsPoint, nextDestination]}
@@ -2522,44 +2517,38 @@ const Shipments = () => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
                       const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
 
-                      // Find the current journey progress by checking distances to each leg
-                      let currentLegIndex = 0;
-                      let minDistance = Infinity;
+                      // Calculate journey progress by determining which legs have been visited
+                      const visitedLegs = new Set();
                       
-                      // Find which leg we're closest to (current progress)
+                      // Check each leg to see if we've been close to it during the journey
                       allLegCoords.forEach((legCoord, index) => {
-                        const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                        const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                        const hasVisited = liveRoute.some(gpsPoint => {
+                          const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
+                          const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
+                          const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                          return distance <= DISTANCE_THRESHOLD;
+                        });
                         
-                        if (distance < minDistance) {
-                          minDistance = distance;
-                          currentLegIndex = index;
+                        if (hasVisited) {
+                          visitedLegs.add(index);
                         }
                       });
 
-                      // If we're very close to current leg (within threshold), look for next leg
-                      if (minDistance <= DISTANCE_THRESHOLD) {
-                        currentLegIndex = Math.min(currentLegIndex + 1, allLegCoords.length - 1);
-                      }
-
-                      // Find the next unvisited destination starting from current progress
-                      let nextDestination = null;
-                      for (let i = currentLegIndex; i < allLegCoords.length; i++) {
-                        const legCoord = allLegCoords[i];
-                        const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
-                        const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
-                        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                        
-                        // If this destination is not yet reached, it's our target
-                        if (distance > DISTANCE_THRESHOLD) {
-                          nextDestination = legCoord.position;
+                      // Find the highest visited leg index to determine current progress
+                      let currentProgress = -1;
+                      for (let i = allLegCoords.length - 1; i >= 0; i--) {
+                        if (visitedLegs.has(i)) {
+                          currentProgress = i;
                           break;
                         }
                       }
+
+                      // The next destination should be the next leg in sequence
+                      const nextLegIndex = currentProgress + 1;
                       
-                      // Only show line if there's an unvisited destination ahead
-                      if (nextDestination) {
+                      // Only show line if there's a next destination
+                      if (nextLegIndex < allLegCoords.length) {
+                        const nextDestination = allLegCoords[nextLegIndex].position;
                         return (
                           <Polyline
                             positions={[lastGpsPoint, nextDestination]}
