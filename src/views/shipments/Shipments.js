@@ -1002,117 +1002,6 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
-  // Add state for real-time updates
-  const [isRealTimeActive, setIsRealTimeActive] = useState(false)
-
-  // Real-time data polling for selected shipment
-  useEffect(() => {
-    let interval = null;
-    
-    if (selectedShipment && isRealTimeActive) {
-      const pollData = async () => {
-        const trackerId = selectedShipment.trackerId;
-        const legs = selectedShipment.legs || [];
-        const firstLeg = legs[0] || {};
-        const lastLeg = legs[legs.length - 1] || {};
-        const shipDate = firstLeg.shipDate;
-        const arrivalDate = lastLeg.arrivalDate;
-
-        if (trackerId && shipDate && arrivalDate) {
-          try {
-            const params = new URLSearchParams({
-              tracker_id: trackerId,
-              start: shipDate,
-              end: arrivalDate,
-              timezone: userTimezone
-            });
-            
-            const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`);
-            
-            if (response.ok) {
-              const data = await response.json();
-              setRouteData(data);
-              
-              // Update GPS route
-              const gpsRoute = data
-                .filter(record => record.latitude && record.longitude && 
-                                !isNaN(parseFloat(record.latitude)) && 
-                                !isNaN(parseFloat(record.longitude)))
-                .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)]);
-              
-              setLiveRoute(gpsRoute);
-              
-              // Update sensor data
-              setTemperatureData(
-                data.map((record) => ({
-                  timestamp: record.timestamp || 'N/A',
-                  temperature: record.temperature !== undefined
-                    ? parseFloat(record.temperature)
-                    : record.Temp !== undefined
-                      ? parseFloat(record.Temp)
-                      : null,
-                }))
-              );
-              setHumidityData(
-                data.map((record) => ({
-                  timestamp: record.timestamp || 'N/A',
-                  humidity: record.humidity !== undefined
-                    ? parseFloat(record.humidity)
-                    : record.Hum !== undefined
-                      ? parseFloat(record.Hum)
-                      : null,
-                }))
-              );
-              setBatteryData(
-                data.map((record) => ({
-                  timestamp: record.timestamp || 'N/A',
-                  battery: record.battery !== undefined
-                    ? parseFloat(record.battery)
-                    : record.Batt !== undefined
-                      ? parseFloat(record.Batt)
-                      : null,
-                }))
-              );
-              setSpeedData(
-                data.map((record) => ({
-                  timestamp: record.timestamp || 'N/A',
-                  speed: record.speed !== undefined
-                    ? parseFloat(record.speed)
-                    : record.Speed !== undefined
-                      ? parseFloat(record.Speed)
-                      : null,
-                }))
-              );
-            }
-          } catch (error) {
-            console.error('Error polling real-time data:', error);
-          }
-        }
-      };
-
-      // Initial poll
-      pollData();
-      
-      // Set up polling interval (every 30 seconds)
-      interval = setInterval(pollData, 30000);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [selectedShipment, isRealTimeActive, userTimezone]);
-
-  // Start real-time updates when shipment is selected
-  useEffect(() => {
-    if (selectedShipment) {
-      setIsRealTimeActive(true);
-    } else {
-      setIsRealTimeActive(false);
-    }
-  }, [selectedShipment]);
-
   return (
     <div style={{ 
       display: 'flex',
@@ -1471,50 +1360,21 @@ const Shipments = () => {
                         {allLegCoords.length > 0 && liveRoute.length > 0 && (
                           (() => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                            const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
-
-                            // Calculate journey progress by determining which legs have been visited
-                            const visitedLegs = new Set();
                             
-                            // Check each leg to see if we've been close to it during the journey
-                            allLegCoords.forEach((legCoord, index) => {
-                              const hasVisited = liveRoute.some(gpsPoint => {
-                                const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
-                                const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
-                                const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                                return distance <= DISTANCE_THRESHOLD;
-                              });
+                            // Find the next destination that hasn't been reached
+                            let nextDestination = null;
+                            for (const legCoord of allLegCoords) {
+                              const distanceThreshold = 0.005; // ~500 meters
+                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
                               
-                              if (hasVisited) {
-                                visitedLegs.add(index);
-                              }
-                            });
-
-                            // Debug logging
-                            console.log('All leg coords:', allLegCoords.map((leg, i) => `${i}: ${leg.address}`));
-                            console.log('Visited legs:', Array.from(visitedLegs));
-                            console.log('Current GPS position:', lastGpsPoint);
-
-                            // Find the highest visited leg index to determine current progress
-                            let currentProgress = -1;
-                            for (let i = allLegCoords.length - 1; i >= 0; i--) {
-                              if (visitedLegs.has(i)) {
-                                currentProgress = i;
+                              if (!isAtThisDestination) {
+                                nextDestination = legCoord.position;
                                 break;
                               }
                             }
-
-                            console.log('Current progress (highest visited leg):', currentProgress);
-
-                            // The next destination should be the next leg in sequence
-                            const nextLegIndex = currentProgress + 1;
                             
-                            console.log('Next leg index:', nextLegIndex);
-                            
-                            // Only show line if there's a next destination
-                            if (nextLegIndex < allLegCoords.length) {
-                              const nextDestination = allLegCoords[nextLegIndex].position;
-                              console.log('Next destination:', allLegCoords[nextLegIndex].address, nextDestination);
+                            if (nextDestination) {
                               return (
                                 <Polyline
                                   positions={[lastGpsPoint, nextDestination]}
@@ -1524,8 +1384,6 @@ const Shipments = () => {
                                   dashArray="10, 10"
                                 />
                               );
-                            } else {
-                              console.log('No more destinations - journey complete');
                             }
                             return null;
                           })()
@@ -1558,24 +1416,29 @@ const Shipments = () => {
                       null
                     )}
 
-                    {/* Hover marker for sensor data */}
-                    {hoverMarker && (
-                      <Marker 
-                        position={hoverMarker.position} 
-                        icon={hoverMarkerIcon(hoverMarker.sensorType)}
-                      >
-                        <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>{hoverMarker.sensorType} Reading</strong><br/>
-                            <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
-                            <strong>Time:</strong> {hoverMarker.timestamp}<br/>
-                            <strong>Location:</strong><br/>
-                            <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
-                            <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
-                          </div>
-                        </Popup>
-                      </Marker>
+                    {/* ONLY show preview polylines during modal creation */}
+                    {newShipmentPreview && isModalOpen && (
+                      <Polyline 
+                        positions={newShipmentPreview} 
+                        color="#2196f3" 
+                        weight={3}
+                        opacity={0.7}
+                        dashArray="10, 10"
+                      />
                     )}
+
+                    {/* Show preview markers ONLY during modal creation */}
+                    {previewMarkers.map((marker, index) => (
+                      isModalOpen && (
+                        <Marker
+                          key={`preview-${index}`}
+                          position={marker.position}
+                          icon={numberIcon(marker.label)}
+                        >
+                          <Popup>{marker.popup}</Popup>
+                        </Marker>
+                      )
+                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -2526,50 +2389,21 @@ const Shipments = () => {
                   {allLegCoords.length > 0 && liveRoute.length > 0 && (
                     (() => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                      const DISTANCE_THRESHOLD = 0.01; // ~1km threshold
-
-                      // Calculate journey progress by determining which legs have been visited
-                      const visitedLegs = new Set();
                       
-                      // Check each leg to see if we've been close to it during the journey
-                      allLegCoords.forEach((legCoord, index) => {
-                        const hasVisited = liveRoute.some(gpsPoint => {
-                          const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
-                          const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
-                          const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                          return distance <= DISTANCE_THRESHOLD;
-                        });
+                      // Find the next destination that hasn't been reached
+                      let nextDestination = null;
+                      for (const legCoord of allLegCoords) {
+                        const distanceThreshold = 0.005; // ~500 meters
+                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
                         
-                        if (hasVisited) {
-                          visitedLegs.add(index);
-                        }
-                      });
-
-                      // Debug logging
-                      console.log('All leg coords:', allLegCoords.map((leg, i) => `${i}: ${leg.address}`));
-                      console.log('Visited legs:', Array.from(visitedLegs));
-                      console.log('Current GPS position:', lastGpsPoint);
-
-                      // Find the highest visited leg index to determine current progress
-                      let currentProgress = -1;
-                      for (let i = allLegCoords.length - 1; i >= 0; i--) {
-                        if (visitedLegs.has(i)) {
-                          currentProgress = i;
+                        if (!isAtThisDestination) {
+                          nextDestination = legCoord.position;
                           break;
                         }
                       }
-
-                      console.log('Current progress (highest visited leg):', currentProgress);
-
-                      // The next destination should be the next leg in sequence
-                      const nextLegIndex = currentProgress + 1;
                       
-                      console.log('Next leg index:', nextLegIndex);
-                      
-                      // Only show line if there's a next destination
-                      if (nextLegIndex < allLegCoords.length) {
-                        const nextDestination = allLegCoords[nextLegIndex].position;
-                        console.log('Next destination:', allLegCoords[nextLegIndex].address, nextDestination);
+                      if (nextDestination) {
                         return (
                           <Polyline
                             positions={[lastGpsPoint, nextDestination]}
@@ -2579,8 +2413,6 @@ const Shipments = () => {
                             dashArray="10, 10"
                           />
                         );
-                      } else {
-                        console.log('No more destinations - journey complete');
                       }
                       return null;
                     })()
