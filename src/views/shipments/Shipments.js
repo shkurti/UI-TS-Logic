@@ -1362,20 +1362,25 @@ const Shipments = () => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
 
                             // Find the first destination that has NOT been reached yet
-                            // A destination is considered "visited" if the last GPS point is within threshold distance
-                            const distance = (a, b) => {
-                              const latDiff = a[0] - b[0];
-                              const lngDiff = a[1] - b[1];
-                              return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                            };
-                            const DISTANCE_THRESHOLD = 0.005; // ~500 meters
-
-                            // Find the first leg that is farther than threshold from last GPS point
-                            const nextDestinationObj = allLegCoords.find(
-                              legCoord => distance(lastGpsPoint, legCoord.position) > DISTANCE_THRESHOLD
-                            );
-                            const nextDestination = nextDestinationObj ? nextDestinationObj.position : null;
-
+                            // We need to check legs in sequence order, not just distance
+                            const DISTANCE_THRESHOLD = 0.01; // Increased threshold to ~1km for better detection
+                            
+                            // Check each leg coordinate in order to find the first unvisited one
+                            let nextDestination = null;
+                            for (let i = 0; i < allLegCoords.length; i++) {
+                              const legCoord = allLegCoords[i];
+                              const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
+                              const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
+                              const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                              
+                              // If we're not at this destination yet, this is our next target
+                              if (distance > DISTANCE_THRESHOLD) {
+                                nextDestination = legCoord.position;
+                                break;
+                              }
+                            }
+                            
+                            // If all destinations have been visited, don't show any line
                             if (nextDestination) {
                               return (
                                 <Polyline
@@ -1992,6 +1997,7 @@ const Shipments = () => {
                             }}>
                               <div style={{ 
                                 padding: '12px 16px', 
+ 
                                 background: '#f8f9fa', 
                                 fontSize: '14px', 
                                 fontWeight: '600',
@@ -2393,20 +2399,25 @@ const Shipments = () => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
 
                       // Find the first destination that has NOT been reached yet
-                      // A destination is considered "visited" if the last GPS point is within threshold distance
-                      const distance = (a, b) => {
-                        const latDiff = a[0] - b[0];
-                        const lngDiff = a[1] - b[1];
-                        return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                      };
-                      const DISTANCE_THRESHOLD = 0.005; // ~500 meters
-
-                      // Find the first leg that is farther than threshold from last GPS point
-                      const nextDestinationObj = allLegCoords.find(
-                        legCoord => distance(lastGpsPoint, legCoord.position) > DISTANCE_THRESHOLD
-                      );
-                      const nextDestination = nextDestinationObj ? nextDestinationObj.position : null;
-
+                      // We need to check legs in sequence order, not just distance
+                      const DISTANCE_THRESHOLD = 0.01; // Increased threshold to ~1km for better detection
+                      
+                      // Check each leg coordinate in order to find the first unvisited one
+                      let nextDestination = null;
+                      for (let i = 0; i < allLegCoords.length; i++) {
+                        const legCoord = allLegCoords[i];
+                        const latDiff = Math.abs(lastGpsPoint[0] - legCoord.position[0]);
+                        const lngDiff = Math.abs(lastGpsPoint[1] - legCoord.position[1]);
+                        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                        
+                        // If we're not at this destination yet, this is our next target
+                        if (distance > DISTANCE_THRESHOLD) {
+                          nextDestination = legCoord.position;
+                          break;
+                        }
+                      }
+                      
+                      // If all destinations have been visited, don't show any line
                       if (nextDestination) {
                         return (
                           <Polyline
