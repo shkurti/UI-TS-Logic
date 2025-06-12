@@ -1360,20 +1360,22 @@ const Shipments = () => {
                         {allLegCoords.length > 0 && liveRoute.length > 0 && (
                           (() => {
                             const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                            
-                            // Find the next destination that hasn't been reached
-                            let nextDestination = null;
-                            for (const legCoord of allLegCoords) {
-                              const distanceThreshold = 0.005; // ~500 meters
-                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
-                              
-                              if (!isAtThisDestination) {
-                                nextDestination = legCoord.position;
-                                break;
-                              }
-                            }
-                            
+
+                            // Find the first destination that has NOT been reached yet
+                            // A destination is considered "visited" if the last GPS point is within threshold distance
+                            const distance = (a, b) => {
+                              const latDiff = a[0] - b[0];
+                              const lngDiff = a[1] - b[1];
+                              return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                            };
+                            const DISTANCE_THRESHOLD = 0.005; // ~500 meters
+
+                            // Find the first leg that is farther than threshold from last GPS point
+                            const nextDestinationObj = allLegCoords.find(
+                              legCoord => distance(lastGpsPoint, legCoord.position) > DISTANCE_THRESHOLD
+                            );
+                            const nextDestination = nextDestinationObj ? nextDestinationObj.position : null;
+
                             if (nextDestination) {
                               return (
                                 <Polyline
@@ -2389,20 +2391,22 @@ const Shipments = () => {
                   {allLegCoords.length > 0 && liveRoute.length > 0 && (
                     (() => {
                       const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                      
-                      // Find the next destination that hasn't been reached
-                      let nextDestination = null;
-                      for (const legCoord of allLegCoords) {
-                        const distanceThreshold = 0.005; // ~500 meters
-                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
-                        
-                        if (!isAtThisDestination) {
-                          nextDestination = legCoord.position;
-                          break;
-                        }
-                      }
-                      
+
+                      // Find the first destination that has NOT been reached yet
+                      // A destination is considered "visited" if the last GPS point is within threshold distance
+                      const distance = (a, b) => {
+                        const latDiff = a[0] - b[0];
+                        const lngDiff = a[1] - b[1];
+                        return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+                      };
+                      const DISTANCE_THRESHOLD = 0.005; // ~500 meters
+
+                      // Find the first leg that is farther than threshold from last GPS point
+                      const nextDestinationObj = allLegCoords.find(
+                        legCoord => distance(lastGpsPoint, legCoord.position) > DISTANCE_THRESHOLD
+                      );
+                      const nextDestination = nextDestinationObj ? nextDestinationObj.position : null;
+
                       if (nextDestination) {
                         return (
                           <Polyline
