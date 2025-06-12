@@ -932,8 +932,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([] // Clear live route when going back to list
-    )
+    setLiveRoute([]) // Clear live route when going back to list
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1491,6 +1490,11 @@ const Shipments = () => {
                               }
                             });
 
+                            // Debug logging
+                            console.log('All leg coords:', allLegCoords.map((leg, i) => `${i}: ${leg.address}`));
+                            console.log('Visited legs:', Array.from(visitedLegs));
+                            console.log('Current GPS position:', lastGpsPoint);
+
                             // Find the highest visited leg index to determine current progress
                             let currentProgress = -1;
                             for (let i = allLegCoords.length - 1; i >= 0; i--) {
@@ -1500,12 +1504,17 @@ const Shipments = () => {
                               }
                             }
 
+                            console.log('Current progress (highest visited leg):', currentProgress);
+
                             // The next destination should be the next leg in sequence
                             const nextLegIndex = currentProgress + 1;
+                            
+                            console.log('Next leg index:', nextLegIndex);
                             
                             // Only show line if there's a next destination
                             if (nextLegIndex < allLegCoords.length) {
                               const nextDestination = allLegCoords[nextLegIndex].position;
+                              console.log('Next destination:', allLegCoords[nextLegIndex].address, nextDestination);
                               return (
                                 <Polyline
                                   positions={[lastGpsPoint, nextDestination]}
@@ -1515,6 +1524,8 @@ const Shipments = () => {
                                   dashArray="10, 10"
                                 />
                               );
+                            } else {
+                              console.log('No more destinations - journey complete');
                             }
                             return null;
                           })()
@@ -2534,6 +2545,11 @@ const Shipments = () => {
                         }
                       });
 
+                      // Debug logging
+                      console.log('All leg coords:', allLegCoords.map((leg, i) => `${i}: ${leg.address}`));
+                      console.log('Visited legs:', Array.from(visitedLegs));
+                      console.log('Current GPS position:', lastGpsPoint);
+
                       // Find the highest visited leg index to determine current progress
                       let currentProgress = -1;
                       for (let i = allLegCoords.length - 1; i >= 0; i--) {
@@ -2543,12 +2559,17 @@ const Shipments = () => {
                         }
                       }
 
+                      console.log('Current progress (highest visited leg):', currentProgress);
+
                       // The next destination should be the next leg in sequence
                       const nextLegIndex = currentProgress + 1;
+                      
+                      console.log('Next leg index:', nextLegIndex);
                       
                       // Only show line if there's a next destination
                       if (nextLegIndex < allLegCoords.length) {
                         const nextDestination = allLegCoords[nextLegIndex].position;
+                        console.log('Next destination:', allLegCoords[nextLegIndex].address, nextDestination);
                         return (
                           <Polyline
                             positions={[lastGpsPoint, nextDestination]}
@@ -2558,6 +2579,8 @@ const Shipments = () => {
                             dashArray="10, 10"
                           />
                         );
+                      } else {
+                        console.log('No more destinations - journey complete');
                       }
                       return null;
                     })()
