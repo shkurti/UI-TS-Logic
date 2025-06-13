@@ -82,57 +82,6 @@ function FitWorld({ trigger }) {
   return null
 }
 
-// Helper: Calculate distance between two [lat, lng] points (Haversine formula)
-function haversineDistance(coord1, coord2) {
-  const toRad = (x) => (x * Math.PI) / 180
-  const [lat1, lon1] = coord1
-  const [lat2, lon2] = coord2
-  const R = 6371e3 // meters
-  const φ1 = toRad(lat1)
-  const φ2 = toRad(lat2)
-  const Δφ = toRad(lat2 - lat1)
-  const Δλ = toRad(lon2 - lon1)
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
-}
-
-// --- ADD THIS INSIDE THE Shipments COMPONENT, before return ---
-function getRouteSegments() {
-  if (!selectedShipment || allLegCoords.length < 2 || !liveRoute || liveRoute.length === 0) {
-    return { completedSegments: [], remainingSegments: [] }
-  }
-  const waypoints = allLegCoords.map(leg => leg.position)
-  const currentPos = liveRoute[liveRoute.length - 1]
-  // Find the closest waypoint ahead (within 100m)
-  let lastVisitedIdx = 0
-  for (let i = 1; i < waypoints.length; i++) {
-    const dist = haversineDistance(currentPos, waypoints[i])
-    if (dist < 100) { // 100 meters threshold
-      lastVisitedIdx = i
-    }
-  }
-  // Completed segments: from waypoints[0] to waypoints[lastVisitedIdx]
-  const completedSegments = []
-  for (let i = 0; i < lastVisitedIdx; i++) {
-    completedSegments.push([waypoints[i], waypoints[i + 1]])
-  }
-  // Remaining: from currentPos to next waypoint, then rest
-  const remainingSegments = []
-  if (lastVisitedIdx < waypoints.length - 1) {
-    // First: from currentPos to next waypoint
-    remainingSegments.push([currentPos, waypoints[lastVisitedIdx + 1]])
-    // Then: from next waypoint to the rest
-    for (let i = lastVisitedIdx + 1; i < waypoints.length - 1; i++) {
-      remainingSegments.push([waypoints[i], waypoints[i + 1]])
-    }
-  }
-  return { completedSegments, remainingSegments }
-}
-
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -1053,6 +1002,93 @@ const Shipments = () => {
     }
   }, [selectedShipment])
 
+  // Add new state for route progress
+  const [completedRoute, setCompletedRoute] = useState([])
+  const [remainingRoute, setRemainingRoute] = useState([])
+
+  // Helper function to calculate distance between two points
+  const calculateDistance = (point1, point2) => {
+    const [lat1, lon1] = point1
+    const [lat2, lon2] = point2
+    const R = 6371 // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  // Helper function to find the closest point on the planned route to current GPS position
+  const findClosestRouteSegment = (currentPosition, plannedRoute) => {
+    if (!currentPosition || !plannedRoute || plannedRoute.length < 2) return -1
+    
+    let minDistance = Infinity
+    let closestSegmentIndex = -1
+    
+    for (let i = 0; i < plannedRoute.length - 1; i++) {
+      const segmentStart = plannedRoute[i]
+      const segmentEnd = plannedRoute[i + 1]
+      
+      // Calculate distance from current position to this segment
+      const distToStart = calculateDistance(currentPosition, segmentStart)
+      const distToEnd = calculateDistance(currentPosition, segmentEnd)
+      const segmentLength = calculateDistance(segmentStart, segmentEnd)
+      
+      // Use the closest point on the segment
+      const minDistToSegment = Math.min(distToStart, distToEnd)
+      
+      if (minDistToSegment < minDistance) {
+        minDistance = minDistToSegment
+        closestSegmentIndex = i
+      }
+    }
+    
+    return closestSegmentIndex
+  }
+
+  // Helper function to split route into completed and remaining segments
+  const splitRouteByProgress = (plannedRoute, currentPosition) => {
+    if (!plannedRoute || plannedRoute.length < 2 || !currentPosition) {
+      return { completed: [], remaining: plannedRoute || [] }
+    }
+
+    const closestSegmentIndex = findClosestRouteSegment(currentPosition, plannedRoute)
+    
+    if (closestSegmentIndex === -1) {
+      return { completed: [], remaining: plannedRoute }
+    }
+
+    // Create completed route: from start to current position
+    const completed = plannedRoute.slice(0, closestSegmentIndex + 1)
+    completed.push(currentPosition) // Add current position as end of completed route
+    
+    // Create remaining route: from current position to end
+    const remaining = [currentPosition, ...plannedRoute.slice(closestSegmentIndex + 1)]
+    
+    return { completed, remaining }
+  }
+
+  // Update route progress when GPS position changes
+  useEffect(() => {
+    if (liveRoute.length > 0 && allLegCoords.length > 0) {
+      const currentPosition = liveRoute[liveRoute.length - 1]
+      const plannedRoute = allLegCoords.map(leg => leg.position)
+      
+      const { completed, remaining } = splitRouteByProgress(plannedRoute, currentPosition)
+      setCompletedRoute(completed)
+      setRemainingRoute(remaining)
+    } else if (allLegCoords.length > 0) {
+      // No GPS data yet, show entire route as remaining
+      setCompletedRoute([])
+      setRemainingRoute(allLegCoords.map(leg => leg.position))
+    } else {
+      setCompletedRoute([])
+      setRemainingRoute([])
+    }
+  }, [liveRoute, allLegCoords])
+
   return (
     <div style={{ 
       display: 'flex',
@@ -1375,54 +1411,54 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* --- NEW: Dynamic route rendering ---
-                        Compute completed and remaining segments based on red dot's position
-                    */}
-                    {selectedShipment && allLegCoords.length > 1 && liveRoute.length > 0 && (() => {
-                      const { completedSegments, remainingSegments } = getRouteSegments()
-                      return (
-                        <>
-                          {/* Blue solid for completed */}
-                          {completedSegments.map((seg, idx) => (
+                    {/* Enhanced route visualization with progress tracking */}
+                    {selectedShipment && (
+                      <>
+                        {/* Show completed route segments in blue */}
+                        {completedRoute.length > 1 && (
+                          <Polyline
+                            positions={completedRoute}
+                            color="#2196f3"
+                            weight={4}
+                            opacity={0.9}
+                          />
+                        )}
+                        
+                        {/* Show remaining route segments in gray dashed */}
+                        {remainingRoute.length > 1 && (
+                          <Polyline
+                            positions={remainingRoute}
+                            color="#9e9e9e"
+                            weight={3}
+                            opacity={0.6}
+                            dashArray="15, 15"
+                          />
+                        )}
+                        
+                        {/* Show individual leg-to-leg lines only when no GPS data */}
+                        {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
+                          allLegCoords.slice(0, -1).map((legCoord, index) => (
                             <Polyline
-                              key={`completed-${idx}`}
-                              positions={seg}
-                              color="#2196f3"
-                              weight={4}
-                              opacity={0.8}
-                            />
-                          ))}
-                          {/* Gray dashed for remaining */}
-                          {remainingSegments.map((seg, idx) => (
-                            <Polyline
-                              key={`remaining-${idx}`}
-                              positions={seg}
+                              key={`leg-line-${index}`}
+                              positions={[legCoord.position, allLegCoords[index + 1].position]}
                               color="#9e9e9e"
                               weight={3}
                               opacity={0.6}
                               dashArray="15, 15"
                             />
-                          ))}
-                        </>
-                      )
-                    })()}
-
-                    {/* Enhanced shipment route display */}
-                    {liveRoute.length > 0 ? (
+                          ))
+                        }
+                      </>
+                    )}
+                    
+                    {/* Enhanced GPS route display */}
+                    {liveRoute.length > 0 && (
                       <>
                         {/* Fit map to show the entire route including all leg points */}
                         <FitBounds route={[
                           ...liveRoute, 
                           ...allLegCoords.map(leg => leg.position)
                         ]} />
-                        
-                        {/* Remove this: Solid blue line showing the actual GPS route taken */}
-                        {/* <Polyline 
-                          positions={liveRoute} 
-                          color="#2196f3" 
-                          weight={4}
-                          opacity={0.8}
-                        /> */}
                         
                         {/* Current location marker with enhanced styling */}
                         <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
@@ -1436,7 +1472,7 @@ const Shipments = () => {
                           </Popup>
                         </Marker>
                       </>
-                    ) : null}
+                    )}
 
                     {/* ONLY show preview polylines during modal creation */}
                     {newShipmentPreview && isModalOpen && (
@@ -2375,54 +2411,54 @@ const Shipments = () => {
                 </Marker>
               ))}
               
-              {/* --- NEW: Dynamic route rendering ---
-                  Compute completed and remaining segments based on red dot's position
-              */}
-              {selectedShipment && allLegCoords.length > 1 && liveRoute.length > 0 && (() => {
-                const { completedSegments, remainingSegments } = getRouteSegments()
-                return (
-                  <>
-                    {/* Blue solid for completed */}
-                    {completedSegments.map((seg, idx) => (
+              {/* Enhanced route visualization with progress tracking */}
+              {selectedShipment && (
+                <>
+                  {/* Show completed route segments in blue */}
+                  {completedRoute.length > 1 && (
+                    <Polyline
+                      positions={completedRoute}
+                      color="#2196f3"
+                      weight={4}
+                      opacity={0.9}
+                    />
+                  )}
+                  
+                  {/* Show remaining route segments in gray dashed */}
+                  {remainingRoute.length > 1 && (
+                    <Polyline
+                      positions={remainingRoute}
+                      color="#9e9e9e"
+                      weight={3}
+                      opacity={0.6}
+                      dashArray="15, 15"
+                    />
+                  )}
+                  
+                  {/* Show individual leg-to-leg lines only when no GPS data */}
+                  {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
+                    allLegCoords.slice(0, -1).map((legCoord, index) => (
                       <Polyline
-                        key={`completed-${idx}`}
-                        positions={seg}
-                        color="#2196f3"
-                        weight={4}
-                        opacity={0.8}
-                      />
-                    ))}
-                    {/* Gray dashed for remaining */}
-                    {remainingSegments.map((seg, idx) => (
-                      <Polyline
-                        key={`remaining-${idx}`}
-                        positions={seg}
+                        key={`leg-line-${index}`}
+                        positions={[legCoord.position, allLegCoords[index + 1].position]}
                         color="#9e9e9e"
                         weight={3}
                         opacity={0.6}
                         dashArray="15, 15"
                       />
-                    ))}
-                  </>
-                )
-              })()}
-
-              {/* Enhanced shipment route display */}
-              {liveRoute.length > 0 ? (
+                    ))
+                  }
+                </>
+              )}
+              
+              {/* Enhanced GPS route display */}
+              {liveRoute.length > 0 && (
                 <>
                   {/* Fit map to show the entire route including all leg points */}
                   <FitBounds route={[
                     ...liveRoute, 
                     ...allLegCoords.map(leg => leg.position)
                   ]} />
-                  
-                  {/* Remove this: Solid blue line showing the actual GPS route taken */}
-                  {/* <Polyline 
-                    positions={liveRoute} 
-                    color="#2196f3" 
-                    weight={4}
-                    opacity={0.8}
-                  /> */}
                   
                   {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
@@ -2436,7 +2472,7 @@ const Shipments = () => {
                     </Popup>
                   </Marker>
                 </>
-              ) : null}
+              )}
 
               {/* Hover marker for sensor data */}
               {hoverMarker && (
