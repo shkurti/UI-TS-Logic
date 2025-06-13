@@ -82,6 +82,24 @@ function FitWorld({ trigger }) {
   return null
 }
 
+// Helper: Calculate distance between two [lat, lng] points (Haversine formula)
+function haversineDistance(coord1, coord2) {
+  const toRad = (x) => (x * Math.PI) / 180
+  const [lat1, lon1] = coord1
+  const [lat2, lon2] = coord2
+  const R = 6371e3 // meters
+  const φ1 = toRad(lat1)
+  const φ2 = toRad(lat2)
+  const Δφ = toRad(lat2 - lat1)
+  const Δλ = toRad(lon2 - lon1)
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -932,7 +950,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([]) // Clear live route when going back to list
+    setLiveRoute([] // Clear live route when going back to list
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1324,21 +1342,38 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
-                    {/* Only show the individual leg-to-leg polylines */}
-                    {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
-                      allLegCoords.slice(0, -1).map((legCoord, index) => (
-                        <Polyline
-                          key={`leg-line-${index}`}
-                          positions={[legCoord.position, allLegCoords[index + 1].position]}
-                          color="#9e9e9e"
-                          weight={3}
-                          opacity={0.6}
-                          dashArray="15, 15"
-                        />
-                      ))
-                    }
-                    
+                    {/* --- NEW: Dynamic route rendering ---
+                        Compute completed and remaining segments based on red dot's position
+                    */}
+                    {selectedShipment && allLegCoords.length > 1 && liveRoute.length > 0 && (() => {
+                      const { completedSegments, remainingSegments } = getRouteSegments()
+                      return (
+                        <>
+                          {/* Blue solid for completed */}
+                          {completedSegments.map((seg, idx) => (
+                            <Polyline
+                              key={`completed-${idx}`}
+                              positions={seg}
+                              color="#2196f3"
+                              weight={4}
+                              opacity={0.8}
+                            />
+                          ))}
+                          {/* Gray dashed for remaining */}
+                          {remainingSegments.map((seg, idx) => (
+                            <Polyline
+                              key={`remaining-${idx}`}
+                              positions={seg}
+                              color="#9e9e9e"
+                              weight={3}
+                              opacity={0.6}
+                              dashArray="15, 15"
+                            />
+                          ))}
+                        </>
+                      )
+                    })()}
+
                     {/* Enhanced shipment route display */}
                     {liveRoute.length > 0 ? (
                       <>
@@ -1348,106 +1383,13 @@ const Shipments = () => {
                           ...allLegCoords.map(leg => leg.position)
                         ]} />
                         
-                        {/* Dynamic route visualization based on GPS progress */}
-                        {(() => {
-                          const currentGpsPosition = liveRoute[liveRoute.length - 1];
-                          const PROXIMITY_THRESHOLD = 0.005; // ~500m threshold for destination reached
-                          
-                          // Find which destinations have been visited
-                          const visitedDestinations = new Set();
-                          allLegCoords.forEach((legCoord, index) => {
-                            const hasBeenVisited = liveRoute.some(gpsPoint => {
-                              const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
-                              const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
-                              const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                              return distance <= PROXIMITY_THRESHOLD;
-                            });
-                            if (hasBeenVisited) {
-                              visitedDestinations.add(index);
-                            }
-                          });
-
-                          // Find current progress point (highest visited destination)
-                          let currentDestinationIndex = -1;
-                          for (let i = allLegCoords.length - 1; i >= 0; i--) {
-                            if (visitedDestinations.has(i)) {
-                              currentDestinationIndex = i;
-                              break;
-                            }
-                          }
-
-                          const polylines = [];
-
-                          // 1. Blue solid lines for completed segments
-                          for (let i = 0; i < currentDestinationIndex; i++) {
-                            polylines.push(
-                              <Polyline
-                                key={`completed-${i}`}
-                                positions={[allLegCoords[i].position, allLegCoords[i + 1].position]}
-                                color="#2196f3"
-                                weight={4}
-                                opacity={0.8}
-                              />
-                            );
-                          }
-
-                          // 2. Blue line from last visited destination to current GPS position
-                          if (currentDestinationIndex >= 0) {
-                            polylines.push(
-                              <Polyline
-                                key="current-progress"
-                                positions={[allLegCoords[currentDestinationIndex].position, currentGpsPosition]}
-                                color="#2196f3"
-                                weight={4}
-                                opacity={0.8}
-                              />
-                            );
-                          } else {
-                            // If no destinations visited yet, draw from start to current GPS
-                            polylines.push(
-                              <Polyline
-                                key="initial-progress"
-                                positions={[allLegCoords[0].position, currentGpsPosition]}
-                                color="#2196f3"
-                                weight={4}
-                                opacity={0.8}
-                              />
-                            );
-                          }
-
-                          // 3. Gray dashed lines for remaining unvisited segments
-                          const nextDestinationIndex = Math.max(0, currentDestinationIndex + 1);
-                          
-                          // Line from current GPS to next destination
-                          if (nextDestinationIndex < allLegCoords.length) {
-                            polylines.push(
-                              <Polyline
-                                key="next-segment"
-                                positions={[currentGpsPosition, allLegCoords[nextDestinationIndex].position]}
-                                color="#9e9e9e"
-                                weight={3}
-                                opacity={0.6}
-                                dashArray="15, 15"
-                              />
-                            );
-                          }
-
-                          // Remaining planned route segments
-                          for (let i = nextDestinationIndex; i < allLegCoords.length - 1; i++) {
-                            polylines.push(
-                              <Polyline
-                                key={`remaining-${i}`}
-                                positions={[allLegCoords[i].position, allLegCoords[i + 1].position]}
-                                color="#9e9e9e"
-                                weight={3}
-                                opacity={0.6}
-                                dashArray="15, 15"
-                              />
-                            );
-                          }
-
-                          return polylines;
-                        })()}
+                        {/* Remove this: Solid blue line showing the actual GPS route taken */}
+                        {/* <Polyline 
+                          positions={liveRoute} 
+                          color="#2196f3" 
+                          weight={4}
+                          opacity={0.8}
+                        /> */}
                         
                         {/* Current location marker with enhanced styling */}
                         <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
@@ -2400,21 +2342,38 @@ const Shipments = () => {
                 </Marker>
               ))}
               
-              {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
-              {/* Only show the individual leg-to-leg polylines */}
-              {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
-                allLegCoords.slice(0, -1).map((legCoord, index) => (
-                  <Polyline
-                    key={`leg-line-${index}`}
-                    positions={[legCoord.position, allLegCoords[index + 1].position]}
-                    color="#9e9e9e"
-                    weight={3}
-                    opacity={0.6}
-                    dashArray="15, 15"
-                  />
-                ))
-              }
-              
+              {/* --- NEW: Dynamic route rendering ---
+                  Compute completed and remaining segments based on red dot's position
+              */}
+              {selectedShipment && allLegCoords.length > 1 && liveRoute.length > 0 && (() => {
+                const { completedSegments, remainingSegments } = getRouteSegments()
+                return (
+                  <>
+                    {/* Blue solid for completed */}
+                    {completedSegments.map((seg, idx) => (
+                      <Polyline
+                        key={`completed-${idx}`}
+                        positions={seg}
+                        color="#2196f3"
+                        weight={4}
+                        opacity={0.8}
+                      />
+                    ))}
+                    {/* Gray dashed for remaining */}
+                    {remainingSegments.map((seg, idx) => (
+                      <Polyline
+                        key={`remaining-${idx}`}
+                        positions={seg}
+                        color="#9e9e9e"
+                        weight={3}
+                        opacity={0.6}
+                        dashArray="15, 15"
+                      />
+                    ))}
+                  </>
+                )
+              })()}
+
               {/* Enhanced shipment route display */}
               {liveRoute.length > 0 ? (
                 <>
@@ -2424,106 +2383,13 @@ const Shipments = () => {
                     ...allLegCoords.map(leg => leg.position)
                   ]} />
                   
-                  {/* Dynamic route visualization based on GPS progress */}
-                  {(() => {
-                    const currentGpsPosition = liveRoute[liveRoute.length - 1];
-                    const PROXIMITY_THRESHOLD = 0.005; // ~500m threshold for destination reached
-                    
-                    // Find which destinations have been visited
-                    const visitedDestinations = new Set();
-                    allLegCoords.forEach((legCoord, index) => {
-                      const hasBeenVisited = liveRoute.some(gpsPoint => {
-                        const latDiff = Math.abs(gpsPoint[0] - legCoord.position[0]);
-                        const lngDiff = Math.abs(gpsPoint[1] - legCoord.position[1]);
-                        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                        return distance <= PROXIMITY_THRESHOLD;
-                      });
-                      if (hasBeenVisited) {
-                        visitedDestinations.add(index);
-                      }
-                    });
-
-                    // Find current progress point (highest visited destination)
-                    let currentDestinationIndex = -1;
-                    for (let i = allLegCoords.length - 1; i >= 0; i--) {
-                      if (visitedDestinations.has(i)) {
-                        currentDestinationIndex = i;
-                        break;
-                      }
-                    }
-
-                    const polylines = [];
-
-                    // 1. Blue solid lines for completed segments
-                    for (let i = 0; i < currentDestinationIndex; i++) {
-                      polylines.push(
-                        <Polyline
-                          key={`completed-${i}`}
-                          positions={[allLegCoords[i].position, allLegCoords[i + 1].position]}
-                          color="#2196f3"
-                          weight={4}
-                          opacity={0.8}
-                        />
-                      );
-                    }
-
-                    // 2. Blue line from last visited destination to current GPS position
-                    if (currentDestinationIndex >= 0) {
-                      polylines.push(
-                        <Polyline
-                          key="current-progress"
-                          positions={[allLegCoords[currentDestinationIndex].position, currentGpsPosition]}
-                          color="#2196f3"
-                          weight={4}
-                          opacity={0.8}
-                        />
-                      );
-                    } else {
-                      // If no destinations visited yet, draw from start to current GPS
-                      polylines.push(
-                        <Polyline
-                          key="initial-progress"
-                          positions={[allLegCoords[0].position, currentGpsPosition]}
-                          color="#2196f3"
-                          weight={4}
-                          opacity={0.8}
-                        />
-                      );
-                    }
-
-                    // 3. Gray dashed lines for remaining unvisited segments
-                    const nextDestinationIndex = Math.max(0, currentDestinationIndex + 1);
-                    
-                    // Line from current GPS to next destination
-                    if (nextDestinationIndex < allLegCoords.length) {
-                      polylines.push(
-                        <Polyline
-                          key="next-segment"
-                          positions={[currentGpsPosition, allLegCoords[nextDestinationIndex].position]}
-                          color="#9e9e9e"
-                          weight={3}
-                          opacity={0.6}
-                          dashArray="15, 15"
-                        />
-                      );
-                    }
-
-                    // Remaining planned route segments
-                    for (let i = nextDestinationIndex; i < allLegCoords.length - 1; i++) {
-                      polylines.push(
-                        <Polyline
-                          key={`remaining-${i}`}
-                          positions={[allLegCoords[i].position, allLegCoords[i + 1].position]}
-                          color="#9e9e9e"
-                          weight={3}
-                          opacity={0.6}
-                          dashArray="15, 15"
-                        />
-                      );
-                    }
-
-                    return polylines;
-                  })()}
+                  {/* Remove this: Solid blue line showing the actual GPS route taken */}
+                  {/* <Polyline 
+                    positions={liveRoute} 
+                    color="#2196f3" 
+                    weight={4}
+                    opacity={0.8}
+                  /> */}
                   
                   {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
