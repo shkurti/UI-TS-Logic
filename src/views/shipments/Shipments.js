@@ -100,6 +100,39 @@ function haversineDistance(coord1, coord2) {
   return R * c
 }
 
+// --- ADD THIS INSIDE THE Shipments COMPONENT, before return ---
+function getRouteSegments() {
+  if (!selectedShipment || allLegCoords.length < 2 || !liveRoute || liveRoute.length === 0) {
+    return { completedSegments: [], remainingSegments: [] }
+  }
+  const waypoints = allLegCoords.map(leg => leg.position)
+  const currentPos = liveRoute[liveRoute.length - 1]
+  // Find the closest waypoint ahead (within 100m)
+  let lastVisitedIdx = 0
+  for (let i = 1; i < waypoints.length; i++) {
+    const dist = haversineDistance(currentPos, waypoints[i])
+    if (dist < 100) { // 100 meters threshold
+      lastVisitedIdx = i
+    }
+  }
+  // Completed segments: from waypoints[0] to waypoints[lastVisitedIdx]
+  const completedSegments = []
+  for (let i = 0; i < lastVisitedIdx; i++) {
+    completedSegments.push([waypoints[i], waypoints[i + 1]])
+  }
+  // Remaining: from currentPos to next waypoint, then rest
+  const remainingSegments = []
+  if (lastVisitedIdx < waypoints.length - 1) {
+    // First: from currentPos to next waypoint
+    remainingSegments.push([currentPos, waypoints[lastVisitedIdx + 1]])
+    // Then: from next waypoint to the rest
+    for (let i = lastVisitedIdx + 1; i < waypoints.length - 1; i++) {
+      remainingSegments.push([waypoints[i], waypoints[i + 1]])
+    }
+  }
+  return { completedSegments, remainingSegments }
+}
+
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
