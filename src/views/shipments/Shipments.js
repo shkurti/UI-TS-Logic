@@ -1356,39 +1356,6 @@ const Shipments = () => {
                           opacity={0.8}
                         />
                         
-                        {/* Dashed line from last GPS point to next unvisited destination */}
-                        {allLegCoords.length > 0 && liveRoute.length > 0 && (
-                          (() => {
-                            const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                            
-                            // Find the next destination that hasn't been reached
-                            let nextDestination = null;
-                            for (const legCoord of allLegCoords) {
-                              const distanceThreshold = 0.005; // ~500 meters
-                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
-                              
-                              if (!isAtThisDestination) {
-                                nextDestination = legCoord.position;
-                                break;
-                              }
-                            }
-                            
-                            if (nextDestination) {
-                              return (
-                                <Polyline
-                                  positions={[lastGpsPoint, nextDestination]}
-                                  color="#ff9800"
-                                  weight={3}
-                                  opacity={0.7}
-                                  dashArray="10, 10"
-                                />
-                              );
-                            }
-                            return null;
-                          })()
-                        )}
-                        
                         {/* Current location marker with enhanced styling */}
                         <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                           <Popup>
@@ -1401,20 +1368,7 @@ const Shipments = () => {
                           </Popup>
                         </Marker>
                       </>
-                    ) : (
-                      // Remove this fallback polyline - it's creating the circular connection
-                      // Show dashed line between start and destination when no GPS data yet
-                      // startCoord && destinationCoord && (
-                      //   <Polyline 
-                      //     positions={[startCoord, destinationCoord]} 
-                      //     color="#9e9e9e" 
-                      //     weight={3}
-                      //     opacity={0.6}
-                      //     dashArray="15, 15" 
-                      //   />
-                      // )
-                      null
-                    )}
+                    ) : null}
 
                     {/* ONLY show preview polylines during modal creation */}
                     {newShipmentPreview && isModalOpen && (
@@ -2037,7 +1991,7 @@ const Shipments = () => {
                               </div>
                               <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                  <LineChart 
+                                                                   <LineChart 
                                     data={batteryData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Battery')}
@@ -2385,39 +2339,6 @@ const Shipments = () => {
                     opacity={0.8}
                   />
                   
-                  {/* Dashed line from last GPS point to next unvisited destination */}
-                  {allLegCoords.length > 0 && liveRoute.length > 0 && (
-                    (() => {
-                      const lastGpsPoint = liveRoute[liveRoute.length - 1];
-                      
-                      // Find the next destination that hasn't been reached
-                      let nextDestination = null;
-                      for (const legCoord of allLegCoords) {
-                        const distanceThreshold = 0.005; // ~500 meters
-                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
-                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
-                        
-                        if (!isAtThisDestination) {
-                          nextDestination = legCoord.position;
-                          break;
-                        }
-                      }
-                      
-                      if (nextDestination) {
-                        return (
-                          <Polyline
-                            positions={[lastGpsPoint, nextDestination]}
-                            color="#ff9800"
-                            weight={3}
-                            opacity={0.7}
-                            dashArray="10, 10"
-                          />
-                        );
-                      }
-                      return null;
-                    })()
-                  )}
-                  
                   {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
                     <Popup>
@@ -2430,20 +2351,7 @@ const Shipments = () => {
                     </Popup>
                   </Marker>
                 </>
-              ) : (
-                // Remove this fallback polyline - it's creating the circular connection
-                // Show dashed line between start and destination when no GPS data yet
-                // startCoord && destinationCoord && (
-                //   <Polyline 
-                //     positions={[startCoord, destinationCoord]} 
-                //     color="#9e9e9e" 
-                //     weight={3}
-                //     opacity={0.6}
-                //     dashArray="15, 15" 
-                //   />
-                // )
-                null
-              )}
+              ) : null}
 
               {/* Hover marker for sensor data */}
               {hoverMarker && (
