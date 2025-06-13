@@ -303,14 +303,194 @@ const Shipments = () => {
     }
   }
 
+  // Add state for WebSocket connection
+  const [ws, setWs] = useState(null)
+  const [isConnected, setIsConnected] = useState(false)
+
+  // Add state for real-time polling
+  const [isPolling, setIsPolling] = useState(false)
+  const [pollingInterval, setPollingInterval] = useState(null)
+
+  // WebSocket connection management
+  const connectWebSocket = () => {
+    try {
+      const websocket = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected')
+        setIsConnected(true)
+        setWs(websocket)
+      }
+      
+      websocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          handleWebSocketMessage(data)
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      }
+      
+      websocket.onclose = () => {
+        console.log('WebSocket disconnected')
+        setIsConnected(false)
+        setWs(null)
+        // Attempt to reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000)
+      }
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setIsConnected(false)
+      }
+      
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error)
+      // Retry connection after 3 seconds
+      setTimeout(connectWebSocket, 3000)
+    }
+  }
+
+  // Handle incoming WebSocket messages
+  const handleWebSocketMessage = (data) => {
+    if (!selectedShipment) return
+
+    // Check if the message is for the currently selected shipment
+    if (data.trackerId === selectedShipment.trackerId) {
+      // Update GPS position if available
+      if (data.latitude && data.longitude && 
+          !isNaN(parseFloat(data.latitude)) && 
+          !isNaN(parseFloat(data.longitude))) {
+        
+        const newPosition = [parseFloat(data.latitude), parseFloat(data.longitude)]
+        
+        setLiveRoute(prevRoute => {
+          const updatedRoute = [...prevRoute]
+          // Add new position to the route
+          updatedRoute.push(newPosition)
+          return updatedRoute
+        })
+      }
+
+      // Update sensor data if available
+      const timestamp = data.timestamp || new Date().toLocaleString()
+      
+      if (data.temperature !== undefined || data.Temp !== undefined) {
+        const temperature = data.temperature !== undefined ? 
+          parseFloat(data.temperature) : parseFloat(data.Temp)
+        
+        setTemperatureData(prevData => [
+          ...prevData,
+          { timestamp, temperature }
+        ])
+      }
+
+      if (data.humidity !== undefined || data.Hum !== undefined) {
+        const humidity = data.humidity !== undefined ? 
+          parseFloat(data.humidity) : parseFloat(data.Hum)
+        
+        setHumidityData(prevData => [
+          ...prevData,
+          { timestamp, humidity }
+        ])
+      }
+
+      if (data.battery !== undefined || data.Batt !== undefined) {
+        const battery = data.battery !== undefined ? 
+          parseFloat(data.battery) : parseFloat(data.Batt)
+        
+        setBatteryData(prevData => [
+          ...prevData,
+          { timestamp, battery }
+        ])
+      }
+
+      if (data.speed !== undefined || data.Speed !== undefined) {
+        const speed = data.speed !== undefined ? 
+          parseFloat(data.speed) : parseFloat(data.Speed)
+        
+        setSpeedData(prevData => [
+          ...prevData,
+          { timestamp, speed }
+        ])
+      }
+
+      // Update route data for the hover marker functionality
+      setRouteData(prevData => [
+        ...prevData,
+        {
+          timestamp,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          temperature: data.temperature || data.Temp,
+          humidity: data.humidity || data.Hum,
+          battery: data.battery || data.Batt,
+          speed: data.speed || data.Speed
+        }
+      ])
+    }
+  }
+
+  // Subscribe to tracker updates via WebSocket
+  const subscribeToTracker = (trackerId) => {
+    if (ws && isConnected) {
+      const message = {
+        action: 'subscribe',
+        trackerId: trackerId
+      }
+      ws.send(JSON.stringify(message))
+    }
+  }
+
+  // Unsubscribe from tracker updates via WebSocket
+  const unsubscribeFromTracker = (trackerId) => {
+    if (ws && isConnected) {
+      const message = {
+        action: 'unsubscribe',
+        trackerId: trackerId
+      }
+      ws.send(JSON.stringify(message))
+    }
+  }
+
+  // Initialize WebSocket connection on component mount
+  useEffect(() => {
+    connectWebSocket()
+    
+    return () => {
+      if (ws) {
+        ws.close()
+      }
+    }
+  }, [])
+
+  // Subscribe/unsubscribe when selected shipment changes
+  useEffect(() => {
+    if (selectedShipment && isConnected) {
+      subscribeToTracker(selectedShipment.trackerId)
+    }
+    
+    return () => {
+      if (selectedShipment && isConnected) {
+        unsubscribeFromTracker(selectedShipment.trackerId)
+      }
+    }
+  }, [selectedShipment, isConnected, ws])
+
   const handleShipmentClick = async (shipment) => {
+    // Unsubscribe from previous shipment if any
+    if (selectedShipment && isConnected) {
+      unsubscribeFromTracker(selectedShipment.trackerId)
+    }
+
     setSelectedShipment(shipment)
-    setShipmentTab('Sensors')  // Changed from 'Details' to 'Sensors'
+    setShipmentTab('Sensors')
     setActiveSensor('Temperature')
     setTemperatureData([])
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
+
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
@@ -320,16 +500,17 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      setLiveRoute([]) // Clear live route
+      setLiveRoute([])
       return
     }
 
+    // Fetch initial historical data
     try {
       const params = new URLSearchParams({
         tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
-        timezone: userTimezone  // Pass user's timezone to backend
+        timezone: userTimezone
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
@@ -348,7 +529,7 @@ const Shipments = () => {
         // Process sensor data - timestamps are now in local time
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',  // Already in local time
+            timestamp: record.timestamp || 'N/A',
             temperature: record.temperature !== undefined
               ? parseFloat(record.temperature)
               : record.Temp !== undefined
@@ -401,6 +582,11 @@ const Shipments = () => {
       setHumidityData([])
       setBatteryData([])
       setSpeedData([])
+    }
+
+    // Subscribe to real-time updates via WebSocket
+    if (isConnected) {
+      subscribeToTracker(trackerId)
     }
   }
 
@@ -930,9 +1116,14 @@ const Shipments = () => {
   }
 
   const openSidebarToList = () => {
+    // Unsubscribe from current shipment before switching
+    if (selectedShipment && isConnected) {
+      unsubscribeFromTracker(selectedShipment.trackerId)
+    }
+    
     setSidebarCollapsed(false)
-    setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([]) // Clear live route when going back to list
+    setSelectedShipment(null)
+    setLiveRoute([])
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -995,8 +1186,8 @@ const Shipments = () => {
   useEffect(() => {
     if (!selectedShipment) {
       setFitWorld(true)
-      setMapKey((k) => k + 1) // force map remount
-      setLiveRoute([]) // Clear live route when no shipment selected
+      setMapKey((k) => k + 1)
+      setLiveRoute([])
     } else {
       setFitWorld(false)
     }
