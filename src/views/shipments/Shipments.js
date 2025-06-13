@@ -950,7 +950,7 @@ const Shipments = () => {
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
     setSelectedShipment(null) // Always reset to show the shipments list
-    setLiveRoute([] // Clear live route when going back to list
+    setLiveRoute([]) // Clear live route when going back to list
   }
 
   // Helper function to find GPS coordinates for a timestamp
