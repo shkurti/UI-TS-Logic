@@ -323,27 +323,22 @@ const Shipments = () => {
       }
       
       websocket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          handleWebSocketMessage(data)
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
-        }
+        const message = JSON.parse(event.data)
+        handleWebSocketMessage(message)
       }
       
+      websocket.onerror = (error) => console.error('WebSocket error:', error)
       websocket.onclose = () => {
         console.log('WebSocket disconnected')
         setIsConnected(false)
         setWs(null)
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000)
       }
-      
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setIsConnected(false)
+
+      return () => {
+        if (websocket) {
+          websocket.close()
+        }
       }
-      
     } catch (error) {
       console.error('Failed to connect WebSocket:', error)
       // Retry connection after 3 seconds
@@ -352,88 +347,116 @@ const Shipments = () => {
   }
 
   // Handle incoming WebSocket messages
-  const handleWebSocketMessage = (data) => {
+  const handleWebSocketMessage = (message) => {
     if (!selectedShipment) return
 
-    // Check if the message is for the currently selected shipment
-    if (data.trackerId === selectedShipment.trackerId) {
-      // Update GPS position if available
-      if (data.latitude && data.longitude && 
-          !isNaN(parseFloat(data.latitude)) && 
-          !isNaN(parseFloat(data.longitude))) {
-        
-        const newPosition = [parseFloat(data.latitude), parseFloat(data.longitude)]
-        
-        setLiveRoute(prevRoute => {
-          const updatedRoute = [...prevRoute]
-          // Add new position to the route
-          updatedRoute.push(newPosition)
-          return updatedRoute
-        })
-      }
+    console.log('WebSocket message received:', message) // Debug log
 
-      // Update sensor data if available
-      const timestamp = data.timestamp || new Date().toLocaleString()
-      
-      if (data.temperature !== undefined || data.Temp !== undefined) {
-        const temperature = data.temperature !== undefined ? 
-          parseFloat(data.temperature) : parseFloat(data.Temp)
-        
-        setTemperatureData(prevData => [
-          ...prevData,
-          { timestamp, temperature }
-        ])
-      }
+    // Check if this is an insert operation for the currently selected tracker
+    if (message.operationType === 'insert' && String(message.tracker_id) === String(selectedShipment.trackerId)) {
+      const { new_record, geolocation } = message
 
-      if (data.humidity !== undefined || data.Hum !== undefined) {
-        const humidity = data.humidity !== undefined ? 
-          parseFloat(data.humidity) : parseFloat(data.Hum)
-        
-        setHumidityData(prevData => [
-          ...prevData,
-          { timestamp, humidity }
-        ])
-      }
+      // Handle GPS position updates
+      if (geolocation && geolocation.Lat && geolocation.Lng) {
+        const lat = parseFloat(geolocation.Lat)
+        const lng = parseFloat(geolocation.Lng)
 
-      if (data.battery !== undefined || data.Batt !== undefined) {
-        const battery = data.battery !== undefined ? 
-          parseFloat(data.battery) : parseFloat(data.Batt)
-        
-        setBatteryData(prevData => [
-          ...prevData,
-          { timestamp, battery }
-        ])
-      }
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const newPoint = [lat, lng]
+          
+          setLiveRoute((prevRoute) => {
+            const lastPoint = prevRoute[prevRoute.length - 1]
+            console.log('Current Route:', prevRoute)
+            console.log('New Point:', newPoint)
 
-      if (data.speed !== undefined || data.Speed !== undefined) {
-        const speed = data.speed !== undefined ? 
-          parseFloat(data.speed) : parseFloat(data.Speed)
-        
-        setSpeedData(prevData => [
-          ...prevData,
-          { timestamp, speed }
-        ])
-      }
-
-      // Update route data for the hover marker functionality
-      setRouteData(prevData => [
-        ...prevData,
-        {
-          timestamp,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          temperature: data.temperature || data.Temp,
-          humidity: data.humidity || data.Hum,
-          battery: data.battery || data.Batt,
-          speed: data.speed || data.Speed
+            // Avoid adding duplicate points
+            if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+              return [...prevRoute, newPoint]
+            }
+            return prevRoute
+          })
+        } else {
+          console.warn('Invalid geolocation data received:', geolocation)
         }
-      ])
+      }
+
+      // Handle sensor data updates using new_record fields (Temp, Hum, Batt, Speed, DT)
+      if (new_record) {
+        const timestamp = new_record.DT || new_record.timestamp || new Date().toLocaleString()
+        
+        // Update temperature data
+        if (new_record.Temp !== undefined) {
+          setTemperatureData((prevData) => {
+            if (!prevData.some((data) => data.timestamp === timestamp)) {
+              return [
+                ...prevData,
+                { timestamp, temperature: parseFloat(new_record.Temp) }
+              ]
+            }
+            return prevData
+          })
+        }
+
+        // Update humidity data
+        if (new_record.Hum !== undefined) {
+          setHumidityData((prevData) => {
+            if (!prevData.some((data) => data.timestamp === timestamp)) {
+              return [
+                ...prevData,
+                { timestamp, humidity: parseFloat(new_record.Hum) }
+              ]
+            }
+            return prevData
+          })
+        }
+
+        // Update battery data
+        if (new_record.Batt !== undefined) {
+          setBatteryData((prevData) => {
+            if (!prevData.some((data) => data.timestamp === timestamp)) {
+              return [
+                ...prevData,
+                { timestamp, battery: parseFloat(new_record.Batt) }
+              ]
+            }
+            return prevData
+          })
+        }
+
+        // Update speed data
+        if (new_record.Speed !== undefined) {
+          setSpeedData((prevData) => {
+            if (!prevData.some((data) => data.timestamp === timestamp)) {
+              return [
+                ...prevData,
+                { timestamp, speed: parseFloat(new_record.Speed) }
+              ]
+            }
+            return prevData
+          })
+        }
+
+        // Update route data for hover marker functionality
+        setRouteData(prevData => [
+          ...prevData,
+          {
+            timestamp,
+            latitude: geolocation?.Lat,
+            longitude: geolocation?.Lng,
+            temperature: new_record.Temp,
+            humidity: new_record.Hum,
+            battery: new_record.Batt,
+            speed: new_record.Speed
+          }
+        ])
+      }
     }
   }
 
   // Subscribe to tracker updates via WebSocket
   const subscribeToTracker = (trackerId) => {
     if (ws && isConnected) {
+      console.log(`Subscribing to tracker: ${trackerId}`)
       const message = {
         action: 'subscribe',
         trackerId: trackerId
@@ -445,6 +468,7 @@ const Shipments = () => {
   // Unsubscribe from tracker updates via WebSocket
   const unsubscribeFromTracker = (trackerId) => {
     if (ws && isConnected) {
+      console.log(`Unsubscribing from tracker: ${trackerId}`)
       const message = {
         action: 'unsubscribe',
         trackerId: trackerId
@@ -2221,7 +2245,6 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={temperatureData}
-                                   
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
