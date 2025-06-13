@@ -1414,8 +1414,18 @@ const Shipments = () => {
                     {/* Enhanced route visualization with progress tracking */}
                     {selectedShipment && (
                       <>
-                        {/* Show completed route segments in blue */}
-                        {completedRoute.length > 1 && (
+                        {/* Show the actual GPS route traveled in blue (if available) */}
+                        {liveRoute.length > 0 && (
+                          <Polyline
+                            positions={liveRoute}
+                            color="#2196f3"
+                            weight={4}
+                            opacity={0.9}
+                          />
+                        )}
+                        
+                        {/* Show completed planned route segments in blue (only when no GPS data) */}
+                        {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
                           <Polyline
                             positions={completedRoute}
                             color="#2196f3"
@@ -2405,7 +2415,7 @@ const Shipments = () => {
                         {index === 0 ? 'Start of shipment journey' :
                          index === allLegCoords.length - 1 ? 'End of shipment journey' :
                          `Intermediate stop #${index}`}
-                      </small>
+                    </small>
                     </div>
                   </Popup>
                 </Marker>
@@ -2414,8 +2424,18 @@ const Shipments = () => {
               {/* Enhanced route visualization with progress tracking */}
               {selectedShipment && (
                 <>
-                  {/* Show completed route segments in blue */}
-                  {completedRoute.length > 1 && (
+                  {/* Show the actual GPS route traveled in blue (if available) */}
+                  {liveRoute.length > 0 && (
+                    <Polyline
+                      positions={liveRoute}
+                      color="#2196f3"
+                      weight={4}
+                      opacity={0.9}
+                    />
+                  )}
+                  
+                  {/* Show completed planned route segments in blue (only when no GPS data) */}
+                  {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
                     <Polyline
                       positions={completedRoute}
                       color="#2196f3"
