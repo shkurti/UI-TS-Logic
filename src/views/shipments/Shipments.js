@@ -908,24 +908,20 @@ const Shipments = () => {
             .filter(addr => addr && addr.trim() !== '')
         )]
 
-        console.log('Origin addresses found:', originAddresses.length, originAddresses) // Debug log
-
         // Geocode all addresses with progress tracking
         const geocodedAddresses = await Promise.all(
           originAddresses.map(async (address) => {
             const coords = await geocodeAddress(address)
-            console.log(`Geocoded ${address}:`, coords) // Debug log
             return { address, coords }
           })
         )
 
         // Filter out failed geocodes
         const validGeocodes = geocodedAddresses.filter(item => item.coords)
-        console.log('Valid geocodes:', validGeocodes.length) // Debug log
 
         // Create clusters using a simple distance-based algorithm
         const clusters = []
-        const CLUSTER_DISTANCE = 5.0 // Increased distance to group more addresses together
+        const CLUSTER_DISTANCE = 2.0 // degrees (~200km)
 
         // Use for...of loop instead of forEach to properly handle async/await
         for (const { address, coords } of validGeocodes) {
@@ -933,8 +929,6 @@ const Shipments = () => {
           const shipmentCount = shipments.filter(
             s => s.legs?.[0]?.shipFromAddress === address
           ).length
-
-          console.log(`Address: ${address}, Shipment count: ${shipmentCount}`) // Debug log
 
           // Find existing cluster within distance
           let existingCluster = clusters.find(cluster => {
@@ -967,7 +961,6 @@ const Shipments = () => {
           }
         }
 
-        console.log('Final clusters:', clusters) // Debug log
         setShipmentClusters(clusters)
       } catch (error) {
         console.error('Error creating shipment clusters:', error)
@@ -977,13 +970,8 @@ const Shipments = () => {
       }
     }
 
-    // Only create clusters when not viewing a specific shipment
-    if (!selectedShipment) {
-      createShipmentClusters()
-    } else {
-      setShipmentClusters([]) // Clear clusters when viewing specific shipment
-    }
-  }, [shipments, selectedShipment])
+    createShipmentClusters()
+  }, [shipments])
 
   // Helper function to get region name from coordinates
   const getRegionName = async (lat, lng) => {
@@ -1008,9 +996,9 @@ const Shipments = () => {
     return 'Unknown Region'
   }
 
-  // Create cluster marker icon - Make more visible
+  // Create cluster marker icon
   const createClusterIcon = (count, region) => {
-    const size = Math.min(80, Math.max(40, 30 + (count * 5))) // Larger dynamic size
+    const size = Math.min(60, Math.max(30, 20 + (count * 3))) // Dynamic size based on count
     const color = count >= 10 ? '#d32f2f' : 
                   count >= 5 ? '#f57c00' : 
                   count >= 2 ? '#1976d2' : '#4caf50'
@@ -1028,28 +1016,14 @@ const Shipments = () => {
           align-items: center;
           justify-content: center;
           font-weight: bold;
-          font-size: ${count >= 100 ? '16px' : count >= 10 ? '18px' : '20px'};
-          border: 4px solid white;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+          font-size: ${count >= 100 ? '14px' : count >= 10 ? '16px' : '18px'};
+          border: 3px solid white;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
           font-family: Arial, sans-serif;
           cursor: pointer;
           transition: transform 0.2s ease;
-          position: relative;
         ">
           ${count}
-          <div style="
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 10px;
-            white-space: nowrap;
-            pointer-events: none;
-          ">${region}</div>
         </div>
         <style>
           .shipment-cluster-marker:hover div {
@@ -1471,92 +1445,29 @@ const Shipments = () => {
                     />
                     
                     {/* Show shipment clusters when no specific shipment is selected */}
-                    {!selectedShipment && shipmentClusters.length > 0 && shipmentClusters.map((cluster) => (
+                    {!selectedShipment && shipmentClusters.map((cluster) => (
                       <Marker
                         key={cluster.id}
                         position={[cluster.lat, cluster.lng]}
                         icon={createClusterIcon(cluster.count, cluster.region)}
                       >
-                        <Popup maxWidth={300}>
-                          <div style={{ minWidth: '280px' }}>
-                            <strong style={{ fontSize: '18px', color: '#1976d2', display: 'block', marginBottom: '8px' }}>
-                              📊 {cluster.region}
-                            </strong>
-                            <div style={{ 
-                              margin: '12px 0', 
-                              padding: '12px', 
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                              borderRadius: '8px',
-                              color: 'white',
-                              textAlign: 'center'
-                            }}>
-                              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{cluster.count}</div>
-                              <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Shipments</div>
+                        <Popup>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>📊 {cluster.region}</strong><br/>
+                            <strong>Shipments:</strong> {cluster.count}<br/>
+                            <strong>Origins:</strong><br/>
+                            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '12px', marginTop: '8px' }}>
+                              {cluster.addresses.slice(0, 5).map((addr, idx) => (
+                                <div key={idx} style={{ marginBottom: '4px', padding: '2px 0' }}>
+                                  • {addr.length > 40 ? addr.substring(0, 37) + '...' : addr}
+                                </div>
+                              ))}
+                              {cluster.addresses.length > 5 && (
+                                <div style={{ fontStyle: 'italic', color: '#666', marginTop: '4px' }}>
+                                  ...and {cluster.addresses.length - 5} more
+                                </div>
+                              )}
                             </div>
-                            <strong style={{ fontSize: '14px', color: '#333' }}>Origin Addresses:</strong>
-                            <div style={{ 
-                              maxHeight: '200px', 
-                              overflowY: 'auto', 
-                              fontSize: '13px', 
-                              marginTop: '8px',
-                              border: '1px solid #ddd',
-                              borderRadius: '6px',
-                              padding: '8px',
-                              background: '#f9f9f9'
-                            }}>
-                              {cluster.addresses.map((addr, idx) => {
-                                const shipmentCount = shipments.filter(
-                                  s => s.legs?.[0]?.shipFromAddress === addr
-                                ).length
-                                return (
-                                  <div key={idx} style={{ 
-                                    marginBottom: '8px', 
-                                    padding: '8px',
-                                    background: 'white',
-                                    borderRadius: '4px',
-                                    borderLeft: '3px solid #1976d2'
-                                  }}>
-                                    <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                                      📍 {addr.length > 45 ? addr.substring(0, 42) + '...' : addr}
-                                    </div>
-                                    <div style={{ 
-                                      color: '#1976d2', 
-                                      fontSize: '12px', 
-                                      fontWeight: '500',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}>
-                                      <span style={{ 
-                                        background: '#1976d2', 
-                                        color: 'white', 
-                                        padding: '2px 6px', 
-                                        borderRadius: '10px',
-                                        fontSize: '10px'
-                                      }}>
-                                        {shipmentCount}
-                                      </span>
-                                      shipment{shipmentCount > 1 ? 's' : ''}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            {isLoadingClusters && (
-                              <div style={{ textAlign: 'center', margin: '12px 0', color: '#666' }}>
-                                <div style={{ 
-                                  display: 'inline-block',
-                                  width: '16px', 
-                                  height: '16px', 
-                                  border: '2px solid #ddd', 
-                                  borderTop: '2px solid #1976d2',
-                                  borderRadius: '50%',
-                                  animation: 'spin 1s linear infinite',
-                                  marginRight: '8px'
-                                }}></div>
-                                <small>Loading cluster data...</small>
-                              </div>
-                            )}
                           </div>
                         </Popup>
                       </Marker>
@@ -2517,38 +2428,29 @@ const Shipments = () => {
               />
               
               {/* Show shipment clusters when no specific shipment is selected */}
-              {!selectedShipment && shipmentClusters.length > 0 && shipmentClusters.map((cluster) => (
+              {!selectedShipment && shipmentClusters.map((cluster) => (
                 <Marker
                   key={cluster.id}
                   position={[cluster.lat, cluster.lng]}
                   icon={createClusterIcon(cluster.count, cluster.region)}
                 >
-                  <Popup maxWidth={300}>
-                    <div style={{ minWidth: '280px' }}>
-                      <strong style={{ fontSize: '18px', color: '#1976d2', display: 'block', marginBottom: '8px' }}>
+                  <Popup>
+                    <div style={{ minWidth: '250px' }}>
+                      <strong style={{ fontSize: '16px', color: '#1976d2' }}>
                         📊 {cluster.region}
                       </strong>
-                      <div style={{ 
-                        margin: '12px 0', 
-                        padding: '12px', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                        borderRadius: '8px',
-                        color: 'white',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{cluster.count}</div>
-                        <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Shipments</div>
+                      <div style={{ margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                        <strong>Total Shipments:</strong> <span style={{ color: '#d32f2f', fontSize: '18px' }}>{cluster.count}</span>
                       </div>
-                      <strong style={{ fontSize: '14px', color: '#333' }}>Origin Addresses:</strong>
+                      <strong>Origin Addresses:</strong>
                       <div style={{ 
-                        maxHeight: '200px', 
+                        maxHeight: '150px', 
                         overflowY: 'auto', 
                         fontSize: '13px', 
                         marginTop: '8px',
                         border: '1px solid #ddd',
-                        borderRadius: '6px',
-                        padding: '8px',
-                        background: '#f9f9f9'
+                        borderRadius: '4px',
+                        padding: '8px'
                       }}>
                         {cluster.addresses.map((addr, idx) => {
                           const shipmentCount = shipments.filter(
@@ -2556,50 +2458,22 @@ const Shipments = () => {
                           ).length
                           return (
                             <div key={idx} style={{ 
-                              marginBottom: '8px', 
-                              padding: '8px',
-                              background: 'white',
-                              borderRadius: '4px',
-                              borderLeft: '3px solid #1976d2'
+                              marginBottom: '6px', 
+                              padding: '4px 0',
+                              borderBottom: idx < cluster.addresses.length - 1 ? '1px solid #eee' : 'none'
                             }}>
-                              <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                                📍 {addr.length > 45 ? addr.substring(0, 42) + '...' : addr}
+                              <div style={{ fontWeight: '500' }}>
+                                📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
                               </div>
-                              <div style={{ 
-                                color: '#1976d2', 
-                                fontSize: '12px', 
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                <span style={{ 
-                                  background: '#1976d2', 
-                                  color: 'white', 
-                                  padding: '2px 6px', 
-                                  borderRadius: '10px',
-                                  fontSize: '10px'
-                                }}>
-                                  {shipmentCount}
-                                </span>
-                                shipment{shipmentCount > 1 ? 's' : ''}
+                              <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
+                                {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
                               </div>
                             </div>
                           )
                         })}
                       </div>
                       {isLoadingClusters && (
-                        <div style={{ textAlign: 'center', margin: '12px 0', color: '#666' }}>
-                          <div style={{ 
-                            display: 'inline-block',
-                            width: '16px', 
-                            height: '16px', 
-                            border: '2px solid #ddd', 
-                            borderTop: '2px solid #1976d2',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite',
-                            marginRight: '8px'
-                          }}></div>
+                        <div style={{ textAlign: 'center', margin: '8px 0', color: '#666' }}>
                           <small>Loading cluster data...</small>
                         </div>
                       )}
@@ -2763,33 +2637,15 @@ const Shipments = () => {
                 padding: '16px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 zIndex: 1000,
-                maxWidth: '350px'
+                maxWidth: '300px'
               }}>
                 <h6 style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                  📊 Shipment Overview
+                  Shipment Tracking
                 </h6>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: '12px',
-                  padding: '8px',
-                  background: '#f0f8ff',
-                  borderRadius: '6px'
-                }}>
-                  <span style={{ fontSize: '13px', color: '#666' }}>Total Shipments:</span>
-                  <span style={{ 
-                    fontSize: '18px', 
-                    fontWeight: 'bold', 
-                    color: '#1976d2' 
-                  }}>
-                    {shipments.length}
-                  </span>
-                </div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '8px' }}>
                   {shipmentClusters.length > 0 
-                    ? `Showing ${shipmentClusters.length} region${shipmentClusters.length > 1 ? 's' : ''} with active shipments`
-                    : 'Loading shipment locations...'
+                    ? `Showing ${shipmentClusters.length} regions with shipments`
+                    : 'Open the sidebar to view and manage shipments'
                   }
                 </p>
                 {isLoadingClusters && (
@@ -2803,7 +2659,7 @@ const Shipments = () => {
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite'
                       }}></div>
-                      Analyzing shipment locations...
+                      Loading clusters...
                     </div>
                   </div>
                 )}
@@ -2815,11 +2671,10 @@ const Shipments = () => {
                     borderRadius: '6px',
                     padding: '6px 12px',
                     fontSize: '12px',
-                    fontWeight: '600',
-                    width: '100%'
+                    fontWeight: '600'
                   }}
                 >
-                  🚛 View All Shipments
+                  View Shipments
                 </CButton>
               </div>
             )}
