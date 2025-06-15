@@ -249,6 +249,7 @@ const Shipments = () => {
       return
     }
 
+    setIsLoading(true)
     const shipmentData = {
       trackerId: selectedTracker, // Include the selected tracker ID
       legs: legs.map((leg, index) => ({
@@ -275,8 +276,59 @@ const Shipments = () => {
       if (response.ok) {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
-        alert('Shipment created successfully!')
-        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
+        
+        // Prepare leg coordinates for the new shipment before closing modal
+        // This ensures they're ready to be displayed immediately
+        const newShipmentWithCoords = {...shipmentData, _id: result.insertedId}
+        
+        // Pre-cache the leg coordinates
+        const shipmentLegs = newShipmentWithCoords.legs || []
+        const addresses = []
+        
+        if (shipmentLegs[0]?.shipFromAddress) {
+          addresses.push(shipmentLegs[0].shipFromAddress)
+        }
+        
+        shipmentLegs.forEach(leg => {
+          if (leg?.stopAddress) {
+            addresses.push(leg.stopAddress)
+          }
+        })
+        
+        // Use existing geocoded coordinates from the preview if available
+        const coordsPromises = addresses.map(async (addr, index) => {
+          // Check if we already have geocoded this address during preview
+          if (addressCache[addr]) {
+            return {
+              position: addressCache[addr],
+              address: addr,
+              markerNumber: index + 1
+            }
+          } else {
+            const coord = await geocodeAddress(addr)
+            return {
+              position: coord,
+              address: addr,
+              markerNumber: index + 1
+            }
+          }
+        })
+        
+        // Wait for all coordinates to be resolved
+        const newCoords = await Promise.all(coordsPromises)
+        const validCoords = newCoords.filter(item => item.position !== null)
+        
+        // Add the new shipment with its coordinates to state
+        setShipments(prevShipments => {
+          const newShipment = {...newShipmentWithCoords, _preloadedCoords: validCoords}
+          return [...prevShipments, newShipment]
+        })
+        
+        // Show success message
+        setAlertMessage('Shipment created successfully!')
+        setTimeout(() => setAlertMessage(''), 5000)
+        
+        // Clear form and close modal
         setIsModalOpen(false)
         setLegs([
           {
@@ -292,14 +344,32 @@ const Shipments = () => {
             awb: '',
           },
         ])
+        
+        // Select the newly created shipment to display it immediately
+        setTimeout(() => {
+          // Find the newly created shipment in the updated shipments list
+          const updatedShipments = [...shipments, newShipmentWithCoords]
+          const newShipment = updatedShipments.find(s => 
+            s._id === result.insertedId || s.trackerId === newShipmentWithCoords.trackerId
+          )
+          if (newShipment) {
+            // Set it as the selected shipment with the pre-loaded coordinates
+            newShipment._preloadedCoords = validCoords
+            handleShipmentClick(newShipment)
+          }
+        }, 100) // Short delay to allow state updates
       } else {
         const error = await response.json()
         console.error('Error inserting shipment:', error)
-        alert('Failed to create shipment.')
+        setAlertMessage('Failed to create shipment.')
+        setTimeout(() => setAlertMessage(''), 5000)
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred.')
+      setAlertMessage('An error occurred.')
+      setTimeout(() => setAlertMessage(''), 5000)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -447,6 +517,22 @@ const Shipments = () => {
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
+
+    // If we have pre-loaded coordinates from a newly created shipment, use them
+    if (shipment._preloadedCoords && shipment._preloadedCoords.length > 0) {
+      setAllLegCoords(shipment._preloadedCoords)
+      
+      // Set individual coords for backward compatibility
+      if (shipment._preloadedCoords.length > 0) {
+        setStartCoord(shipment._preloadedCoords[0].position)
+        setDestinationCoord(shipment._preloadedCoords[shipment._preloadedCoords.length - 1].position)
+      }
+    } else {
+      // Reset coordinates - will be set by the useEffect that handles leg coordinates
+      setAllLegCoords([])
+      setStartCoord(null)
+      setDestinationCoord(null)
+    }
 
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
@@ -602,21 +688,38 @@ const Shipments = () => {
   // Address geocode cache to avoid redundant lookups
   const addressCache = {};
 
-  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache
+  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache and rate limiting
   const geocodeAddress = async (address) => {
     if (!address) return null;
     if (addressCache[address]) return addressCache[address];
+    
+    // Implement a simple rate limiting to avoid Nominatim throttling
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
+      const res = await fetch(url, { 
+        headers: { 
+          'Accept-Language': 'en', 
+          'User-Agent': 'shipment-ui/1.0' 
+        } 
+      });
+      
+      if (!res.ok) {
+        console.warn(`Geocoding request failed with status ${res.status} for address: ${address}`);
+        return null;
+      }
+      
       const data = await res.json();
       if (data && data.length > 0) {
         const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
         addressCache[address] = coords;
         return coords;
+      } else {
+        console.warn(`No geocoding results for address: ${address}`);
       }
     } catch (e) {
-      // Ignore geocode errors
+      console.error(`Error geocoding address "${address}":`, e);
     }
     return null;
   };
@@ -665,7 +768,7 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
-  // When a shipment is selected, geocode and store all leg coordinates
+  // When a shipment is selected, geocode and store all leg coordinates with improved error handling
   useEffect(() => {
     const setCoordsFromShipment = async () => {
       if (
@@ -673,6 +776,14 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
+        // If we have pre-loaded coordinates from a newly created shipment, use them
+        if (selectedShipment._preloadedCoords && selectedShipment._preloadedCoords.length > 0) {
+          return; // Already set in handleShipmentClick
+        }
+        
+        // Show loading indicator
+        setIsLoading(true);
+        
         const addresses = [];
         const firstLeg = selectedShipment.legs[0];
         
@@ -688,17 +799,32 @@ const Shipments = () => {
           }
         });
         
-        // Geocode all addresses
-        const coords = await Promise.all(
-          addresses.map(addr => geocodeAddress(addr))
-        );
+        // Process addresses in batches to avoid rate limiting
+        const BATCH_SIZE = 3;
+        const coordsResults = [];
         
-        // Filter out null results and create coordinate objects
-        const validCoords = coords
-          .map((coord, index) => ({
-            position: coord,
-            address: addresses[index],
-            markerNumber: index + 1
+        for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+          const batch = addresses.slice(i, i + BATCH_SIZE);
+          
+          // Process batch addresses with slight delays
+          const batchPromises = batch.map(async (addr, idx) => {
+            // Add a small delay between requests in the same batch
+            await new Promise(resolve => setTimeout(resolve, idx * 300));
+            const coord = await geocodeAddress(addr);
+            return { addr, coord, originalIndex: i + idx };
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          coordsResults.push(...batchResults);
+        }
+        
+        // Now arrange coordinates in the original order and create marker objects
+        const validCoords = coordsResults
+          .sort((a, b) => a.originalIndex - b.originalIndex) // Sort by original position
+          .map(result => ({
+            position: result.coord,
+            address: result.addr,
+            markerNumber: coordsResults.findIndex(r => r.addr === result.addr) + 1
           }))
           .filter(item => item.position !== null);
         
@@ -712,14 +838,17 @@ const Shipments = () => {
           setStartCoord(null);
           setDestinationCoord(null);
         }
+        
+        // Hide loading indicator
+        setIsLoading(false);
       } else {
         setAllLegCoords([]);
         setStartCoord(null);
         setDestinationCoord(null);
       }
     };
+    
     setCoordsFromShipment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
 
   // Show a line between all addresses when a shipment is selected and there is no routeData
@@ -890,7 +1019,7 @@ const Shipments = () => {
     });
   };
 
-  // Add shipment clustering logic
+  // Add shipment clustering logic with improved error handling and batching
   useEffect(() => {
     const createShipmentClusters = async () => {
       if (!shipments || shipments.length === 0) {
@@ -908,92 +1037,126 @@ const Shipments = () => {
             .filter(addr => addr && addr.trim() !== '')
         )]
 
-        // Geocode all addresses with progress tracking
-        const geocodedAddresses = await Promise.all(
-          originAddresses.map(async (address) => {
-            const coords = await geocodeAddress(address)
-            return { address, coords }
-          })
-        )
-
-        // Filter out failed geocodes
-        const validGeocodes = geocodedAddresses.filter(item => item.coords)
-
-        // Create clusters using a simple distance-based algorithm
-        const clusters = []
+        // Process addresses in batches to avoid rate limiting
+        const BATCH_SIZE = 5;
+        const clusters = [];
         const CLUSTER_DISTANCE = 2.0 // degrees (~200km)
+        
+        for (let i = 0; i < originAddresses.length; i += BATCH_SIZE) {
+          const batch = originAddresses.slice(i, i + BATCH_SIZE);
+          
+          // Process batch addresses concurrently
+          const batchPromises = batch.map(async (address) => {
+            try {
+              // Only geocode if not in cache
+              const coords = await geocodeAddress(address);
+              
+              if (coords) {
+                // Count shipments for this address
+                const shipmentCount = shipments.filter(
+                  s => s.legs?.[0]?.shipFromAddress === address
+                ).length;
 
-        // Use for...of loop instead of forEach to properly handle async/await
-        for (const { address, coords } of validGeocodes) {
-          // Count shipments for this address
-          const shipmentCount = shipments.filter(
-            s => s.legs?.[0]?.shipFromAddress === address
-          ).length
+                return { address, coords, count: shipmentCount };
+              }
+            } catch (error) {
+              console.error(`Error processing address "${address}":`, error);
+            }
+            return null;
+          });
+          
+          // Wait for current batch to complete before proceeding
+          const batchResults = await Promise.all(batchPromises);
+          const validResults = batchResults.filter(result => result !== null);
+          
+          // Add valid results to clusters
+          for (const { address, coords, count } of validResults) {
+            // Find existing cluster within distance
+            let existingCluster = clusters.find(cluster => {
+              const distance = Math.sqrt(
+                Math.pow(cluster.lat - coords[0], 2) + 
+                Math.pow(cluster.lng - coords[1], 2)
+              )
+              return distance <= CLUSTER_DISTANCE
+            });
 
-          // Find existing cluster within distance
-          let existingCluster = clusters.find(cluster => {
-            const distance = Math.sqrt(
-              Math.pow(cluster.lat - coords[0], 2) + 
-              Math.pow(cluster.lng - coords[1], 2)
-            )
-            return distance <= CLUSTER_DISTANCE
-          })
-
-          if (existingCluster) {
-            // Add to existing cluster
-            existingCluster.count += shipmentCount
-            existingCluster.addresses.push(address)
-            // Update cluster center (weighted average)
-            const totalCount = existingCluster.count
-            existingCluster.lat = ((existingCluster.lat * (totalCount - shipmentCount)) + (coords[0] * shipmentCount)) / totalCount
-            existingCluster.lng = ((existingCluster.lng * (totalCount - shipmentCount)) + (coords[1] * shipmentCount)) / totalCount
-          } else {
-            // Create new cluster
-            const region = await getRegionName(coords[0], coords[1]) // Get region name
-            clusters.push({
-              id: `cluster-${clusters.length}`,
-              lat: coords[0],
-              lng: coords[1],
-              count: shipmentCount,
-              addresses: [address],
-              region: region
-            })
+            if (existingCluster) {
+              // Add to existing cluster
+              existingCluster.count += count;
+              existingCluster.addresses.push(address);
+              // Update cluster center (weighted average)
+              const totalCount = existingCluster.count;
+              existingCluster.lat = ((existingCluster.lat * (totalCount - count)) + (coords[0] * count)) / totalCount;
+              existingCluster.lng = ((existingCluster.lng * (totalCount - count)) + (coords[1] * count)) / totalCount;
+            } else {
+              // Get region name (already cached by geocoding)
+              const region = await getRegionName(coords[0], coords[1]);
+              
+              // Create new cluster
+              clusters.push({
+                id: `cluster-${clusters.length}`,
+                lat: coords[0],
+                lng: coords[1],
+                count: count,
+                addresses: [address],
+                region: region
+              });
+            }
+            
+            // Update clusters as they're being processed for better UI feedback
+            if (clusters.length % 5 === 0 || i + BATCH_SIZE >= originAddresses.length) {
+              setShipmentClusters([...clusters]);
+            }
           }
         }
 
-        setShipmentClusters(clusters)
+        // Final update
+        setShipmentClusters(clusters);
       } catch (error) {
-        console.error('Error creating shipment clusters:', error)
-        setShipmentClusters([])
+        console.error('Error creating shipment clusters:', error);
       } finally {
-        setIsLoadingClusters(false)
+        setIsLoadingClusters(false);
       }
-    }
+    };
 
-    createShipmentClusters()
-  }, [shipments])
+    createShipmentClusters();
+  }, [shipments]);
 
-  // Helper function to get region name from coordinates
+  // Helper function to get region name from coordinates with caching
+  const regionCache = {};
+  
   const getRegionName = async (lat, lng) => {
+    const cacheKey = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    if (regionCache[cacheKey]) return regionCache[cacheKey];
+    
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`;
       const response = await fetch(url, { 
         headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } 
-      })
-      const data = await response.json()
+      });
+      
+      if (!response.ok) {
+        console.warn(`Region lookup failed with status ${response.status}`);
+        return 'Unknown Region';
+      }
+      
+      const data = await response.json();
       
       if (data && data.address) {
         // Try to get state/province, then country
-        return data.address.state || 
-               data.address.province || 
-               data.address.region || 
-               data.address.country || 
-               'Unknown Region'
+        const region = data.address.state || 
+                       data.address.province || 
+                       data.address.region || 
+                       data.address.country || 
+                       'Unknown Region';
+        
+        regionCache[cacheKey] = region;
+        return region;
       }
     } catch (error) {
-      console.error('Error getting region name:', error)
+      console.error('Error getting region name:', error);
     }
-    return 'Unknown Region'
+    return 'Unknown Region';
   }
 
   // Create cluster marker icon
@@ -1215,6 +1378,76 @@ const Shipments = () => {
       padding: 0,
       zIndex: 1
     }}>
+      {/* Alert Message */}
+      {alertMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 2000,
+          minWidth: '300px',
+          maxWidth: '80%',
+          background: '#4caf50',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+          fontWeight: '500'
+        }}>
+          {alertMessage}
+        </div>
+      )}
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '30px',
+              height: '30px',
+              borderRadius: '50%',
+              border: '3px solid #f3f3f3',
+              borderTop: '3px solid #3498db',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <div>Loading...</div>
+          </div>
+        </div>
+      )}
+
+      {/* Add styling for spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      
       {/* Mobile Layout */}
       {isMobile ? (
         <div style={{ 
@@ -2653,10 +2886,10 @@ const Shipments = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ 
                         width: '12px', 
-                        height: '12px', 
-                        border: '2px solid #ddd', 
-                        borderTop: '2px solid #1976d2',
+                        height: '12px',
                         borderRadius: '50%',
+                        border: '2px solid #ddd',
+                        borderTop: '2px solid #1976d2',
                         animation: 'spin 1s linear infinite'
                       }}></div>
                       Loading clusters...
