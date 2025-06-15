@@ -222,6 +222,182 @@ const Shipments = () => {
     setLegs(updatedLegs)
   }
 
+  // Address geocode cache to avoid redundant lookups
+  const addressCache = {};
+
+  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache
+  const geocodeAddress = async (address) => {
+    if (!address) return null;
+    if (addressCache[address]) return addressCache[address];
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        addressCache[address] = coords;
+        return coords;
+      }
+    } catch (e) {
+      console.error('Geocoding error for address:', address, e);
+    }
+    addressCache[address] = null; // Cache null results to avoid retries
+    return null;
+  };
+
+  // When modal is open and addresses are filled, preview the line
+  useEffect(() => {
+    const showPreview = async () => {
+      if (!isModalOpen) {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+        setStartCoord(null);
+        return;
+      }
+      const firstLeg = legs[0];
+      const lastLeg = legs[legs.length - 1];
+      const from = firstLeg?.shipFromAddress;
+      const to = lastLeg?.stopAddress;
+      if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+        try {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setStartCoord(fromCoord);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+          } else {
+            setNewShipmentPreview(null);
+            setPreviewMarkers([]);
+            setDestinationCoord(null);
+            setStartCoord(null);
+          }
+        } catch (error) {
+          console.error('Error in preview geocoding:', error);
+          setNewShipmentPreview(null);
+          setPreviewMarkers([]);
+          setDestinationCoord(null);
+          setStartCoord(null);
+        }
+      } else {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+        setStartCoord(null);
+      }
+    };
+    showPreview();
+  }, [isModalOpen, legs]);
+
+  // When a shipment is selected, geocode and store all leg coordinates
+  useEffect(() => {
+    const setCoordsFromShipment = async () => {
+      if (
+        selectedShipment &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        try {
+          const addresses = [];
+          const firstLeg = selectedShipment.legs[0];
+          
+          // Add ship from address
+          if (firstLeg?.shipFromAddress) {
+            addresses.push(firstLeg.shipFromAddress);
+          }
+          
+          // Add all stop addresses
+          selectedShipment.legs.forEach(leg => {
+            if (leg?.stopAddress) {
+              addresses.push(leg.stopAddress);
+            }
+          });
+          
+          // Geocode all addresses with error handling
+          const geocodePromises = addresses.map(async (addr) => {
+            try {
+              const coord = await geocodeAddress(addr);
+              return { address: addr, coord };
+            } catch (error) {
+              console.error('Failed to geocode address:', addr, error);
+              return { address: addr, coord: null };
+            }
+          });
+          
+          const geocodeResults = await Promise.all(geocodePromises);
+          
+          // Filter out null results and create coordinate objects
+          const validCoords = geocodeResults
+            .map((result, index) => ({
+              position: result.coord,
+              address: result.address,
+              markerNumber: index + 1
+            }))
+            .filter(item => item.position !== null);
+          
+          console.log('Setting leg coordinates for shipment:', selectedShipment.trackerId, validCoords);
+          setAllLegCoords(validCoords);
+          
+          // Set individual coords for backward compatibility
+          if (validCoords.length > 0) {
+            setStartCoord(validCoords[0].position);
+            setDestinationCoord(validCoords[validCoords.length - 1].position);
+          } else {
+            setStartCoord(null);
+            setDestinationCoord(null);
+          }
+        } catch (error) {
+          console.error('Error setting coordinates from shipment:', error);
+          setAllLegCoords([]);
+          setStartCoord(null);
+          setDestinationCoord(null);
+        }
+      } else {
+        setAllLegCoords([]);
+        setStartCoord(null);
+        setDestinationCoord(null);
+      }
+    };
+    setCoordsFromShipment();
+  }, [selectedShipment]);
+
+  // Remove the old conflicting useEffect - this was causing issues
+  // useEffect(() => {
+  //   const showSelectedShipmentLine = async () => {
+  //     // ... old code removed
+  //   };
+  //   showSelectedShipmentLine();
+  // }, [selectedShipment, routeData, isModalOpen]);
+
+  // Simplified effect for handling modal preview vs selected shipment
+  useEffect(() => {
+    if (isModalOpen) {
+      // Modal is open - preview markers are handled by the modal preview effect above
+      return;
+    }
+    
+    if (!selectedShipment) {
+      // No shipment selected and modal closed - clear everything
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      if (!allLegCoords.length) {
+        setDestinationCoord(null);
+      }
+    } else {
+      // Shipment is selected - clear modal-specific preview data
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      // allLegCoords and destinationCoord are handled by the shipment coordinates effect
+    }
+  }, [isModalOpen, selectedShipment, allLegCoords.length]);
+
   const submitForm = async () => {
     if (!selectedTracker) {
       alert('Please select a tracker.')
@@ -276,7 +452,15 @@ const Shipments = () => {
         const result = await response.json()
         console.log('Shipment inserted successfully:', result)
         alert('Shipment created successfully!')
-        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
+        
+        // Add the new shipment to the list with proper structure
+        const newShipment = { 
+          ...shipmentData, 
+          _id: result.insertedId || Date.now().toString() // Use returned ID or generate one
+        }
+        setShipments((prevShipments) => [...prevShipments, newShipment])
+        
+        // Close modal and reset form
         setIsModalOpen(false)
         setLegs([
           {
@@ -292,6 +476,12 @@ const Shipments = () => {
             awb: '',
           },
         ])
+        setSelectedTracker('')
+        
+        // Auto-select the newly created shipment after a brief delay to ensure state update
+        setTimeout(() => {
+          handleShipmentClick(newShipment)
+        }, 100)
       } else {
         const error = await response.json()
         console.error('Error inserting shipment:', error)
@@ -599,28 +789,6 @@ const Shipments = () => {
     setIsDeleteModalOpen(true)
   }
 
-  // Address geocode cache to avoid redundant lookups
-  const addressCache = {};
-
-  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache
-  const geocodeAddress = async (address) => {
-    if (!address) return null;
-    if (addressCache[address]) return addressCache[address];
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-        addressCache[address] = coords;
-        return coords;
-      }
-    } catch (e) {
-      // Ignore geocode errors
-    }
-    return null;
-  };
-
   // When modal is open and addresses are filled, preview the line
   useEffect(() => {
     const showPreview = async () => {
@@ -636,19 +804,27 @@ const Shipments = () => {
       const from = firstLeg?.shipFromAddress;
       const to = lastLeg?.stopAddress;
       if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
-        const [fromCoord, toCoord] = await Promise.all([
-          geocodeAddress(from),
-          geocodeAddress(to),
-        ]);
-        if (fromCoord && toCoord) {
-          setNewShipmentPreview([fromCoord, toCoord]);
-          setStartCoord(fromCoord);
-          setDestinationCoord(toCoord);
-          setPreviewMarkers([
-            { position: fromCoord, label: '1', popup: `Start: ${from}` },
-            { position: toCoord, label: '2', popup: `End: ${to}` }
+        try {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
           ]);
-        } else {
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setStartCoord(fromCoord);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+          } else {
+            setNewShipmentPreview(null);
+            setPreviewMarkers([]);
+            setDestinationCoord(null);
+            setStartCoord(null);
+          }
+        } catch (error) {
+          console.error('Error in preview geocoding:', error);
           setNewShipmentPreview(null);
           setPreviewMarkers([]);
           setDestinationCoord(null);
@@ -662,7 +838,6 @@ const Shipments = () => {
       }
     };
     showPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
   // When a shipment is selected, geocode and store all leg coordinates
@@ -673,42 +848,58 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        const addresses = [];
-        const firstLeg = selectedShipment.legs[0];
-        
-        // Add ship from address
-        if (firstLeg?.shipFromAddress) {
-          addresses.push(firstLeg.shipFromAddress);
-        }
-        
-        // Add all stop addresses
-        selectedShipment.legs.forEach(leg => {
-          if (leg?.stopAddress) {
-            addresses.push(leg.stopAddress);
+        try {
+          const addresses = [];
+          const firstLeg = selectedShipment.legs[0];
+          
+          // Add ship from address
+          if (firstLeg?.shipFromAddress) {
+            addresses.push(firstLeg.shipFromAddress);
           }
-        });
-        
-        // Geocode all addresses
-        const coords = await Promise.all(
-          addresses.map(addr => geocodeAddress(addr))
-        );
-        
-        // Filter out null results and create coordinate objects
-        const validCoords = coords
-          .map((coord, index) => ({
-            position: coord,
-            address: addresses[index],
-            markerNumber: index + 1
-          }))
-          .filter(item => item.position !== null);
-        
-        setAllLegCoords(validCoords);
-        
-        // Set individual coords for backward compatibility
-        if (validCoords.length > 0) {
-          setStartCoord(validCoords[0].position);
-          setDestinationCoord(validCoords[validCoords.length - 1].position);
-        } else {
+          
+          // Add all stop addresses
+          selectedShipment.legs.forEach(leg => {
+            if (leg?.stopAddress) {
+              addresses.push(leg.stopAddress);
+            }
+          });
+          
+          // Geocode all addresses with error handling
+          const geocodePromises = addresses.map(async (addr) => {
+            try {
+              const coord = await geocodeAddress(addr);
+              return { address: addr, coord };
+            } catch (error) {
+              console.error('Failed to geocode address:', addr, error);
+              return { address: addr, coord: null };
+            }
+          });
+          
+          const geocodeResults = await Promise.all(geocodePromises);
+          
+          // Filter out null results and create coordinate objects
+          const validCoords = geocodeResults
+            .map((result, index) => ({
+              position: result.coord,
+              address: result.address,
+              markerNumber: index + 1
+            }))
+            .filter(item => item.position !== null);
+          
+          console.log('Setting leg coordinates for shipment:', selectedShipment.trackerId, validCoords);
+          setAllLegCoords(validCoords);
+          
+          // Set individual coords for backward compatibility
+          if (validCoords.length > 0) {
+            setStartCoord(validCoords[0].position);
+            setDestinationCoord(validCoords[validCoords.length - 1].position);
+          } else {
+            setStartCoord(null);
+            setDestinationCoord(null);
+          }
+        } catch (error) {
+          console.error('Error setting coordinates from shipment:', error);
+          setAllLegCoords([]);
           setStartCoord(null);
           setDestinationCoord(null);
         }
@@ -719,31 +910,7 @@ const Shipments = () => {
       }
     };
     setCoordsFromShipment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShipment]);
-
-  // Show a line between all addresses when a shipment is selected and there is no routeData
-  useEffect(() => {
-    const showSelectedShipmentLine = async () => {
-      if (
-        selectedShipment &&
-        (!routeData || routeData.length === 0) &&
-        selectedShipment.legs &&
-        selectedShipment.legs.length > 0
-      ) {
-        // This effect is now only for setting preview markers, not polylines
-        // The polylines are handled by the allLegCoords effect below
-        return;
-      }
-      if (!isModalOpen) {
-        setNewShipmentPreview(null);
-        setPreviewMarkers([]);
-        setDestinationCoord(null);
-      }
-    };
-    showSelectedShipmentLine();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData, isModalOpen]);
 
   // Show all leg markers when shipment is selected
   useEffect(() => {
