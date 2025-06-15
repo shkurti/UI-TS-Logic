@@ -73,15 +73,6 @@ function MapInvalidator({ sidebarCollapsed, selectedShipment }) {
   return null
 }
 
-// Add FitWorld component
-function FitWorld({ trigger }) {
-  const map = useMap()
-  useEffect(() => {
-    map.fitWorld()
-  }, [trigger, map])
-  return null
-}
-
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -136,19 +127,6 @@ const Shipments = () => {
 
   // Add timezone detection
   const [userTimezone, setUserTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
-
-  // Add state for hover marker
-  const [hoverMarker, setHoverMarker] = useState(null)
-
-  // Add new state for shipment clustering
-  const [shipmentClusters, setShipmentClusters] = useState([])
-  const [isLoadingClusters, setIsLoadingClusters] = useState(false)
-
-  // Add state for all leg coordinates
-  const [allLegCoords, setAllLegCoords] = useState([])
-
-  // Add state to track if leg coordinates are loading for the selected shipment
-  const [isLoadingLegCoords, setIsLoadingLegCoords] = useState(false);
 
   // Add responsive detection
   useEffect(() => {
@@ -276,21 +254,10 @@ const Shipments = () => {
       })
 
       if (response.ok) {
-        const result = await response.json() // result is the newly created shipment from backend
+        const result = await response.json()
         console.log('Shipment inserted successfully:', result)
         alert('Shipment created successfully!')
-        // Add the new shipment to the list using the backend's response
-        setShipments((prevShipments) => [...prevShipments, result]) 
-        
-        // Select the newly created shipment to display its route and legs
-        // Ensure 'result' has the necessary structure for handleShipmentClick
-        if (result && result.trackerId && result.legs) {
-          handleShipmentClick(result); 
-        } else {
-          // Fallback or refetch if result is not complete, though ideally it should be
-          setSelectedShipment(null); // Clear selection if new one can't be processed
-        }
-
+        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
         setIsModalOpen(false)
         setLegs([
           {
@@ -317,154 +284,14 @@ const Shipments = () => {
     }
   }
 
-  // Subscribe to real-time GPS updates for the selected shipment's tracker
-  useEffect(() => {
-    if (!selectedShipment || !selectedShipment.trackerId) {
-      setLiveRoute([]);
-      return;
-    }
-    // Get the expected time range for the selected shipment
-    const legs = selectedShipment.legs || [];
-    const firstLeg = legs[0] || {};
-    const lastLeg = legs[legs.length - 1] || {};
-    const expectedStart = new Date(firstLeg.shipDate);
-    const expectedEnd = new Date(lastLeg.arrivalDate);
-
-    let isCurrent = true;
-
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => {
-      console.log('WebSocket connected for shipment:', selectedShipment.trackerId);
-    };
-    ws.onmessage = (event) => {
-      if (!isCurrent) return;
-      try {
-        const message = JSON.parse(event.data);
-        console.log('WebSocket message received:', message); // Debug log
-        
-        if (
-          message.operationType === 'insert' &&
-          String(message.tracker_id) === String(selectedShipment.trackerId)
-        ) {
-          const { geolocation, new_record } = message;
-          
-          // Use local timestamp if available, otherwise convert UTC
-          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
-          
-          // Check if the timestamp is within the expected range (using local time now)
-          if (new_record?.timestamp_local) {
-            const dt = new Date(new_record.timestamp_local);
-            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
-              return;
-            }
-          }
-          
-          const lat = parseFloat(geolocation?.Lat);
-          const lng = parseFloat(geolocation?.Lng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            setLiveRoute((prevRoute) => {
-              const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [lat, lng];
-              console.log('Adding new GPS point:', newPoint);
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                return [...prevRoute, newPoint];
-              }
-              return prevRoute;
-            });
-          }
-          
-          // Update sensor data with local timestamps
-          if (new_record) {
-            if (new_record.Temp !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, temperature: parseFloat(new_record.Temp) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Hum !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, humidity: parseFloat(new_record.Hum) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Batt !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, battery: parseFloat(new_record.Batt) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, speed: parseFloat(new_record.Speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing WebSocket message:', e);
-      }
-    };
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-
-    return () => {
-      isCurrent = false;
-      ws.close();
-    };
-  }, [selectedShipment, userTimezone]);
-
-  // When a shipment is selected, initialize liveRoute from routeData
-  useEffect(() => {
-    if (routeData && routeData.length > 0) {
-      const gpsRoute = routeData
-        .filter(record => record.latitude && record.longitude && 
-                        !isNaN(parseFloat(record.latitude)) && 
-                        !isNaN(parseFloat(record.longitude)))
-        .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)])
-      
-      setLiveRoute(gpsRoute);
-    } else {
-      setLiveRoute([]);
-    }
-  }, [routeData]);
-
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
-    setShipmentTab('Sensors') // Or 'Details' or keep current, depending on desired UX
-    setActiveSensor('Temperature') // Reset sensor view
+    setShipmentTab('Details')
+    setActiveSensor('Temperature')
     setTemperatureData([])
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
-    setLiveRoute([]) // Clear previous live route
-    setAllLegCoords([]) // Clear previous leg coordinates
-    setIsLoadingLegCoords(true); // Indicate that leg coordinates are loading
-
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
@@ -474,17 +301,15 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      setLiveRoute([])
       return
     }
 
-    // Fetch initial historical data
     try {
       const params = new URLSearchParams({
         tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
-        timezone: userTimezone
+        timezone: userTimezone  // Pass user's timezone to backend
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
@@ -494,7 +319,7 @@ const Shipments = () => {
         // Process sensor data - timestamps are now in local time
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
+            timestamp: record.timestamp || 'N/A',  // Already in local time
             temperature: record.temperature !== undefined
               ? parseFloat(record.temperature)
               : record.Temp !== undefined
@@ -534,7 +359,6 @@ const Shipments = () => {
         )
       } else {
         setRouteData([])
-        setLiveRoute([])
         setTemperatureData([])
         setHumidityData([])
         setBatteryData([])
@@ -542,7 +366,6 @@ const Shipments = () => {
       }
     } catch (e) {
       setRouteData([])
-      setLiveRoute([])
       setTemperatureData([])
       setHumidityData([])
       setBatteryData([])
@@ -682,7 +505,7 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, legs]);
 
-  // When a shipment is selected, geocode and store all leg coordinates
+  // When a shipment is selected, geocode and store start/destination coords
   useEffect(() => {
     const setCoordsFromShipment = async () => {
       if (
@@ -690,59 +513,31 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        setIsLoadingLegCoords(true); // Set loading true when starting
-        const addresses = [];
         const firstLeg = selectedShipment.legs[0];
-        
-        // Add ship from address
-        if (firstLeg?.shipFromAddress) {
-          addresses.push(firstLeg.shipFromAddress);
-        }
-        
-        // Add all stop addresses
-        selectedShipment.legs.forEach(leg => {
-          if (leg?.stopAddress) {
-            addresses.push(leg.stopAddress);
-          }
-        });
-        
-        // Geocode all addresses
-        const coords = await Promise.all(
-          addresses.map(addr => geocodeAddress(addr))
-        );
-        
-        // Filter out null results and create coordinate objects
-        const validCoords = coords
-          .map((coord, index) => ({
-            position: coord,
-            address: addresses[index],
-            markerNumber: index + 1
-          }))
-          .filter(item => item.position !== null);
-        
-        setAllLegCoords(validCoords);
-        
-        // Set individual coords for backward compatibility
-        if (validCoords.length > 0) {
-          setStartCoord(validCoords[0].position);
-          setDestinationCoord(validCoords[validCoords.length - 1].position);
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '') {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
         } else {
           setStartCoord(null);
           setDestinationCoord(null);
         }
-        setIsLoadingLegCoords(false); // Set loading false when done
       } else {
-        setAllLegCoords([]);
         setStartCoord(null);
         setDestinationCoord(null);
-        setIsLoadingLegCoords(false); // Also set loading false here
       }
     };
     setCoordsFromShipment();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment]); // Removed geocodeAddress from dependencies as it's stable
+  }, [selectedShipment]);
 
-  // Show a line between all addresses when a shipment is selected and there is no routeData
+  // Show a line between full addresses when a shipment is selected and there is no routeData
   useEffect(() => {
     const showSelectedShipmentLine = async () => {
       if (
@@ -751,36 +546,35 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
-        // This effect is now only for setting preview markers, not polylines
-        // The polylines are handled by the allLegCoords effect below
-        return;
+        const firstLeg = selectedShipment.legs[0];
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const from = firstLeg?.shipFromAddress;
+        const to = lastLeg?.stopAddress;
+        if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+          const [fromCoord, toCoord] = await Promise.all([
+            geocodeAddress(from),
+            geocodeAddress(to),
+          ]);
+          if (fromCoord && toCoord) {
+            setNewShipmentPreview([fromCoord, toCoord]);
+            setDestinationCoord(toCoord);
+            setPreviewMarkers([
+              { position: fromCoord, label: '1', popup: `Start: ${from}` },
+              { position: toCoord, label: '2', popup: `End: ${to}` }
+            ]);
+            return;
+          }
+        }
       }
-      if (!isModalOpen) {
-        setNewShipmentPreview(null);
-        setPreviewMarkers([]);
-        setDestinationCoord(null);
-      }
-    };
-    showSelectedShipmentLine();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment, routeData, isModalOpen]);
-
-  // Show all leg markers when shipment is selected
-  useEffect(() => {
-    if (selectedShipment && allLegCoords.length > 0) {
-      // Only set destination coordinate, NO preview markers or polylines
-      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
-      // Clear any preview markers and polylines for selected shipments
-      setPreviewMarkers([]);
-      setNewShipmentPreview(null);
-    } else if (!selectedShipment) {
       setNewShipmentPreview(null);
       setPreviewMarkers([]);
       setDestinationCoord(null);
-    }
-  }, [selectedShipment, allLegCoords]);
+    };
+    showSelectedShipmentLine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
 
-  // ONLY handle modal preview - NO selected shipment logic here
+  // Also update preview markers for modal preview (always use full address)
   useEffect(() => {
     if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
       const from = legs[0]?.shipFromAddress;
@@ -790,16 +584,168 @@ const Shipments = () => {
         { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
       ]);
       setDestinationCoord(newShipmentPreview[1]);
-    } else if (!isModalOpen) {
-      // Clear everything when modal closes
+    } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
       setPreviewMarkers([]);
-      if (!selectedShipment) {
-        setNewShipmentPreview(null);
-        setDestinationCoord(null);
-      }
+      setDestinationCoord(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, newShipmentPreview, legs]);
+  }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+
+  // Ensure destinationCoord is always set when GPS data is loaded
+  useEffect(() => {
+    const setDestinationFromShipment = async () => {
+      if (
+        selectedShipment &&
+        routeData.length > 0 &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const lastLeg = selectedShipment.legs[selectedShipment.legs.length - 1];
+        const to = lastLeg?.stopAddress;
+        if (to && to.trim() !== '') {
+          const toCoord = await geocodeAddress(to);
+          if (
+            Array.isArray(toCoord) &&
+            toCoord.length === 2 &&
+            !isNaN(toCoord[0]) &&
+            !isNaN(toCoord[1])
+          ) {
+            setDestinationCoord(toCoord);
+            return;
+          }
+        }
+      }
+      // Only clear if not in preview mode
+      if (!isModalOpen) setDestinationCoord(null);
+    };
+    setDestinationFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData]);
+
+  // Add this effect to subscribe to real-time GPS updates for the selected shipment's tracker
+  useEffect(() => {
+    if (!selectedShipment || !selectedShipment.trackerId) {
+      setLiveRoute([]);
+      return;
+    }
+    // Get the expected time range for the selected shipment
+    const legs = selectedShipment.legs || [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || {};
+    const expectedStart = new Date(firstLeg.shipDate);
+    const expectedEnd = new Date(lastLeg.arrivalDate);
+
+    let isCurrent = true;
+
+    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
+    ws.onopen = () => {
+      // Optionally log or authenticate
+    };
+    ws.onmessage = (event) => {
+      if (!isCurrent) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (
+          message.operationType === 'insert' &&
+          String(message.tracker_id) === String(selectedShipment.trackerId)
+        ) {
+          const { geolocation, new_record } = message;
+          
+          // Use local timestamp if available, otherwise convert UTC
+          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
+          
+          // Check if the timestamp is within the expected range (using local time now)
+          if (new_record?.timestamp_local) {
+            const dt = new Date(new_record.timestamp_local);
+            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
+              return;
+            }
+          }
+          
+          const lat = parseFloat(geolocation?.Lat);
+          const lng = parseFloat(geolocation?.Lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLiveRoute((prevRoute) => {
+              const lastPoint = prevRoute[prevRoute.length - 1];
+              const newPoint = [lat, lng];
+              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
+                return [...prevRoute, newPoint];
+              }
+              return prevRoute;
+            });
+          }
+          
+          // Update sensor data with local timestamps
+          if (new_record) {
+            if (new_record.Temp !== undefined) {
+              setTemperatureData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, temperature: parseFloat(new_record.Temp) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Hum !== undefined) {
+              setHumidityData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, humidity: parseFloat(new_record.Hum) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Batt !== undefined) {
+              setBatteryData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, battery: parseFloat(new_record.Batt) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+            if (new_record.Speed !== undefined) {
+              setSpeedData((prevData) => {
+                if (!prevData.some((data) => data.timestamp === timestamp)) {
+                  return [
+                    ...prevData,
+                    { timestamp, speed: parseFloat(new_record.Speed) },
+                  ];
+                }
+                return prevData;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => {};
+
+    return () => {
+      isCurrent = false;
+      ws.close();
+    };
+  }, [selectedShipment, userTimezone]);
+
+  // When a shipment is selected, initialize liveRoute from routeData
+  useEffect(() => {
+    if (routeData && routeData.length > 0) {
+      setLiveRoute(
+        routeData.map((r) => [parseFloat(r.latitude), parseFloat(r.longitude)])
+      );
+    } else {
+      setLiveRoute([]);
+    }
+  }, [routeData]);
 
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
@@ -817,7 +763,7 @@ const Shipments = () => {
     return matchesSearch && matchesShipFrom && matchesShipTo
   })
 
-  // Helper to create a number marker icon - Enhanced for better visibility
+  // Helper to create a number marker icon
   const numberIcon = (number) =>
     L.divIcon({
       className: 'number-marker',
@@ -825,237 +771,20 @@ const Shipments = () => {
         background: #1976d2;
         color: #fff;
         border-radius: 50%;
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
         font-size: 16px;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        font-family: Arial, sans-serif;
-      ">${number}</div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-      popupAnchor: [0, -16],
-    })
-
-  // Enhanced current location marker
-  const currentLocationIcon = L.divIcon({
-    className: 'current-location-marker',
-    html: `<div style="
-      background: #ff4444;
-      color: #fff;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      border: 3px solid #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-      animation: pulse 2s infinite;
-    "></div>
-    <style>
-      @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.2); }
-        100% { transform: scale(1); }
-      }
-    </style>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-    popupAnchor: [0, -10],
-  })
-
-  // Hover marker icon for sensor data
-  const hoverMarkerIcon = (sensorType) => {
-    const colors = {
-      'Temperature': '#ff6b6b',
-      'Humidity': '#4ecdc4',
-      'Battery': '#45b7d1',
-      'Speed': '#96ceb4'
-    };
-    const icons = {
-      'Temperature': '🌡️',
-      'Humidity': '💧',
-      'Battery': '🔋',
-      'Speed': '⚡'
-    };
-    
-    return L.divIcon({
-      className: 'hover-sensor-marker',
-      html: `<div style="
-        background: ${colors[sensorType] || '#666'};
-        color: #fff;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
         border: 2px solid #fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        animation: bounce 0.6s ease-in-out;
-      ">${icons[sensorType] || '📍'}</div>
-      <style>
-        @keyframes bounce {
-          0%, 20%, 60%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-10px); }
-          80% { transform: translateY(-5px); }
-        }
-      </style>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-      popupAnchor: [0, -12],
-    });
-  };
-
-  // Add shipment clustering logic
-  useEffect(() => {
-    const createShipmentClusters = async () => {
-      if (!shipments || shipments.length === 0) {
-        setShipmentClusters([])
-        return
-      }
-
-      setIsLoadingClusters(true)
-      
-      try {
-        // Get unique origin addresses and geocode them
-        const originAddresses = [...new Set(
-          shipments
-            .map(s => s.legs?.[0]?.shipFromAddress)
-            .filter(addr => addr && addr.trim() !== '')
-        )]
-
-        // Geocode all addresses with progress tracking
-        const geocodedAddresses = await Promise.all(
-          originAddresses.map(async (address) => {
-            const coords = await geocodeAddress(address)
-            return { address, coords }
-          })
-        )
-
-        // Filter out failed geocodes
-        const validGeocodes = geocodedAddresses.filter(item => item.coords)
-
-        // Create clusters using a simple distance-based algorithm
-        const clusters = []
-        const CLUSTER_DISTANCE = 2.0 // degrees (~200km)
-
-        // Use for...of loop instead of forEach to properly handle async/await
-        for (const { address, coords } of validGeocodes) {
-          // Count shipments for this address
-          const shipmentCount = shipments.filter(
-            s => s.legs?.[0]?.shipFromAddress === address
-          ).length
-
-          // Find existing cluster within distance
-          let existingCluster = clusters.find(cluster => {
-            const distance = Math.sqrt(
-              Math.pow(cluster.lat - coords[0], 2) + 
-              Math.pow(cluster.lng - coords[1], 2)
-            )
-            return distance <= CLUSTER_DISTANCE
-          })
-
-          if (existingCluster) {
-            // Add to existing cluster
-            existingCluster.count += shipmentCount
-            existingCluster.addresses.push(address)
-            // Update cluster center (weighted average)
-            const totalCount = existingCluster.count
-            existingCluster.lat = ((existingCluster.lat * (totalCount - shipmentCount)) + (coords[0] * shipmentCount)) / totalCount
-            existingCluster.lng = ((existingCluster.lng * (totalCount - shipmentCount)) + (coords[1] * shipmentCount)) / totalCount
-          } else {
-            // Create new cluster
-            const region = await getRegionName(coords[0], coords[1]) // Get region name
-            clusters.push({
-              id: `cluster-${clusters.length}`,
-              lat: coords[0],
-              lng: coords[1],
-              count: shipmentCount,
-              addresses: [address],
-              region: region
-            })
-          }
-        }
-
-        setShipmentClusters(clusters)
-      } catch (error) {
-        console.error('Error creating shipment clusters:', error)
-        setShipmentClusters([])
-      } finally {
-        setIsLoadingClusters(false)
-      }
-    }
-
-    createShipmentClusters()
-  }, [shipments]) // Removed geocodeAddress from dependencies
-
-  // Helper function to get region name from coordinates
-  const getRegionName = async (lat, lng) => {
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`
-      const response = await fetch(url, { 
-        headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } 
-      })
-      const data = await response.json()
-      
-      if (data && data.address) {
-        // Try to get state/province, then country
-        return data.address.state || 
-               data.address.province || 
-               data.address.region || 
-               data.address.country || 
-               'Unknown Region'
-      }
-    } catch (error) {
-      console.error('Error getting region name:', error)
-    }
-    return 'Unknown Region'
-  }
-
-  // Create cluster marker icon
-  const createClusterIcon = (count, region) => {
-    const size = Math.min(60, Math.max(30, 20 + (count * 3))) // Dynamic size based on count
-    const color = count >= 10 ? '#d32f2f' : 
-                  count >= 5 ? '#f57c00' : 
-                  count >= 2 ? '#1976d2' : '#4caf50'
-    
-    return L.divIcon({
-      className: 'shipment-cluster-marker',
-      html: `
-        <div style="
-          background: ${color};
-          color: white;
-          border-radius: 50%;
-          width: ${size}px;
-          height: ${size}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: ${count >= 100 ? '14px' : count >= 10 ? '16px' : '18px'};
-          border: 3px solid white;
-          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-          font-family: Arial, sans-serif;
-          cursor: pointer;
-          transition: transform 0.2s ease;
-        ">
-          ${count}
-        </div>
-        <style>
-          .shipment-cluster-marker:hover div {
-            transform: scale(1.1);
-          }
-        </style>
-      `,
-      iconSize: [size, size],
-      iconAnchor: [size/2, size/2],
-      popupAnchor: [0, -size/2],
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      ">${number}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14],
     })
-  }
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
@@ -1063,163 +792,8 @@ const Shipments = () => {
 
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
-    setSelectedShipment(null)
-    setLiveRoute([])
+    setSelectedShipment(null) // Always reset to show the shipments list
   }
-
-  // Helper function to find GPS coordinates for a timestamp
-  const findCoordinatesForTimestamp = (timestamp) => {
-    if (!routeData || routeData.length === 0) return null;
-    
-    // Find the exact match or closest timestamp
-    const exactMatch = routeData.find(record => record.timestamp === timestamp);
-    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
-      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
-    }
-    
-    // If no exact match, find the closest timestamp
-    const sortedData = [...routeData].sort((a, b) => 
-      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
-      Math.abs(new Date(b.timestamp) - new Date(timestamp))
-    );
-    
-    const closest = sortedData[0];
-    if (closest && closest.latitude && closest.longitude) {
-      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
-    }
-    
-    return null;
-  };
-
-  // Handle chart hover events
-  const handleChartHover = (data, sensorType) => {
-    if (data && data.activePayload && data.activePayload.length > 0) {
-      const payload = data.activePayload[0].payload;
-      const timestamp = payload.timestamp;
-      const coordinates = findCoordinatesForTimestamp(timestamp);
-      
-      if (coordinates) {
-        setHoverMarker({
-          position: coordinates,
-          timestamp: timestamp,
-          sensorType: sensorType,
-          value: payload[sensorType.toLowerCase()],
-          unit: sensorType === 'Temperature' ? '°C' : 
-                sensorType === 'Humidity' ? '%' : 
-                sensorType === 'Battery' ? '%' : ' km/h'
-        });
-      }
-    } else {
-      setHoverMarker(null);
-    }
-  };
-
-  // Clear hover marker when mouse leaves chart
-  const handleChartMouseLeave = () => {
-    setHoverMarker(null);
-  };
-
-  // Add mapKey and fitWorld state
-  const [mapKey, setMapKey] = useState(0)
-  const [fitWorld, setFitWorld] = useState(true)
-
-  // When selectedShipment changes, update fitWorld and mapKey
-  useEffect(() => {
-    if (!selectedShipment) {
-      setFitWorld(true)
-      setMapKey((k) => k + 1)
-      setLiveRoute([])
-    } else {
-      setFitWorld(false)
-    }
-  }, [selectedShipment])
-
-  // Add new state for route progress
-  const [completedRoute, setCompletedRoute] = useState([])
-  const [remainingRoute, setRemainingRoute] = useState([])
-
-  // Helper function to calculate distance between two points
-  const calculateDistance = (point1, point2) => {
-    const [lat1, lon1] = point1
-    const [lat2, lon2] = point2
-    const R = 6371 // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
-  }
-
-  // Helper function to find the closest point on the planned route to current GPS position
-  const findClosestRouteSegment = (currentPosition, plannedRoute) => {
-    if (!currentPosition || !plannedRoute || plannedRoute.length < 2) return -1
-    
-    let minDistance = Infinity
-    let closestSegmentIndex = -1
-    
-    for (let i = 0; i < plannedRoute.length - 1; i++) {
-      const segmentStart = plannedRoute[i]
-      const segmentEnd = plannedRoute[i + 1]
-      
-      // Calculate distance from current position to this segment
-      const distToStart = calculateDistance(currentPosition, segmentStart)
-      const distToEnd = calculateDistance(currentPosition, segmentEnd)
-      const segmentLength = calculateDistance(segmentStart, segmentEnd)
-      
-      // Use the closest point on the segment
-      const minDistToSegment = Math.min(distToStart, distToEnd)
-      
-      if (minDistToSegment < minDistance) {
-        minDistance = minDistToSegment
-        closestSegmentIndex = i
-      }
-    }
-    
-    return closestSegmentIndex
-  }
-
-  // Helper function to split route into completed and remaining segments
-  const splitRouteByProgress = (plannedRoute, currentPosition) => {
-    if (!plannedRoute || plannedRoute.length < 2 || !currentPosition) {
-      return { completed: [], remaining: plannedRoute || [] }
-    }
-
-    const closestSegmentIndex = findClosestRouteSegment(currentPosition, plannedRoute)
-    
-    if (closestSegmentIndex === -1) {
-      return { completed: [], remaining: plannedRoute }
-    }
-
-    // Create completed route: from start to current position
-    const completed = plannedRoute.slice(0, closestSegmentIndex + 1)
-    completed.push(currentPosition) // Add current position as end of completed route
-    
-    // Create remaining route: from current position to end
-    const remaining = [currentPosition, ...plannedRoute.slice(closestSegmentIndex + 1)]
-    
-    return { completed, remaining }
-  }
-
-  // Update route progress when GPS position changes
-  useEffect(() => {
-    if (liveRoute.length > 0 && allLegCoords.length > 0) {
-      const currentPosition = liveRoute[liveRoute.length - 1]
-      const plannedRoute = allLegCoords.map(leg => leg.position)
-      
-      const { completed, remaining } = splitRouteByProgress(plannedRoute, currentPosition)
-      setCompletedRoute(completed)
-      setRemainingRoute(remaining)
-    } else if (allLegCoords.length > 0) {
-      // No GPS data yet, show entire route as remaining
-      setCompletedRoute([])
-      setRemainingRoute(allLegCoords.map(leg => leg.position))
-    } else {
-      setCompletedRoute([])
-      setRemainingRoute([])
-    }
-  }, [liveRoute, allLegCoords])
 
   return (
     <div style={{ 
@@ -1447,198 +1021,62 @@ const Shipments = () => {
                 
                 <div style={{ height: isMapExpanded ? 'calc(100% - 48px)' : '202px' }}>
                   <MapContainer
-                    key={mapKey}
                     center={[42.798939, -74.658409]}
                     zoom={5}
-                    minZoom={3}
                     style={{ height: '100%', width: '100%' }}
                     className="custom-map-container"
                     zoomControl={true}
                     attributionControl={true}
                   >
-                    {/* Fit world if on list */}
-                    {fitWorld && <FitWorld trigger={mapKey} />}
                     <MapInvalidator sidebarCollapsed={false} selectedShipment={isMapExpanded} />
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
-                    {/* Show shipment clusters when no specific shipment is selected */}
-                    {!selectedShipment && shipmentClusters.map((cluster) => (
-                      <Marker
-                        key={cluster.id}
-                        position={[cluster.lat, cluster.lng]}
-                        icon={createClusterIcon(cluster.count, cluster.region)}
-                      >
-                        <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>📊 {cluster.region || 'Unknown Region'}</strong><br/>
-                            <strong>Shipments:</strong> {cluster.count}<br/>
-                            <strong>Origins:</strong><br/>
-                            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '12px', marginTop: '8px' }}>
-                              {cluster.addresses.slice(0, 5).map((addr, idx) => (
-                                <div key={idx} style={{ marginBottom: '4px', padding: '2px 0' }}>
-                                  • {addr.length > 40 ? addr.substring(0, 37) + '...' : addr}
-                                </div>
-                              ))}
-                              {cluster.addresses.length > 5 && (
-                                <div style={{ fontStyle: 'italic', color: '#666', marginTop: '4px' }}>
-                                  ...and {cluster.addresses.length - 5} more
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
-                    
-                    {/* Remove the duplicate startCoord and destinationCoord markers */}
-                    {/* Always show start and destination markers if available */}
-                    {/* {startCoord && selectedShipment && (
+                    {startCoord && (
                       <Marker position={startCoord} icon={numberIcon('1')}>
                         <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>🚀 Departure Point</strong><br/>
-                            {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
-                            <br/><small>Start of shipment journey</small>
-                          </div>
+                          Start: {selectedShipment?.legs?.[0]?.shipFromAddress}
                         </Popup>
                       </Marker>
                     )}
-                    {destinationCoord && selectedShipment && (
+                    {destinationCoord && (
                       <Marker position={destinationCoord} icon={numberIcon('2')}>
                         <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>🏁 Destination Point</strong><br/>
-                            {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
-                            <br/><small>End of shipment journey</small>
-                          </div>
+                          End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress}
                         </Popup>
                       </Marker>
-                    } */}
-                    
-                    {/* Show all leg markers when shipment is selected */}
-                    {selectedShipment && !isLoadingLegCoords && allLegCoords.map((legCoord, index) => (
-                      <Marker 
-                        key={`leg-${index}`} 
-                        position={legCoord.position} 
-                        icon={numberIcon(legCoord.markerNumber.toString())}
-                      >
-                        <Popup>
-                          <div style={{ minWidth: '200px' }}>
-                            <strong>
-                              {index === 0 ? '🚀 Departure Point' : 
-                               index === allLegCoords.length - 1 ? '🏁 Destination Point' : 
-                               `🛑 Stop ${index}`}
-                            </strong><br/>
-                            {legCoord.address}
-                            <br/><small>
-                              {index === 0 ? 'Start of shipment journey' :
-                               index === allLegCoords.length - 1 ? 'End of shipment journey' :
-                               `Intermediate stop #${index}`}
-                            </small>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
-                    
-                    {/* Enhanced route visualization with progress tracking */}
-                    {selectedShipment && !isLoadingLegCoords && (
-                      <>
-                        {/* Show the actual GPS route traveled in blue (if available) */}
-                        {liveRoute.length > 0 && (
-                          <Polyline
-                            positions={liveRoute}
-                            color="#2196f3"
-                            weight={4}
-                            opacity={0.9}
-                          />
-                        )}
-                        
-                        {/* Show completed planned route segments in blue (only when no GPS data) */}
-                        {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
-                          <Polyline
-                            positions={completedRoute}
-                            color="#2196f3"
-                            weight={4}
-                            opacity={0.9}
-                          />
-                        )}
-                        
-                        {/* Show remaining route segments in gray dashed */}
-                        {remainingRoute.length > 1 && (
-                          <Polyline
-                            positions={remainingRoute}
-                            color="#9e9e9e"
-                            weight={3}
-                            opacity={0.6}
-                            dashArray="15, 15"
-                          />
-                        )}
-                        
-                        {/* Show individual leg-to-leg lines only when no GPS data */}
-                        {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
-                          allLegCoords.slice(0, -1).map((legCoord, index) => (
-                            <Polyline
-                              key={`leg-line-${index}`}
-                              positions={[legCoord.position, allLegCoords[index + 1].position]}
-                              color="#9e9e9e"
-                              weight={3}
-                              opacity={0.6}
-                              dashArray="15, 15"
-                            />
-                          ))
-                        }
-                      </>
                     )}
                     
-                    {/* Enhanced GPS route display */}
                     {liveRoute.length > 0 && (
                       <>
-                        {/* Fit map to show the entire route including all leg points */}
-                        <FitBounds route={[
-                          ...liveRoute, 
-                          ...allLegCoords.map(leg => leg.position)
-                        ]} />
-                        
-                        {/* Current location marker with enhanced styling */}
-                        <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
-                          <Popup>
-                            <div style={{ minWidth: '200px' }}>
-                              <strong>📍 Current Location</strong><br/>
-                              <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
-                              <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
-                              <small>Last updated: {new Date().toLocaleTimeString()}</small>
-                            </div>
-                          </Popup>
+                        <FitBounds route={liveRoute} />
+                        <Polyline positions={liveRoute} color="blue" />
+                        {destinationCoord && liveRoute.length > 0 && (
+                          (() => {
+                            const last = liveRoute[liveRoute.length - 1];
+                            if (last[0] !== destinationCoord[0] || last[1] !== destinationCoord[1]) {
+                              return (
+                                <Polyline
+                                  positions={[last, destinationCoord]}
+                                  color="blue"
+                                  dashArray="8"
+                                />
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        <Marker position={liveRoute[liveRoute.length - 1]} icon={customIcon}>
+                          <Popup>Current Location</Popup>
                         </Marker>
                       </>
                     )}
-
-                    {/* ONLY show preview polylines during modal creation */}
-                    {newShipmentPreview && isModalOpen && (
-                      <Polyline 
-                        positions={newShipmentPreview} 
-                        color="#2196f3" 
-                        weight={3}
-                        opacity={0.7}
-                        dashArray="10, 10"
-                      />
+                    
+                    {liveRoute.length === 0 && startCoord && destinationCoord && (
+                      <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
                     )}
-
-                    {/* Show preview markers ONLY during modal creation */}
-                    {previewMarkers.map((marker, index) => (
-                      isModalOpen && (
-                        <Marker
-                          key={`preview-${index}`}
-                          position={marker.position}
-                          icon={numberIcon(marker.label)}
-                        >
-                          <Popup>{marker.popup}</Popup>
-                        </Marker>
-                      )
-                    ))}
                   </MapContainer>
                 </div>
               </div>
@@ -1753,8 +1191,6 @@ const Shipments = () => {
                           speedData
                         }
                         margin={{ top: 10, right: 16, left: 0, bottom: 5 }}
-                        onMouseMove={(data) => handleChartHover(data, mobileSensorTab)}
-                        onMouseLeave={handleChartMouseLeave}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="timestamp" tick={false} />
@@ -1764,7 +1200,8 @@ const Shipments = () => {
                             `${value}${
                               mobileSensorTab === 'Temperature' ? '°C' :
                               mobileSensorTab === 'Humidity' ? '%' :
-                              mobileSensorTab === 'Battery' ? '%' : ' km/h'
+                              mobileSensorTab === 'Battery' ? '%' :
+                              ' km/h'
                             }`, 
                             mobileSensorTab
                           ]}
@@ -2047,7 +1484,6 @@ const Shipments = () => {
                                   <div style={{ marginBottom: '8px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                       <strong style={{ 
-                                        
                                         color: '#2196f3', 
                                         fontSize: '14px'
                                       }}>
@@ -2163,14 +1599,11 @@ const Shipments = () => {
                                   <LineChart 
                                     data={temperatureData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Temperature')}
-                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
                                     <YAxis fontSize={10} width={40} />
                                     <Tooltip
-
                                       formatter={(value) => [`${value}°C`, 'Temperature']}
                                       labelFormatter={(label) => `Time: ${label}`}
                                     />
@@ -2199,11 +1632,9 @@ const Shipments = () => {
                               </div>
                               <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                                                   <LineChart 
+                                  <LineChart 
                                     data={humidityData}
-                                    margin={{ top: 20, right: 20, left: 0, bottom:  5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Humidity')}
-                                    onMouseLeave={handleChartMouseLeave}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -2215,7 +1646,8 @@ const Shipments = () => {
                                     <Line type="monotone" dataKey="humidity" stroke="#4ecdc4" strokeWidth={2} dot={false} />
                                   </LineChart>
                                 </ResponsiveContainer>
-                              </div>                            </div>
+                              </div>
+                            </div>
 
                             {/* Battery Chart */}
                             <div style={{ 
@@ -2236,11 +1668,9 @@ const Shipments = () => {
                               </div>
                               <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                                                   <LineChart 
+                                  <LineChart 
                                     data={batteryData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Battery')}
-                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -2277,8 +1707,6 @@ const Shipments = () => {
                                   <LineChart 
                                     data={speedData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    onMouseMove={(data) => handleChartHover(data, 'Speed')}
-                                    onMouseLeave={handleChartMouseLeave}
                                   >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="timestamp" tick={false} />
@@ -2421,10 +1849,8 @@ const Shipments = () => {
             minWidth: 0
           }}>
             <MapContainer
-              key={mapKey}
               center={[42.798939, -74.658409]}
               zoom={5}
-              minZoom={3}
               style={{ 
                 height: 'calc(100vh - 40px)',
                 width: '100%',
@@ -2439,209 +1865,58 @@ const Shipments = () => {
               zoomControl={true}
               attributionControl={true}
             >
-              {/* Fit world if on list */}
-              {fitWorld && <FitWorld trigger={mapKey} />}
               <MapInvalidator sidebarCollapsed={sidebarCollapsed} selectedShipment={selectedShipment} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
-              {/* Show shipment clusters when no specific shipment is selected */}
-              {!selectedShipment && shipmentClusters.map((cluster) => (
-                <Marker
-                  key={cluster.id}
-                  position={[cluster.lat, cluster.lng]}
-                  icon={createClusterIcon(cluster.count, cluster.region)}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '250px' }}>
-                      <strong style={{ fontSize: '16px', color: '#1976d2' }}>
-                        📊 {cluster.region || 'Unknown Region'} 
-                      </strong>
-                      <div style={{ margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                        <strong>Total Shipments:</strong> <span style={{ color: '#d32f2f', fontSize: '18px' }}>{cluster.count}</span>
-                      </div>
-                      <strong>Origin Addresses:</strong>
-                      <div style={{ 
-                        maxHeight: '150px', 
-                        overflowY: 'auto', 
-                        fontSize: '13px', 
-                        marginTop: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        padding: '8px'
-                      }}>
-                        {cluster.addresses.map((addr, idx) => {
-                          const shipmentCount = shipments.filter(
-                            s => s.legs?.[0]?.shipFromAddress === addr
-                          ).length
-                          return (
-                            <div key={idx} style={{ 
-                              marginBottom: '6px', 
-                              padding: '4px 0',
-                              borderBottom: idx < cluster.addresses.length - 1 ? '1px solid #eee' : 'none'
-                            }}>
-                              <div style={{ fontWeight: '500' }}>
-                                📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
-                              </div>
-                              <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
-                                {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      {isLoadingClusters && (
-                        <div style={{ textAlign: 'center', margin: '8px 0', color: '#666' }}>
-                          <small>Loading cluster data...</small>
-                        </div>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-              
-              {/* Remove the duplicate startCoord and destinationCoord markers */}
               {/* Always show start and destination markers if available */}
-              {/* {startCoord && selectedShipment && (
+              {startCoord && (
                 <Marker position={startCoord} icon={numberIcon('1')}>
                   <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>🚀 Departure Point</strong><br/>
-                      {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
-                      <br/><small>Start of shipment journey</small>
-                    </div>
+                    Start: {selectedShipment?.legs?.[0]?.shipFromAddress || legs[0]?.shipFromAddress}
                   </Popup>
                 </Marker>
               )}
-              {destinationCoord && selectedShipment && (
+              {destinationCoord && (
                 <Marker position={destinationCoord} icon={numberIcon('2')}>
                   <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>🏁 Destination Point</strong><br/>
-                      {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
-                      <br/><small>End of shipment journey</small>
-                    </div>
+                    End: {selectedShipment?.legs?.[selectedShipment.legs.length - 1]?.stopAddress || legs[legs.length - 1]?.stopAddress}
                   </Popup>
                 </Marker>
-              } */}
-              
-              {/* Show all leg markers when shipment is selected and not loading */}
-              {selectedShipment && !isLoadingLegCoords && allLegCoords.map((legCoord, index) => (
-                <Marker 
-                  key={`leg-${index}`} 
-                  position={legCoord.position} 
-                  icon={numberIcon(legCoord.markerNumber.toString())}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>
-                        {index === 0 ? '🚀 Departure Point' : 
-                         index === allLegCoords.length - 1 ? '🏁 Destination Point' : 
-                         `🛑 Stop ${index}`}
-                      </strong><br/>
-                      {legCoord.address}
-                      <br/><small>
-                        {index === 0 ? 'Start of shipment journey' :
-                         index === allLegCoords.length - 1 ? 'End of shipment journey' :
-                         `Intermediate stop #${index}`}
-                    </small>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-              
-              {/* Enhanced route visualization with progress tracking */}
-              {selectedShipment && !isLoadingLegCoords && (
-                <>
-                  {/* Show the actual GPS route traveled in blue (if available) */}
-                  {liveRoute.length > 0 && (
-                    <Polyline
-                      positions={liveRoute}
-                      color="#2196f3"
-                      weight={4}
-                      opacity={0.9}
-                    />
-                  )}
-                  
-                  {/* Show completed planned route segments in blue (only when no GPS data) */}
-                  {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
-                    <Polyline
-                      positions={completedRoute}
-                      color="#2196f3"
-                      weight={4}
-                      opacity={0.9}
-                    />
-                  )}
-                  
-                  {/* Show remaining route segments in gray dashed */}
-                  {remainingRoute.length > 1 && (
-                    <Polyline
-                      positions={remainingRoute}
-                      color="#9e9e9e"
-                      weight={3}
-                      opacity={0.6}
-                      dashArray="15, 15"
-                    />
-                  )}
-                  
-                  {/* Show individual leg-to-leg lines only when no GPS data */}
-                  {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
-                    allLegCoords.slice(0, -1).map((legCoord, index) => (
-                      <Polyline
-                        key={`leg-line-${index}`}
-                        positions={[legCoord.position, allLegCoords[index + 1].position]}
-                        color="#9e9e9e"
-                        weight={3}
-                        opacity={0.6}
-                        dashArray="15, 15"
-                      />
-                    ))
-                  }
-                </>
               )}
               
-              {/* Enhanced GPS route display */}
+              {/* Show shipment route if selected */}
               {liveRoute.length > 0 && (
                 <>
-                  {/* Fit map to show the entire route including all leg points */}
-                  <FitBounds route={[
-                    ...liveRoute, 
-                    ...allLegCoords.map(leg => leg.position)
-                  ]} />
-                  
-                  {/* Current location marker with enhanced styling */}
-                  <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
-                    <Popup>
-                      <div style={{ minWidth: '200px' }}>
-                        <strong>📍 Current Location</strong><br/>
-                        <small>Lat: {liveRoute[liveRoute.length - 1][0].toFixed(6)}</small><br/>
-                        <small>Lng: {liveRoute[liveRoute.length - 1][1].toFixed(6)}</small><br/>
-                        <small>Last updated: {new Date().toLocaleTimeString()}</small>
-                      </div>
-                    </Popup>
+                  <FitBounds route={liveRoute} />
+                  <Polyline positions={liveRoute} color="blue" />
+                  {/* Dashed line from last GPS point to destination, if not at destination */}
+                  {destinationCoord && liveRoute.length > 0 && (
+                    (() => {
+                      const last = liveRoute[liveRoute.length - 1];
+                      if (last[0] !== destinationCoord[0] || last[1] !== destinationCoord[1]) {
+                        return (
+                          <Polyline
+                            positions={[last, destinationCoord]}
+                            color="blue"
+                            dashArray="8"
+                          />
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
+                  <Marker position={liveRoute[liveRoute.length - 1]} icon={customIcon}>
+                    <Popup>Current Location</Popup>
                   </Marker>
                 </>
               )}
-
-              {/* Hover marker for sensor data */}
-              {hoverMarker && (
-                <Marker 
-                  position={hoverMarker.position} 
-                  icon={hoverMarkerIcon(hoverMarker.sensorType)}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <strong>{hoverMarker.sensorType} Reading</strong><br/>
-                      <strong>Value:</strong> {hoverMarker.value}{hoverMarker.unit}<br/>
-                      <strong>Time:</strong> {hoverMarker.timestamp}<br/>
-                      <strong>Location:</strong><br/>
-                      <small>Lat: {hoverMarker.position[0].toFixed(6)}</small><br/>
-                      <small>Lng: {hoverMarker.position[1].toFixed(6)}</small>
-                    </div>
-                  </Popup>
-                </Marker>
+              
+              {/* Show preview line for new shipment or for selected shipment with no routeData */}
+              {liveRoute.length === 0 && startCoord && destinationCoord && (
+                <Polyline positions={[startCoord, destinationCoord]} color="blue" dashArray="8" />
               )}
             </MapContainer>
 
@@ -2662,27 +1937,9 @@ const Shipments = () => {
                 <h6 style={{ margin: 0, marginBottom: '8px', fontWeight: '600', color: '#333' }}>
                   Shipment Tracking
                 </h6>
-                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '8px' }}>
-                  {shipmentClusters.length > 0 
-                    ? `Showing ${shipmentClusters.length} regions with shipments`
-                    : 'Open the sidebar to view and manage shipments'
-                  }
+                <p style={{ margin: 0, fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+                  Open the sidebar to view and manage shipments
                 </p>
-                {isLoadingClusters && (
-                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ 
-                        width: '12px', 
-                        height: '12px', 
-                        border: '2px solid #ddd', 
-                        borderTop: '2px solid #1976d2',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }}></div>
-                      Loading clusters...
-                    </div>
-                  </div>
-                )}
                 <CButton
                   color="primary"
                   size="sm"
