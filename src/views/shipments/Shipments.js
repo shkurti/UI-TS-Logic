@@ -147,6 +147,9 @@ const Shipments = () => {
   // Add state for all leg coordinates
   const [allLegCoords, setAllLegCoords] = useState([])
 
+  // Add state to track if leg coordinates are loading for the selected shipment
+  const [isLoadingLegCoords, setIsLoadingLegCoords] = useState(false);
+
   // Add responsive detection
   useEffect(() => {
     const checkIsMobile = () => {
@@ -273,10 +276,21 @@ const Shipments = () => {
       })
 
       if (response.ok) {
-        const result = await response.json()
+        const result = await response.json() // result is the newly created shipment from backend
         console.log('Shipment inserted successfully:', result)
         alert('Shipment created successfully!')
-        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
+        // Add the new shipment to the list using the backend's response
+        setShipments((prevShipments) => [...prevShipments, result]) 
+        
+        // Select the newly created shipment to display its route and legs
+        // Ensure 'result' has the necessary structure for handleShipmentClick
+        if (result && result.trackerId && result.legs) {
+          handleShipmentClick(result); 
+        } else {
+          // Fallback or refetch if result is not complete, though ideally it should be
+          setSelectedShipment(null); // Clear selection if new one can't be processed
+        }
+
         setIsModalOpen(false)
         setLegs([
           {
@@ -441,12 +455,15 @@ const Shipments = () => {
 
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
-    setShipmentTab('Sensors')
-    setActiveSensor('Temperature')
+    setShipmentTab('Sensors') // Or 'Details' or keep current, depending on desired UX
+    setActiveSensor('Temperature') // Reset sensor view
     setTemperatureData([])
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
+    setLiveRoute([]) // Clear previous live route
+    setAllLegCoords([]) // Clear previous leg coordinates
+    setIsLoadingLegCoords(true); // Indicate that leg coordinates are loading
 
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
@@ -673,6 +690,7 @@ const Shipments = () => {
         selectedShipment.legs &&
         selectedShipment.legs.length > 0
       ) {
+        setIsLoadingLegCoords(true); // Set loading true when starting
         const addresses = [];
         const firstLeg = selectedShipment.legs[0];
         
@@ -712,15 +730,17 @@ const Shipments = () => {
           setStartCoord(null);
           setDestinationCoord(null);
         }
+        setIsLoadingLegCoords(false); // Set loading false when done
       } else {
         setAllLegCoords([]);
         setStartCoord(null);
         setDestinationCoord(null);
+        setIsLoadingLegCoords(false); // Also set loading false here
       }
     };
     setCoordsFromShipment();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipment]);
+  }, [selectedShipment]); // Removed geocodeAddress from dependencies as it's stable
 
   // Show a line between all addresses when a shipment is selected and there is no routeData
   useEffect(() => {
@@ -971,7 +991,7 @@ const Shipments = () => {
     }
 
     createShipmentClusters()
-  }, [shipments])
+  }, [shipments]) // Removed geocodeAddress from dependencies
 
   // Helper function to get region name from coordinates
   const getRegionName = async (lat, lng) => {
@@ -1453,7 +1473,7 @@ const Shipments = () => {
                       >
                         <Popup>
                           <div style={{ minWidth: '200px' }}>
-                            <strong>📊 {cluster.region}</strong><br/>
+                            <strong>📊 {cluster.region || 'Unknown Region'}</strong><br/>
                             <strong>Shipments:</strong> {cluster.count}<br/>
                             <strong>Origins:</strong><br/>
                             <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '12px', marginTop: '8px' }}>
@@ -1499,7 +1519,7 @@ const Shipments = () => {
                     } */}
                     
                     {/* Show all leg markers when shipment is selected */}
-                    {selectedShipment && allLegCoords.map((legCoord, index) => (
+                    {selectedShipment && !isLoadingLegCoords && allLegCoords.map((legCoord, index) => (
                       <Marker 
                         key={`leg-${index}`} 
                         position={legCoord.position} 
@@ -1524,7 +1544,7 @@ const Shipments = () => {
                     ))}
                     
                     {/* Enhanced route visualization with progress tracking */}
-                    {selectedShipment && (
+                    {selectedShipment && !isLoadingLegCoords && (
                       <>
                         {/* Show the actual GPS route traveled in blue (if available) */}
                         {liveRoute.length > 0 && (
@@ -2437,7 +2457,7 @@ const Shipments = () => {
                   <Popup>
                     <div style={{ minWidth: '250px' }}>
                       <strong style={{ fontSize: '16px', color: '#1976d2' }}>
-                        📊 {cluster.region}
+                        📊 {cluster.region || 'Unknown Region'} 
                       </strong>
                       <div style={{ margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
                         <strong>Total Shipments:</strong> <span style={{ color: '#d32f2f', fontSize: '18px' }}>{cluster.count}</span>
@@ -2507,8 +2527,8 @@ const Shipments = () => {
                 </Marker>
               } */}
               
-              {/* Show all leg markers when shipment is selected */}
-              {selectedShipment && allLegCoords.map((legCoord, index) => (
+              {/* Show all leg markers when shipment is selected and not loading */}
+              {selectedShipment && !isLoadingLegCoords && allLegCoords.map((legCoord, index) => (
                 <Marker 
                   key={`leg-${index}`} 
                   position={legCoord.position} 
@@ -2533,7 +2553,7 @@ const Shipments = () => {
               ))}
               
               {/* Enhanced route visualization with progress tracking */}
-              {selectedShipment && (
+              {selectedShipment && !isLoadingLegCoords && (
                 <>
                   {/* Show the actual GPS route traveled in blue (if available) */}
                   {liveRoute.length > 0 && (
