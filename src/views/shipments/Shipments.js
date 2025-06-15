@@ -303,151 +303,14 @@ const Shipments = () => {
     }
   }
 
-  // Subscribe to real-time GPS updates for the selected shipment's tracker
-  useEffect(() => {
-    if (!selectedShipment || !selectedShipment.trackerId) {
-      setLiveRoute([]);
-      return;
-    }
-    // Get the expected time range for the selected shipment
-    const legs = selectedShipment.legs || [];
-    const firstLeg = legs[0] || {};
-    const lastLeg = legs[legs.length - 1] || {};
-    const expectedStart = new Date(firstLeg.shipDate);
-    const expectedEnd = new Date(lastLeg.arrivalDate);
-
-    let isCurrent = true;
-
-    const ws = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws');
-    ws.onopen = () => {
-      console.log('WebSocket connected for shipment:', selectedShipment.trackerId);
-    };
-    ws.onmessage = (event) => {
-      if (!isCurrent) return;
-      try {
-        const message = JSON.parse(event.data);
-        console.log('WebSocket message received:', message); // Debug log
-        
-        if (
-          message.operationType === 'insert' &&
-          String(message.tracker_id) === String(selectedShipment.trackerId)
-        ) {
-          const { geolocation, new_record } = message;
-          
-          // Use local timestamp if available, otherwise convert UTC
-          const timestamp = new_record?.timestamp_local || new_record?.DT || new_record?.timestamp || 'N/A';
-          
-          // Check if the timestamp is within the expected range (using local time now)
-          if (new_record?.timestamp_local) {
-            const dt = new Date(new_record.timestamp_local);
-            if (isNaN(dt.getTime()) || dt < expectedStart || dt > expectedEnd) {
-              return;
-            }
-          }
-          
-          const lat = parseFloat(geolocation?.Lat);
-          const lng = parseFloat(geolocation?.Lng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            setLiveRoute((prevRoute) => {
-              const lastPoint = prevRoute[prevRoute.length - 1];
-              const newPoint = [lat, lng];
-              console.log('Adding new GPS point:', newPoint);
-              if (!lastPoint || lastPoint[0] !== lat || lastPoint[1] !== lng) {
-                return [...prevRoute, newPoint];
-              }
-              return prevRoute;
-            });
-          }
-          
-          // Update sensor data with local timestamps
-          if (new_record) {
-            if (new_record.Temp !== undefined) {
-              setTemperatureData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, temperature: parseFloat(new_record.Temp) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Hum !== undefined) {
-              setHumidityData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, humidity: parseFloat(new_record.Hum) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Batt !== undefined) {
-              setBatteryData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, battery: parseFloat(new_record.Batt) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-            if (new_record.Speed !== undefined) {
-              setSpeedData((prevData) => {
-                if (!prevData.some((data) => data.timestamp === timestamp)) {
-                  return [
-                    ...prevData,
-                    { timestamp, speed: parseFloat(new_record.Speed) },
-                  ];
-                }
-                return prevData;
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing WebSocket message:', e);
-      }
-    };
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-
-    return () => {
-      isCurrent = false;
-      ws.close();
-    };
-  }, [selectedShipment, userTimezone]);
-
-  // When a shipment is selected, initialize liveRoute from routeData
-  useEffect(() => {
-    if (routeData && routeData.length > 0) {
-      const gpsRoute = routeData
-        .filter(record => record.latitude && record.longitude && 
-                        !isNaN(parseFloat(record.latitude)) && 
-                        !isNaN(parseFloat(record.longitude)))
-        .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)])
-      
-      setLiveRoute(gpsRoute);
-    } else {
-      setLiveRoute([]);
-    }
-  }, [routeData]);
-
   const handleShipmentClick = async (shipment) => {
     setSelectedShipment(shipment)
-    setShipmentTab('Sensors')
+    setShipmentTab('Sensors')  // Changed from 'Details' to 'Sensors'
     setActiveSensor('Temperature')
     setTemperatureData([])
     setHumidityData([])
     setBatteryData([])
     setSpeedData([])
-
     const trackerId = shipment.trackerId
     const legs = shipment.legs || []
     const firstLeg = legs[0] || {}
@@ -457,27 +320,35 @@ const Shipments = () => {
 
     if (!trackerId || !shipDate || !arrivalDate) {
       setRouteData([])
-      setLiveRoute([])
+      setLiveRoute([]) // Clear live route
       return
     }
 
-    // Fetch initial historical data
     try {
       const params = new URLSearchParams({
         tracker_id: trackerId,
         start: shipDate,
         end: arrivalDate,
-        timezone: userTimezone
+        timezone: userTimezone  // Pass user's timezone to backend
       })
       const response = await fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_route_data?${params}`)
       if (response.ok) {
         const data = await response.json()
         setRouteData(data)
         
+        // Process GPS route data for live route display
+        const gpsRoute = data
+          .filter(record => record.latitude && record.longitude && 
+                          !isNaN(parseFloat(record.latitude)) && 
+                          !isNaN(parseFloat(record.longitude)))
+          .map(record => [parseFloat(record.latitude), parseFloat(record.longitude)])
+        
+        setLiveRoute(gpsRoute)
+        
         // Process sensor data - timestamps are now in local time
         setTemperatureData(
           data.map((record) => ({
-            timestamp: record.timestamp || 'N/A',
+            timestamp: record.timestamp || 'N/A',  // Already in local time
             temperature: record.temperature !== undefined
               ? parseFloat(record.temperature)
               : record.Temp !== undefined
@@ -781,6 +652,23 @@ const Shipments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, newShipmentPreview, legs]);
 
+  // Remove this entire duplicate useEffect - it's still setting preview markers
+  // useEffect(() => {
+  //   if (newShipmentPreview && newShipmentPreview.length === 2) {
+  //     const from = legs[0]?.shipFromAddress;
+  //     const to = legs[legs.length - 1]?.stopAddress;
+  //     setPreviewMarkers([
+  //       { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+  //       { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+  //     ]);
+  //     setDestinationCoord(newShipmentPreview[1]);
+  //   } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+  //     setPreviewMarkers([]);
+  //     setDestinationCoord(null);
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
+
   // Filter shipments based on search and filters
   const filteredShipments = shipments.filter(shipment => {
     const matchesSearch = !searchTerm || 
@@ -1043,8 +931,8 @@ const Shipments = () => {
 
   const openSidebarToList = () => {
     setSidebarCollapsed(false)
-    setSelectedShipment(null)
-    setLiveRoute([])
+    setSelectedShipment(null) // Always reset to show the shipments list
+    setLiveRoute([]) // Clear live route when going back to list
   }
 
   // Helper function to find GPS coordinates for a timestamp
@@ -1107,99 +995,12 @@ const Shipments = () => {
   useEffect(() => {
     if (!selectedShipment) {
       setFitWorld(true)
-      setMapKey((k) => k + 1)
-      setLiveRoute([])
+      setMapKey((k) => k + 1) // force map remount
+      setLiveRoute([]) // Clear live route when no shipment selected
     } else {
       setFitWorld(false)
     }
   }, [selectedShipment])
-
-  // Add new state for route progress
-  const [completedRoute, setCompletedRoute] = useState([])
-  const [remainingRoute, setRemainingRoute] = useState([])
-
-  // Helper function to calculate distance between two points
-  const calculateDistance = (point1, point2) => {
-    const [lat1, lon1] = point1
-    const [lat2, lon2] = point2
-    const R = 6371 // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
-  }
-
-  // Helper function to find the closest point on the planned route to current GPS position
-  const findClosestRouteSegment = (currentPosition, plannedRoute) => {
-    if (!currentPosition || !plannedRoute || plannedRoute.length < 2) return -1
-    
-    let minDistance = Infinity
-    let closestSegmentIndex = -1
-    
-    for (let i = 0; i < plannedRoute.length - 1; i++) {
-      const segmentStart = plannedRoute[i]
-      const segmentEnd = plannedRoute[i + 1]
-      
-      // Calculate distance from current position to this segment
-      const distToStart = calculateDistance(currentPosition, segmentStart)
-      const distToEnd = calculateDistance(currentPosition, segmentEnd)
-      const segmentLength = calculateDistance(segmentStart, segmentEnd)
-      
-      // Use the closest point on the segment
-      const minDistToSegment = Math.min(distToStart, distToEnd)
-      
-      if (minDistToSegment < minDistance) {
-        minDistance = minDistToSegment
-        closestSegmentIndex = i
-      }
-    }
-    
-    return closestSegmentIndex
-  }
-
-  // Helper function to split route into completed and remaining segments
-  const splitRouteByProgress = (plannedRoute, currentPosition) => {
-    if (!plannedRoute || plannedRoute.length < 2 || !currentPosition) {
-      return { completed: [], remaining: plannedRoute || [] }
-    }
-
-    const closestSegmentIndex = findClosestRouteSegment(currentPosition, plannedRoute)
-    
-    if (closestSegmentIndex === -1) {
-      return { completed: [], remaining: plannedRoute }
-    }
-
-    // Create completed route: from start to current position
-    const completed = plannedRoute.slice(0, closestSegmentIndex + 1)
-    completed.push(currentPosition) // Add current position as end of completed route
-    
-    // Create remaining route: from current position to end
-    const remaining = [currentPosition, ...plannedRoute.slice(closestSegmentIndex + 1)]
-    
-    return { completed, remaining }
-  }
-
-  // Update route progress when GPS position changes
-  useEffect(() => {
-    if (liveRoute.length > 0 && allLegCoords.length > 0) {
-      const currentPosition = liveRoute[liveRoute.length - 1]
-      const plannedRoute = allLegCoords.map(leg => leg.position)
-      
-      const { completed, remaining } = splitRouteByProgress(plannedRoute, currentPosition)
-      setCompletedRoute(completed)
-      setRemainingRoute(remaining)
-    } else if (allLegCoords.length > 0) {
-      // No GPS data yet, show entire route as remaining
-      setCompletedRoute([])
-      setRemainingRoute(allLegCoords.map(leg => leg.position))
-    } else {
-      setCompletedRoute([])
-      setRemainingRoute([])
-    }
-  }, [liveRoute, allLegCoords])
 
   return (
     <div style={{ 
@@ -1523,64 +1324,70 @@ const Shipments = () => {
                       </Marker>
                     ))}
                     
-                    {/* Enhanced route visualization with progress tracking */}
-                    {selectedShipment && (
-                      <>
-                        {/* Show the actual GPS route traveled in blue (if available) */}
-                        {liveRoute.length > 0 && (
-                          <Polyline
-                            positions={liveRoute}
-                            color="#2196f3"
-                            weight={4}
-                            opacity={0.9}
-                          />
-                        )}
-                        
-                        {/* Show completed planned route segments in blue (only when no GPS data) */}
-                        {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
-                          <Polyline
-                            positions={completedRoute}
-                            color="#2196f3"
-                            weight={4}
-                            opacity={0.9}
-                          />
-                        )}
-                        
-                        {/* Show remaining route segments in gray dashed */}
-                        {remainingRoute.length > 1 && (
-                          <Polyline
-                            positions={remainingRoute}
-                            color="#9e9e9e"
-                            weight={3}
-                            opacity={0.6}
-                            dashArray="15, 15"
-                          />
-                        )}
-                        
-                        {/* Show individual leg-to-leg lines only when no GPS data */}
-                        {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
-                          allLegCoords.slice(0, -1).map((legCoord, index) => (
-                            <Polyline
-                              key={`leg-line-${index}`}
-                              positions={[legCoord.position, allLegCoords[index + 1].position]}
-                              color="#9e9e9e"
-                              weight={3}
-                              opacity={0.6}
-                              dashArray="15, 15"
-                            />
-                          ))
-                        }
-                      </>
-                    )}
+                    {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
+                    {/* Only show the individual leg-to-leg polylines */}
+                    {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
+                      allLegCoords.slice(0, -1).map((legCoord, index) => (
+                        <Polyline
+                          key={`leg-line-${index}`}
+                          positions={[legCoord.position, allLegCoords[index + 1].position]}
+                          color="#9e9e9e"
+                          weight={3}
+                          opacity={0.6}
+                          dashArray="15, 15"
+                        />
+                      ))
+                    }
                     
-                    {/* Enhanced GPS route display */}
-                    {liveRoute.length > 0 && (
+                    {/* Enhanced shipment route display */}
+                    {liveRoute.length > 0 ? (
                       <>
                         {/* Fit map to show the entire route including all leg points */}
                         <FitBounds route={[
                           ...liveRoute, 
                           ...allLegCoords.map(leg => leg.position)
                         ]} />
+                        
+                        {/* Solid blue line showing the actual GPS route taken */}
+                        <Polyline 
+                          positions={liveRoute} 
+                          color="#2196f3" 
+                          weight={4}
+                          opacity={0.8}
+                        />
+                        
+                        {/* Dashed line from last GPS point to next unvisited destination */}
+                        {allLegCoords.length > 0 && liveRoute.length > 0 && (
+                          (() => {
+                            const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                            
+                            // Find the next destination that hasn't been reached
+                            let nextDestination = null;
+                            for (const legCoord of allLegCoords) {
+                              const distanceThreshold = 0.005; // ~500 meters
+                              const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                        Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                              
+                              if (!isAtThisDestination) {
+                                nextDestination = legCoord.position;
+                                break;
+                              }
+                            }
+                            
+                            if (nextDestination) {
+                              return (
+                                <Polyline
+                                  positions={[lastGpsPoint, nextDestination]}
+                                  color="#ff9800"
+                                  weight={3}
+                                  opacity={0.7}
+                                  dashArray="10, 10"
+                                />
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
                         
                         {/* Current location marker with enhanced styling */}
                         <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
@@ -1594,6 +1401,19 @@ const Shipments = () => {
                           </Popup>
                         </Marker>
                       </>
+                    ) : (
+                      // Remove this fallback polyline - it's creating the circular connection
+                      // Show dashed line between start and destination when no GPS data yet
+                      // startCoord && destinationCoord && (
+                      //   <Polyline 
+                      //     positions={[startCoord, destinationCoord]} 
+                      //     color="#9e9e9e" 
+                      //     weight={3}
+                      //     opacity={0.6}
+                      //     dashArray="15, 15" 
+                      //   />
+                      // )
+                      null
                     )}
 
                     {/* ONLY show preview polylines during modal creation */}
@@ -2142,6 +1962,7 @@ const Shipments = () => {
                                 <ResponsiveContainer width="100%" height={180}>
                                   <LineChart 
                                     data={temperatureData}
+                                   
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Temperature')}
                                     onMouseLeave={handleChartMouseLeave}
@@ -2216,7 +2037,7 @@ const Shipments = () => {
                               </div>
                               <div style={{ padding: '0' }}>
                                 <ResponsiveContainer width="100%" height={180}>
-                                                                   <LineChart 
+                                  <LineChart 
                                     data={batteryData}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                                     onMouseMove={(data) => handleChartHover(data, 'Battery')}
@@ -2526,70 +2347,76 @@ const Shipments = () => {
                         {index === 0 ? 'Start of shipment journey' :
                          index === allLegCoords.length - 1 ? 'End of shipment journey' :
                          `Intermediate stop #${index}`}
-                    </small>
+                      </small>
                     </div>
                   </Popup>
                 </Marker>
               ))}
               
-              {/* Enhanced route visualization with progress tracking */}
-              {selectedShipment && (
-                <>
-                  {/* Show the actual GPS route traveled in blue (if available) */}
-                  {liveRoute.length > 0 && (
-                    <Polyline
-                      positions={liveRoute}
-                      color="#2196f3"
-                      weight={4}
-                      opacity={0.9}
-                    />
-                  )}
-                  
-                  {/* Show completed planned route segments in blue (only when no GPS data) */}
-                  {(!liveRoute || liveRoute.length === 0) && completedRoute.length > 1 && (
-                    <Polyline
-                      positions={completedRoute}
-                      color="#2196f3"
-                      weight={4}
-                      opacity={0.9}
-                    />
-                  )}
-                  
-                  {/* Show remaining route segments in gray dashed */}
-                  {remainingRoute.length > 1 && (
-                    <Polyline
-                      positions={remainingRoute}
-                      color="#9e9e9e"
-                      weight={3}
-                      opacity={0.6}
-                      dashArray="15, 15"
-                    />
-                  )}
-                  
-                  {/* Show individual leg-to-leg lines only when no GPS data */}
-                  {(!liveRoute || liveRoute.length === 0) && allLegCoords.length > 1 && 
-                    allLegCoords.slice(0, -1).map((legCoord, index) => (
-                      <Polyline
-                        key={`leg-line-${index}`}
-                        positions={[legCoord.position, allLegCoords[index + 1].position]}
-                        color="#9e9e9e"
-                        weight={3}
-                        opacity={0.6}
-                        dashArray="15, 15"
-                      />
-                    ))
-                  }
-                </>
-              )}
+              {/* Remove any polylines from newShipmentPreview for multi-leg shipments */}
+              {/* Only show the individual leg-to-leg polylines */}
+              {selectedShipment && allLegCoords.length > 1 && (!liveRoute || liveRoute.length === 0) && 
+                allLegCoords.slice(0, -1).map((legCoord, index) => (
+                  <Polyline
+                    key={`leg-line-${index}`}
+                    positions={[legCoord.position, allLegCoords[index + 1].position]}
+                    color="#9e9e9e"
+                    weight={3}
+                    opacity={0.6}
+                    dashArray="15, 15"
+                  />
+                ))
+              }
               
-              {/* Enhanced GPS route display */}
-              {liveRoute.length > 0 && (
+              {/* Enhanced shipment route display */}
+              {liveRoute.length > 0 ? (
                 <>
                   {/* Fit map to show the entire route including all leg points */}
                   <FitBounds route={[
                     ...liveRoute, 
                     ...allLegCoords.map(leg => leg.position)
                   ]} />
+                  
+                  {/* Solid blue line showing the actual GPS route taken */}
+                  <Polyline 
+                    positions={liveRoute} 
+                    color="#2196f3" 
+                    weight={4}
+                    opacity={0.8}
+                  />
+                  
+                  {/* Dashed line from last GPS point to next unvisited destination */}
+                  {allLegCoords.length > 0 && liveRoute.length > 0 && (
+                    (() => {
+                      const lastGpsPoint = liveRoute[liveRoute.length - 1];
+                      
+                      // Find the next destination that hasn't been reached
+                      let nextDestination = null;
+                      for (const legCoord of allLegCoords) {
+                        const distanceThreshold = 0.005; // ~500 meters
+                        const isAtThisDestination = Math.abs(lastGpsPoint[0] - legCoord.position[0]) < distanceThreshold && 
+                                                  Math.abs(lastGpsPoint[1] - legCoord.position[1]) < distanceThreshold;
+                        
+                        if (!isAtThisDestination) {
+                          nextDestination = legCoord.position;
+                          break;
+                        }
+                      }
+                      
+                      if (nextDestination) {
+                        return (
+                          <Polyline
+                            positions={[lastGpsPoint, nextDestination]}
+                            color="#ff9800"
+                            weight={3}
+                            opacity={0.7}
+                            dashArray="10, 10"
+                          />
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
                   
                   {/* Current location marker with enhanced styling */}
                   <Marker position={liveRoute[liveRoute.length - 1]} icon={currentLocationIcon}>
@@ -2603,6 +2430,19 @@ const Shipments = () => {
                     </Popup>
                   </Marker>
                 </>
+              ) : (
+                // Remove this fallback polyline - it's creating the circular connection
+                // Show dashed line between start and destination when no GPS data yet
+                // startCoord && destinationCoord && (
+                //   <Polyline 
+                //     positions={[startCoord, destinationCoord]} 
+                //     color="#9e9e9e" 
+                //     weight={3}
+                //     opacity={0.6}
+                //     dashArray="15, 15" 
+                //   />
+                // )
+                null
               )}
 
               {/* Hover marker for sensor data */}
