@@ -532,28 +532,6 @@ const Shipments = () => {
 
   // --- All other logic remains unchanged, but move helpers outside render ---
 
-  // Subscribe to tracker updates via WebSocket
-  const subscribeToTracker = (trackerId) => {
-    if (wsRef.current && isConnected) {
-      const message = {
-        action: 'subscribe',
-        trackerId: trackerId
-      }
-      wsRef.current.send(JSON.stringify(message))
-    }
-  }
-
-  // Unsubscribe from tracker updates via WebSocket
-  const unsubscribeFromTracker = (trackerId) => {
-    if (wsRef.current && isConnected) {
-      const message = {
-        action: 'unsubscribe',
-        trackerId: trackerId
-      }
-      wsRef.current.send(JSON.stringify(message))
-    }
-  }
-
   const submitForm = async () => {
     if (!selectedTracker) {
       alert('Please select a tracker.')
@@ -640,42 +618,7 @@ const Shipments = () => {
   const [pollingInterval, setPollingInterval] = useState(null)
 
   // WebSocket connection management
-  const connectWebSocket = () => {
-    try {
-      const websocket = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
-      
-      websocket.onopen = () => {
-        console.log('WebSocket connected')
-        setIsConnected(true)
-      }
-      
-      websocket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          handleWebSocketMessage(data)
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
-        }
-      }
-      
-      websocket.onclose = () => {
-        console.log('WebSocket disconnected')
-        setIsConnected(false)
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000)
-      }
-      
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setIsConnected(false)
-      }
-      
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error)
-      // Retry connection after 3 seconds
-      setTimeout(connectWebSocket, 3000)
-    }
-  }
+  // (Removed duplicate connectWebSocket definition to avoid redeclaration error)
 
   // Handle incoming WebSocket messages
   const handleWebSocketMessage = (data) => {
