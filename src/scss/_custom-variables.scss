@@ -1,0 +1,9 @@
+// This file provides namespace for our custom variables
+// to avoid conflicts with CoreUI variables
+
+// Define custom variables with unique names or namespaces to avoid conflicts
+$app-white: #ffffff;
+$app-black: #000000;
+
+// Override any conflicting CoreUI variables intentionally
+// But use our own namespace to avoid collisions

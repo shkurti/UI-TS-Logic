@@ -1,0 +1,60 @@
+// Styles for the shipment map component
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.custom-cluster-icon {
+  background: none;
+}
+
+.cluster-marker {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(49, 104, 209, 0.8);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.shipment-marker {
+  width: 10px;
+  height: 10px;
+  background-color: #3168d1;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.numbered-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.numbered-marker div {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #3168d1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.origin-marker div {
+  background-color: #2ab52a;
+}
+
+.destination-marker div:last-child {
+  background-color: #d12f2f;
+}
