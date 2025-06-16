@@ -1,26 +1,9 @@
-// If you want to override variables do it here
-@import "variables";
+@use "@coreui/coreui/scss/coreui" as * with ( 
+  $enable-deprecation-messages: false,
+);
+@use "@coreui/chartjs/scss/coreui-chartjs";
+@use "vendors/simplebar";
 
-// Import CoreUI styles
-@import "@coreui/coreui/scss/coreui";
-
-// Import custom variables after CoreUI to avoid conflicts
-@import "custom-variables";
-
-// Import Chart.js custom tooltips styles
-@import "@coreui/chartjs/scss/coreui-chartjs";
-
-// Import our custom components
-@import "components/shipment-map";
-@import "components/tracking-marker";
-
-// Some temp fixes
-@import "fixes";
-
-// If you want to add custom CSS you can put it here
-@import "custom";
-
-// Global styles
 body {
   background-color: var(--cui-tertiary-bg);
 }

@@ -35,9 +35,9 @@ const _nav = [
   },
   {
     component: CNavItem,
-    name: 'Shipments',
+    name: 'All Shipments',
     to: '/shipments',
-    icon: <CIcon name="cil-truck" customClasses="c-sidebar-nav-icon" />,
+    icon: <CIcon icon={cilCursor} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,
