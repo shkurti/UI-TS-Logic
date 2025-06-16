@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
@@ -82,42 +82,6 @@ function FitWorld({ trigger }) {
   return null
 }
 
-// --- Utility Functions (move outside component) ---
-
-const addressCache = {};
-
-async function geocodeAddress(address) {
-  if (!address) return null;
-  if (addressCache[address]) return addressCache[address];
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
-    const data = await res.json();
-    if (data && data.length > 0) {
-      const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      addressCache[address] = coords;
-      return coords;
-    }
-  } catch (e) {}
-  return null;
-}
-
-async function getRegionName(lat, lng) {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`
-    const response = await fetch(url, { 
-      headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } 
-    })
-    const data = await response.json()
-    if (data && data.address) {
-      return data.address.state || data.address.province || data.address.region || data.address.country || 'Unknown Region'
-    }
-  } catch (error) {}
-  return 'Unknown Region'
-}
-
-// --- End Utility Functions ---
-
 const Shipments = () => {
   const [activeTab, setActiveTab] = useState('In Transit')
   const [shipments, setShipments] = useState([]) // Fetch shipments from the backend
@@ -185,112 +149,335 @@ const Shipments = () => {
 
   // Add responsive detection
   useEffect(() => {
-    let timeout
     const checkIsMobile = () => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        const mobile = window.innerWidth <= 768
-        setIsMobile(mobile)
-        // Auto-collapse sidebar on mobile initially
-        if (mobile && !sidebarCollapsed) {
-          setSidebarCollapsed(true)
-        }
-      }, 100)
+      const mobile = window.innerWidth <= 768
+      setIsMobile(mobile)
+      // Auto-collapse sidebar on mobile initially
+      if (mobile && !sidebarCollapsed) {
+        setSidebarCollapsed(true)
+      }
     }
+    
     checkIsMobile()
     window.addEventListener('resize', checkIsMobile)
-    return () => {
-      clearTimeout(timeout)
-      window.removeEventListener('resize', checkIsMobile)
-    }
+    return () => window.removeEventListener('resize', checkIsMobile)
   }, [sidebarCollapsed])
 
-  // --- Memoized Derived Data ---
+  useEffect(() => {
+    // Fetch shipments from the backend
+    const fetchShipments = async () => {
+      try {
+        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta')
+        if (response.ok) {
+          const data = await response.json()
+          setShipments(data) // Populate the shipment list
+        } else {
+          console.error('Failed to fetch shipments')
+        }
+      } catch (error) {
+        console.error('Error fetching shipments:', error)
+      }
+    }
 
-  // Filtered shipments (memoized)
-  const filteredShipments = useMemo(() => {
-    return shipments.filter(shipment => {
-      const matchesSearch = !searchTerm || 
-        shipment.trackerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesShipFrom = !shipFromFilter || 
-        shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(shipFromFilter.toLowerCase())
-      const matchesShipTo = !shipToFilter || 
-        shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(shipToFilter.toLowerCase())
-      return matchesSearch && matchesShipFrom && matchesShipTo
-    })
-  }, [shipments, searchTerm, shipFromFilter, shipToFilter])
+    // Fetch registered trackers
+    const fetchTrackers = async () => {
+      try {
+        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers')
+        if (response.ok) {
+          const data = await response.json()
+          setTrackers(data)
+        } else {
+          console.error('Failed to fetch trackers')
+        }
+      } catch (error) {
+        console.error('Error fetching trackers:', error)
+      }
+    }
 
-  // --- useCallback for handlers ---
-
-  const handleInputChange = useCallback((index, field, value) => {
-    setLegs(prev => {
-      const updated = [...prev]
-      updated[index][field] = value
-      return updated
-    })
+    fetchShipments()
+    fetchTrackers()
   }, [])
 
-  const handleShipmentSelection = useCallback((shipmentId, isSelected) => {
-    setSelectedShipmentsForDeletion(prev =>
-      isSelected ? [...prev, shipmentId] : prev.filter(id => id !== shipmentId)
-    )
-  }, [])
+  const addLeg = () => {
+    setLegs([
+      ...legs,
+      {
+        legNumber: legs.length + 1,
+        shipFromAddress: '',
+        shipDate: '',
+        alertPresets: [],
+        mode: '',
+        carrier: '',
+        stopAddress: '',
+        arrivalDate: '',
+        departureDate: '',
+        awb: '',
+      },
+    ])
+  }
 
-  const handleSelectAllShipments = useCallback((isSelected) => {
-    setSelectedShipmentsForDeletion(isSelected ? filteredShipments.map(s => s._id) : [])
-  }, [filteredShipments])
+  const handleInputChange = (index, field, value) => {
+    const updatedLegs = [...legs]
+    updatedLegs[index][field] = value
+    setLegs(updatedLegs)
+  }
 
-  // --- WebSocket connection management (ref for stable reference) ---
-  const wsRef = useRef(null)
+  const submitForm = async () => {
+    if (!selectedTracker) {
+      alert('Please select a tracker.')
+      return
+    }
+
+    const isValid = legs.every((leg, index) => {
+      const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
+
+      if (index === 0) {
+        requiredFields.push('shipFromAddress') // First leg requires Ship From Address
+      }
+
+      if (index === legs.length - 1) {
+        requiredFields.push('stopAddress') // Last leg requires Ship To Address
+      } else {
+        requiredFields.push('stopAddress') // Intermediate legs require Stop Address
+      }
+
+      return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
+    })
+
+    if (!isValid) {
+      alert('Please fill all required fields.')
+      return
+    }
+
+    const shipmentData = {
+      trackerId: selectedTracker, // Include the selected tracker ID
+      legs: legs.map((leg, index) => ({
+        legNumber: leg.legNumber,
+        shipFromAddress: index === 0 ? leg.shipFromAddress : undefined, // Include only for the first leg
+        shipDate: leg.shipDate,
+        alertPresets: leg.alertPresets,
+        mode: leg.mode,
+        carrier: leg.carrier,
+        stopAddress: leg.stopAddress, // Stop Address for intermediate and last legs
+        arrivalDate: leg.arrivalDate,
+        departureDate: leg.departureDate,
+        awb: leg.mode === 'Air' ? leg.awb : undefined, // Include AWB only for Air mode
+      })),
+    }
+
+    try {
+      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shipmentData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Shipment inserted successfully:', result)
+        alert('Shipment created successfully!')
+        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
+        setIsModalOpen(false)
+        setLegs([
+          {
+            legNumber: 1,
+            shipFromAddress: '',
+            shipDate: '',
+            alertPresets: [],
+            mode: '',
+            carrier: '',
+            stopAddress: '',
+            arrivalDate: '',
+            departureDate: '',
+            awb: '',
+          },
+        ])
+      } else {
+        const error = await response.json()
+        console.error('Error inserting shipment:', error)
+        alert('Failed to create shipment.')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('An error occurred.')
+    }
+  }
+
+  // Add state for WebSocket connection
+  const [ws, setWs] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
 
-  const connectWebSocket = useCallback(() => {
+  // Add state for real-time polling
+  const [isPolling, setIsPolling] = useState(false)
+  const [pollingInterval, setPollingInterval] = useState(null)
+
+  // WebSocket connection management
+  const connectWebSocket = () => {
     try {
-      const websocket = new window.WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
-      wsRef.current = websocket
-      websocket.onopen = () => setIsConnected(true)
-      websocket.onclose = () => {
-        setIsConnected(false)
-        wsRef.current = null
-        setTimeout(connectWebSocket, 3000)
+      const websocket = new WebSocket('wss://backend-ts-68222fd8cfc0.herokuapp.com/ws')
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected')
+        setIsConnected(true)
+        setWs(websocket)
       }
-      websocket.onerror = () => setIsConnected(false)
+      
       websocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
           handleWebSocketMessage(data)
-        } catch {}
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
       }
-    } catch {
+      
+      websocket.onclose = () => {
+        console.log('WebSocket disconnected')
+        setIsConnected(false)
+        setWs(null)
+        // Attempt to reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000)
+      }
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setIsConnected(false)
+      }
+      
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error)
+      // Retry connection after 3 seconds
       setTimeout(connectWebSocket, 3000)
     }
-  // eslint-disable-next-line
-  }, [])
+  }
 
-  // --- Subscribe/unsubscribe helpers ---
+  // Handle incoming WebSocket messages
+  const handleWebSocketMessage = (data) => {
+    if (!selectedShipment) return
 
-  const subscribeToTracker = useCallback((trackerId) => {
-    if (wsRef.current && isConnected) {
-      wsRef.current.send(JSON.stringify({ action: 'subscribe', trackerId }))
+    // Check if the message is for the currently selected shipment
+    if (data.trackerId === selectedShipment.trackerId) {
+      // Update GPS position if available
+      if (data.latitude && data.longitude && 
+          !isNaN(parseFloat(data.latitude)) && 
+          !isNaN(parseFloat(data.longitude))) {
+        
+        const newPosition = [parseFloat(data.latitude), parseFloat(data.longitude)]
+        
+        setLiveRoute(prevRoute => {
+          const updatedRoute = [...prevRoute]
+          // Add new position to the route
+          updatedRoute.push(newPosition)
+          return updatedRoute
+        })
+      }
+
+      // Update sensor data if available
+      const timestamp = data.timestamp || new Date().toLocaleString()
+      
+      if (data.temperature !== undefined || data.Temp !== undefined) {
+        const temperature = data.temperature !== undefined ? 
+          parseFloat(data.temperature) : parseFloat(data.Temp)
+        
+        setTemperatureData(prevData => [
+          ...prevData,
+          { timestamp, temperature }
+        ])
+      }
+
+      if (data.humidity !== undefined || data.Hum !== undefined) {
+        const humidity = data.humidity !== undefined ? 
+          parseFloat(data.humidity) : parseFloat(data.Hum)
+        
+        setHumidityData(prevData => [
+          ...prevData,
+          { timestamp, humidity }
+        ])
+      }
+
+      if (data.battery !== undefined || data.Batt !== undefined) {
+        const battery = data.battery !== undefined ? 
+          parseFloat(data.battery) : parseFloat(data.Batt)
+        
+        setBatteryData(prevData => [
+          ...prevData,
+          { timestamp, battery }
+        ])
+      }
+
+      if (data.speed !== undefined || data.Speed !== undefined) {
+        const speed = data.speed !== undefined ? 
+          parseFloat(data.speed) : parseFloat(data.Speed)
+        
+        setSpeedData(prevData => [
+          ...prevData,
+          { timestamp, speed }
+        ])
+      }
+
+      // Update route data for the hover marker functionality
+      setRouteData(prevData => [
+        ...prevData,
+        {
+          timestamp,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          temperature: data.temperature || data.Temp,
+          humidity: data.humidity || data.Hum,
+          battery: data.battery || data.Batt,
+          speed: data.speed || data.Speed
+        }
+      ])
     }
-  }, [isConnected])
+  }
 
-  const unsubscribeFromTracker = useCallback((trackerId) => {
-    if (wsRef.current && isConnected) {
-      wsRef.current.send(JSON.stringify({ action: 'unsubscribe', trackerId }))
+  // Subscribe to tracker updates via WebSocket
+  const subscribeToTracker = (trackerId) => {
+    if (ws && isConnected) {
+      const message = {
+        action: 'subscribe',
+        trackerId: trackerId
+      }
+      ws.send(JSON.stringify(message))
     }
-  }, [isConnected])
+  }
 
-  // --- useEffect for WebSocket lifecycle ---
+  // Unsubscribe from tracker updates via WebSocket
+  const unsubscribeFromTracker = (trackerId) => {
+    if (ws && isConnected) {
+      const message = {
+        action: 'unsubscribe',
+        trackerId: trackerId
+      }
+      ws.send(JSON.stringify(message))
+    }
+  }
+
+  // Initialize WebSocket connection on component mount
   useEffect(() => {
     connectWebSocket()
-    return () => { if (wsRef.current) wsRef.current.close() }
-  }, [connectWebSocket])
+    
+    return () => {
+      if (ws) {
+        ws.close()
+      }
+    }
+  }, [])
 
-  // --- Shipment click handler (memoized) ---
-  const handleShipmentClick = useCallback(async (shipment) => {
+  // Subscribe/unsubscribe when selected shipment changes
+  useEffect(() => {
+    if (selectedShipment && isConnected) {
+      subscribeToTracker(selectedShipment.trackerId)
+    }
+    
+    return () => {
+      if (selectedShipment && isConnected) {
+        unsubscribeFromTracker(selectedShipment.trackerId)
+      }
+    }
+  }, [selectedShipment, isConnected, ws])
+
+  const handleShipmentClick = async (shipment) => {
     // Unsubscribe from previous shipment if any
     if (selectedShipment && isConnected) {
       unsubscribeFromTracker(selectedShipment.trackerId)
@@ -401,99 +588,423 @@ const Shipments = () => {
     if (isConnected) {
       subscribeToTracker(trackerId)
     }
-  // eslint-disable-next-line
-  }, [isConnected, userTimezone])
-
-  // --- useEffect for subscribe/unsubscribe on selectedShipment ---
-  useEffect(() => {
-    if (selectedShipment && isConnected) subscribeToTracker(selectedShipment.trackerId)
-    return () => {
-      if (selectedShipment && isConnected) unsubscribeFromTracker(selectedShipment.trackerId)
-    }
-  }, [selectedShipment, isConnected, subscribeToTracker, unsubscribeFromTracker])
-
-  const addLeg = () => {
-    setLegs([
-      ...legs,
-      {
-        legNumber: legs.length + 1,
-        shipFromAddress: '',
-        shipDate: '',
-        alertPresets: [],
-        mode: '',
-        carrier: '',
-        stopAddress: '',
-        arrivalDate: '',
-        departureDate: '',
-        awb: '',
-      },
-    ])
   }
 
-  // --- useEffect for fetching shipments/trackers (on mount) ---
-  useEffect(() => {
-    // Fetch shipments from the backend
-    const fetchShipments = async () => {
-      try {
-        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta')
-        if (response.ok) {
-          const data = await response.json()
-          setShipments(data) // Populate the shipment list
-        } else {
-          console.error('Failed to fetch shipments')
-        }
-      } catch (error) {
-        console.error('Error fetching shipments:', error)
-      }
+  const handleShipmentSelection = (shipmentId, isSelected) => {
+    if (isSelected) {
+      setSelectedShipmentsForDeletion(prev => [...prev, shipmentId])
+    } else {
+      setSelectedShipmentsForDeletion(prev => prev.filter(id => id !== shipmentId))
+    }
+  }
+
+  const handleSelectAllShipments = (isSelected) => {
+    if (isSelected) {
+      setSelectedShipmentsForDeletion(filteredShipments.map(s => s._id))
+    } else {
+      setSelectedShipmentsForDeletion([])
+    }
+  }
+
+  const deleteSelectedShipments = async () => {
+    if (selectedShipmentsForDeletion.length === 0) {
+      alert('No shipments selected for deletion.')
+      return
     }
 
-    // Fetch registered trackers
-    const fetchTrackers = async () => {
-      try {
-        const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/registered_trackers')
-        if (response.ok) {
-          const data = await response.json()
-          setTrackers(data)
-        } else {
-          console.error('Failed to fetch trackers')
+    try {
+      const deletePromises = selectedShipmentsForDeletion.map(shipmentId =>
+        fetch(`https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta/${shipmentId}`, {
+          method: 'DELETE'
+        })
+      )
+
+      const results = await Promise.all(deletePromises)
+      const successCount = results.filter(response => response.ok).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        setShipments(prev => prev.filter(s => !selectedShipmentsForDeletion.includes(s._id)))
+        
+        // If currently selected shipment was deleted, clear selection
+        if (selectedShipment && selectedShipmentsForDeletion.includes(selectedShipment._id)) {
+          setSelectedShipment(null)
+          setRouteData([])
         }
-      } catch (error) {
-        console.error('Error fetching trackers:', error)
+      }
+
+      setSelectedShipmentsForDeletion([])
+      setIsDeleteModalOpen(false)
+
+      if (failureCount === 0) {
+        alert(`Successfully deleted ${successCount} shipment${successCount > 1 ? 's' : ''}.`)
+      } else {
+        alert(`Deleted ${successCount} shipment${successCount > 1 ? 's' : ''}, failed to delete ${failureCount}.`)
+      }
+    } catch (error) {
+      console.error('Error deleting shipments:', error)
+      alert('Error occurred while deleting shipments.')
+    }
+  }
+
+  // Remove the old deleteShipment function and replace with:
+  const openDeleteModal = () => {
+    if (selectedShipmentsForDeletion.length === 0) {
+      alert('Please select shipments to delete.')
+      return
+    }
+    setIsDeleteModalOpen(true)
+  }
+
+  // Address geocode cache to avoid redundant lookups
+  const addressCache = {};
+
+  // Helper: Geocode an address to [lat, lng] using Nominatim, with cache
+  const geocodeAddress = async (address) => {
+    if (!address) return null;
+    if (addressCache[address]) return addressCache[address];
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        addressCache[address] = coords;
+        return coords;
+      }
+    } catch (e) {
+      // Ignore geocode errors
+    }
+    return null;
+  };
+
+  // When modal is open and addresses are filled, preview the line
+  useEffect(() => {
+    const showPreview = async () => {
+      if (!isModalOpen) {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+        setStartCoord(null);
+        return;
+      }
+      const firstLeg = legs[0];
+      const lastLeg = legs[legs.length - 1];
+      const from = firstLeg?.shipFromAddress;
+      const to = lastLeg?.stopAddress;
+      if (from && to && from.trim() !== '' && to.trim() !== '' && from.trim() !== to.trim()) {
+        const [fromCoord, toCoord] = await Promise.all([
+          geocodeAddress(from),
+          geocodeAddress(to),
+        ]);
+        if (fromCoord && toCoord) {
+          setNewShipmentPreview([fromCoord, toCoord]);
+          setStartCoord(fromCoord);
+          setDestinationCoord(toCoord);
+          setPreviewMarkers([
+            { position: fromCoord, label: '1', popup: `Start: ${from}` },
+            { position: toCoord, label: '2', popup: `End: ${to}` }
+          ]);
+        } else {
+          setNewShipmentPreview(null);
+          setPreviewMarkers([]);
+          setDestinationCoord(null);
+          setStartCoord(null);
+        }
+      } else {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+        setStartCoord(null);
+      }
+    };
+    showPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, legs]);
+
+  // When a shipment is selected, geocode and store all leg coordinates
+  useEffect(() => {
+    const setCoordsFromShipment = async () => {
+      if (
+        selectedShipment &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        const addresses = [];
+        const firstLeg = selectedShipment.legs[0];
+        
+        // Add ship from address
+        if (firstLeg?.shipFromAddress) {
+          addresses.push(firstLeg.shipFromAddress);
+        }
+        
+        // Add all stop addresses
+        selectedShipment.legs.forEach(leg => {
+          if (leg?.stopAddress) {
+            addresses.push(leg.stopAddress);
+          }
+        });
+        
+        // Geocode all addresses
+        const coords = await Promise.all(
+          addresses.map(addr => geocodeAddress(addr))
+        );
+        
+        // Filter out null results and create coordinate objects
+        const validCoords = coords
+          .map((coord, index) => ({
+            position: coord,
+            address: addresses[index],
+            markerNumber: index + 1
+          }))
+          .filter(item => item.position !== null);
+        
+        setAllLegCoords(validCoords);
+        
+        // Set individual coords for backward compatibility
+        if (validCoords.length > 0) {
+          setStartCoord(validCoords[0].position);
+          setDestinationCoord(validCoords[validCoords.length - 1].position);
+        } else {
+          setStartCoord(null);
+          setDestinationCoord(null);
+        }
+      } else {
+        setAllLegCoords([]);
+        setStartCoord(null);
+        setDestinationCoord(null);
+      }
+    };
+    setCoordsFromShipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment]);
+
+  // Show a line between all addresses when a shipment is selected and there is no routeData
+  useEffect(() => {
+    const showSelectedShipmentLine = async () => {
+      if (
+        selectedShipment &&
+        (!routeData || routeData.length === 0) &&
+        selectedShipment.legs &&
+        selectedShipment.legs.length > 0
+      ) {
+        // This effect is now only for setting preview markers, not polylines
+        // The polylines are handled by the allLegCoords effect below
+        return;
+      }
+      if (!isModalOpen) {
+        setNewShipmentPreview(null);
+        setPreviewMarkers([]);
+        setDestinationCoord(null);
+      }
+    };
+    showSelectedShipmentLine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipment, routeData, isModalOpen]);
+
+  // Show all leg markers when shipment is selected
+  useEffect(() => {
+    if (selectedShipment && allLegCoords.length > 0) {
+      // Only set destination coordinate, NO preview markers or polylines
+      setDestinationCoord(allLegCoords[allLegCoords.length - 1].position);
+      // Clear any preview markers and polylines for selected shipments
+      setPreviewMarkers([]);
+      setNewShipmentPreview(null);
+    } else if (!selectedShipment) {
+      setNewShipmentPreview(null);
+      setPreviewMarkers([]);
+      setDestinationCoord(null);
+    }
+  }, [selectedShipment, allLegCoords]);
+
+  // ONLY handle modal preview - NO selected shipment logic here
+  useEffect(() => {
+    if (isModalOpen && newShipmentPreview && newShipmentPreview.length === 2) {
+      const from = legs[0]?.shipFromAddress;
+      const to = legs[legs.length - 1]?.stopAddress;
+      setPreviewMarkers([
+        { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+        { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+      ]);
+      setDestinationCoord(newShipmentPreview[1]);
+    } else if (!isModalOpen) {
+      // Clear everything when modal closes
+      setPreviewMarkers([]);
+      if (!selectedShipment) {
+        setNewShipmentPreview(null);
+        setDestinationCoord(null);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, newShipmentPreview, legs]);
 
-    fetchShipments()
-    fetchTrackers()
-  }, [])
+  // Remove this entire duplicate useEffect - it's still setting preview markers
+  // useEffect(() => {
+  //   if (newShipmentPreview && newShipmentPreview.length === 2) {
+  //     const from = legs[0]?.shipFromAddress;
+  //     const to = legs[legs.length - 1]?.stopAddress;
+  //     setPreviewMarkers([
+  //       { position: newShipmentPreview[0], label: '1', popup: `Start: ${from}` },
+  //       { position: newShipmentPreview[1], label: '2', popup: `End: ${to}` }
+  //     ]);
+  //     setDestinationCoord(newShipmentPreview[1]);
+  //   } else if (!isModalOpen && (!selectedShipment || routeData.length > 0)) {
+  //     setPreviewMarkers([]);
+  //     setDestinationCoord(null);
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isModalOpen, newShipmentPreview, legs, selectedShipment, routeData]);
 
-  // --- useEffect for shipment clusters (debounced, memoized) ---
+  // Filter shipments based on search and filters
+  const filteredShipments = shipments.filter(shipment => {
+    const matchesSearch = !searchTerm || 
+      shipment.trackerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesShipFrom = !shipFromFilter || 
+      shipment.legs?.[0]?.shipFromAddress?.toLowerCase().includes(shipFromFilter.toLowerCase())
+    
+    const matchesShipTo = !shipToFilter || 
+      shipment.legs?.[shipment.legs.length - 1]?.stopAddress?.toLowerCase().includes(shipToFilter.toLowerCase())
+    
+    return matchesSearch && matchesShipFrom && matchesShipTo
+  })
+
+  // Helper to create a number marker icon - Enhanced for better visibility
+  const numberIcon = (number) =>
+    L.divIcon({
+      className: 'number-marker',
+      html: `<div style="
+        background: #1976d2;
+        color: #fff;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        font-family: Arial, sans-serif;
+      ">${number}</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
+    })
+
+  // Enhanced current location marker
+  const currentLocationIcon = L.divIcon({
+    className: 'current-location-marker',
+    html: `<div style="
+      background: #ff4444;
+      color: #fff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      animation: pulse 2s infinite;
+    "></div>
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+    </style>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+  })
+
+  // Hover marker icon for sensor data
+  const hoverMarkerIcon = (sensorType) => {
+    const colors = {
+      'Temperature': '#ff6b6b',
+      'Humidity': '#4ecdc4',
+      'Battery': '#45b7d1',
+      'Speed': '#96ceb4'
+    };
+    const icons = {
+      'Temperature': '🌡️',
+      'Humidity': '💧',
+      'Battery': '🔋',
+      'Speed': '⚡'
+    };
+    
+    return L.divIcon({
+      className: 'hover-sensor-marker',
+      html: `<div style="
+        background: ${colors[sensorType] || '#666'};
+        color: #fff;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        animation: bounce 0.6s ease-in-out;
+      ">${icons[sensorType] || '📍'}</div>
+      <style>
+        @keyframes bounce {
+          0%, 20%, 60%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-10px); }
+          80% { transform: translateY(-5px); }
+        }
+      </style>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12],
+    });
+  };
+
+  // Add shipment clustering logic
   useEffect(() => {
-    let cancelled = false
     const createShipmentClusters = async () => {
       if (!shipments || shipments.length === 0) {
         setShipmentClusters([])
         return
       }
+
       setIsLoadingClusters(true)
+      
       try {
+        // Get unique origin addresses and geocode them
         const originAddresses = [...new Set(
           shipments
             .map(s => s.legs?.[0]?.shipFromAddress)
             .filter(addr => addr && addr.trim() !== '')
         )]
+
+        // Geocode all addresses with progress tracking
         const geocodedAddresses = await Promise.all(
           originAddresses.map(async (address) => {
             const coords = await geocodeAddress(address)
             return { address, coords }
           })
         )
+
+        // Filter out failed geocodes
         const validGeocodes = geocodedAddresses.filter(item => item.coords)
+
+        // Create clusters using a simple distance-based algorithm
         const clusters = []
-        const CLUSTER_DISTANCE = 2.0
+        const CLUSTER_DISTANCE = 2.0 // degrees (~200km)
+
+        // Use for...of loop instead of forEach to properly handle async/await
         for (const { address, coords } of validGeocodes) {
+          // Count shipments for this address
           const shipmentCount = shipments.filter(
             s => s.legs?.[0]?.shipFromAddress === address
           ).length
+
+          // Find existing cluster within distance
           let existingCluster = clusters.find(cluster => {
             const distance = Math.sqrt(
               Math.pow(cluster.lat - coords[0], 2) + 
@@ -501,14 +1012,18 @@ const Shipments = () => {
             )
             return distance <= CLUSTER_DISTANCE
           })
+
           if (existingCluster) {
+            // Add to existing cluster
             existingCluster.count += shipmentCount
             existingCluster.addresses.push(address)
+            // Update cluster center (weighted average)
             const totalCount = existingCluster.count
             existingCluster.lat = ((existingCluster.lat * (totalCount - shipmentCount)) + (coords[0] * shipmentCount)) / totalCount
             existingCluster.lng = ((existingCluster.lng * (totalCount - shipmentCount)) + (coords[1] * shipmentCount)) / totalCount
           } else {
-            const region = await getRegionName(coords[0], coords[1])
+            // Create new cluster
+            const region = await getRegionName(coords[0], coords[1]) // Get region name
             clusters.push({
               id: `cluster-${clusters.length}`,
               lat: coords[0],
@@ -519,197 +1034,82 @@ const Shipments = () => {
             })
           }
         }
-        if (!cancelled) setShipmentClusters(clusters)
-      } catch {
-        if (!cancelled) setShipmentClusters([])
+
+        setShipmentClusters(clusters)
+      } catch (error) {
+        console.error('Error creating shipment clusters:', error)
+        setShipmentClusters([])
       } finally {
-        if (!cancelled) setIsLoadingClusters(false)
+        setIsLoadingClusters(false)
       }
     }
+
     createShipmentClusters()
-    return () => { cancelled = true }
   }, [shipments])
 
-  // --- All other logic remains unchanged, but move helpers outside render ---
-
-  const submitForm = async () => {
-    if (!selectedTracker) {
-      alert('Please select a tracker.')
-      return
-    }
-
-    const isValid = legs.every((leg, index) => {
-      const requiredFields = ['shipDate', 'mode', 'carrier', 'arrivalDate', 'departureDate']
-
-      if (index === 0) {
-        requiredFields.push('shipFromAddress') // First leg requires Ship From Address
-      }
-
-      if (index === legs.length - 1) {
-        requiredFields.push('stopAddress') // Last leg requires Ship To Address
-      } else {
-        requiredFields.push('stopAddress') // Intermediate legs require Stop Address
-      }
-
-      return requiredFields.every((field) => leg[field] && leg[field].trim() !== '')
-    })
-
-    if (!isValid) {
-      alert('Please fill all required fields.')
-      return
-    }
-
-    const shipmentData = {
-      trackerId: selectedTracker, // Include the selected tracker ID
-      legs: legs.map((leg, index) => ({
-        legNumber: leg.legNumber,
-        shipFromAddress: index === 0 ? leg.shipFromAddress : undefined, // Include only for the first leg
-        shipDate: leg.shipDate,
-        alertPresets: leg.alertPresets,
-        mode: leg.mode,
-        carrier: leg.carrier,
-        stopAddress: leg.stopAddress, // Stop Address for intermediate and last legs
-        arrivalDate: leg.arrivalDate,
-        departureDate: leg.departureDate,
-        awb: leg.mode === 'Air' ? leg.awb : undefined, // Include AWB only for Air mode
-      })),
-    }
-
+  // Helper function to get region name from coordinates
+  const getRegionName = async (lat, lng) => {
     try {
-      const response = await fetch('https://backend-ts-68222fd8cfc0.herokuapp.com/shipment_meta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shipmentData),
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5&addressdetails=1`
+      const response = await fetch(url, { 
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'shipment-ui/1.0' } 
       })
-
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Shipment inserted successfully:', result)
-        alert('Shipment created successfully!')
-        setShipments((prevShipments) => [...prevShipments, shipmentData]) // Add the new shipment to the list
-        setIsModalOpen(false)
-        setLegs([
-          {
-            legNumber: 1,
-            shipFromAddress: '',
-            shipDate: '',
-            alertPresets: [],
-            mode: '',
-            carrier: '',
-            stopAddress: '',
-            arrivalDate: '',
-            departureDate: '',
-            awb: '',
-          },
-        ])
-      } else {
-        const error = await response.json()
-        console.error('Error inserting shipment:', error)
-        alert('Failed to create shipment.')
+      const data = await response.json()
+      
+      if (data && data.address) {
+        // Try to get state/province, then country
+        return data.address.state || 
+               data.address.province || 
+               data.address.region || 
+               data.address.country || 
+               'Unknown Region'
       }
     } catch (error) {
-      console.error('Error:', error)
-      alert('An error occurred.')
+      console.error('Error getting region name:', error)
     }
+    return 'Unknown Region'
   }
 
-  // Add state for real-time polling
-  const [isPolling, setIsPolling] = useState(false)
-  const [pollingInterval, setPollingInterval] = useState(null)
-
-  // WebSocket connection management
-  // (Removed duplicate connectWebSocket definition to avoid redeclaration error)
-
-  // Handle incoming WebSocket messages
-  const handleWebSocketMessage = (data) => {
-    if (!selectedShipment) return
-
-    // Check if the message is for the currently selected shipment
-    if (data.trackerId === selectedShipment.trackerId) {
-      // Update GPS position if available
-      if (data.latitude && data.longitude && 
-          !isNaN(parseFloat(data.latitude)) && 
-          !isNaN(parseFloat(data.longitude))) {
-        
-        const newPosition = [parseFloat(data.latitude), parseFloat(data.longitude)]
-        
-        setLiveRoute(prevRoute => {
-          const updatedRoute = [...prevRoute]
-          // Add new position to the route
-          updatedRoute.push(newPosition)
-          return updatedRoute
-        })
-      }
-
-      // Update sensor data if available
-      const timestamp = data.timestamp || new Date().toLocaleString()
-      
-      if (data.temperature !== undefined || data.Temp !== undefined) {
-        const temperature = data.temperature !== undefined ? 
-          parseFloat(data.temperature) : parseFloat(data.Temp)
-        
-        setTemperatureData(prevData => [
-          ...prevData,
-          { timestamp, temperature }
-        ])
-      }
-
-      if (data.humidity !== undefined || data.Hum !== undefined) {
-        const humidity = data.humidity !== undefined ? 
-          parseFloat(data.humidity) : parseFloat(data.Hum)
-        
-        setHumidityData(prevData => [
-          ...prevData,
-          { timestamp, humidity }
-        ])
-      }
-
-      if (data.battery !== undefined || data.Batt !== undefined) {
-        const battery = data.battery !== undefined ? 
-          parseFloat(data.battery) : parseFloat(data.Batt)
-        
-        setBatteryData(prevData => [
-          ...prevData,
-          { timestamp, battery }
-        ])
-      }
-
-      if (data.speed !== undefined || data.Speed !== undefined) {
-        const speed = data.speed !== undefined ? 
-          parseFloat(data.speed) : parseFloat(data.Speed)
-        
-        setSpeedData(prevData => [
-          ...prevData,
-          { timestamp, speed }
-        ])
-      }
-
-      // Update route data for the hover marker functionality
-      setRouteData(prevData => [
-        ...prevData,
-        {
-          timestamp,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          temperature: data.temperature || data.Temp,
-          humidity: data.humidity || data.Hum,
-          battery: data.battery || data.Batt,
-          speed: data.speed || data.Speed
-        }
-      ])
-    }
-  }
-
-  // Initialize WebSocket connection on component mount
-  useEffect(() => {
-    connectWebSocket()
+  // Create cluster marker icon
+  const createClusterIcon = (count, region) => {
+    const size = Math.min(60, Math.max(30, 20 + (count * 3))) // Dynamic size based on count
+    const color = count >= 10 ? '#d32f2f' : 
+                  count >= 5 ? '#f57c00' : 
+                  count >= 2 ? '#1976d2' : '#4caf50'
     
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
-    }
-  }, [])
+    return L.divIcon({
+      className: 'shipment-cluster-marker',
+      html: `
+        <div style="
+          background: ${color};
+          color: white;
+          border-radius: 50%;
+          width: ${size}px;
+          height: ${size}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: ${count >= 100 ? '14px' : count >= 10 ? '16px' : '18px'};
+          border: 3px solid white;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+          font-family: Arial, sans-serif;
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        ">
+          ${count}
+        </div>
+        <style>
+          .shipment-cluster-marker:hover div {
+            transform: scale(1.1);
+          }
+        </style>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2],
+    })
+  }
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
@@ -726,27 +1126,159 @@ const Shipments = () => {
     setLiveRoute([])
   }
 
-  // --- useEffect for responsive detection (debounced) ---
+  // Helper function to find GPS coordinates for a timestamp
+  const findCoordinatesForTimestamp = (timestamp) => {
+    if (!routeData || routeData.length === 0) return null;
+    
+    // Find the exact match or closest timestamp
+    const exactMatch = routeData.find(record => record.timestamp === timestamp);
+    if (exactMatch && exactMatch.latitude && exactMatch.longitude) {
+      return [parseFloat(exactMatch.latitude), parseFloat(exactMatch.longitude)];
+    }
+    
+    // If no exact match, find the closest timestamp
+    const sortedData = [...routeData].sort((a, b) => 
+      Math.abs(new Date(a.timestamp) - new Date(timestamp)) - 
+      Math.abs(new Date(b.timestamp) - new Date(timestamp))
+    );
+    
+    const closest = sortedData[0];
+    if (closest && closest.latitude && closest.longitude) {
+      return [parseFloat(closest.latitude), parseFloat(closest.longitude)];
+    }
+    
+    return null;
+  };
+
+  // Handle chart hover events
+  const handleChartHover = (data, sensorType) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const payload = data.activePayload[0].payload;
+      const timestamp = payload.timestamp;
+      const coordinates = findCoordinatesForTimestamp(timestamp);
+      
+      if (coordinates) {
+        setHoverMarker({
+          position: coordinates,
+          timestamp: timestamp,
+          sensorType: sensorType,
+          value: payload[sensorType.toLowerCase()],
+          unit: sensorType === 'Temperature' ? '°C' : 
+                sensorType === 'Humidity' ? '%' : 
+                sensorType === 'Battery' ? '%' : ' km/h'
+        });
+      }
+    } else {
+      setHoverMarker(null);
+    }
+  };
+
+  // Clear hover marker when mouse leaves chart
+  const handleChartMouseLeave = () => {
+    setHoverMarker(null);
+  };
+
+  // Add mapKey and fitWorld state
+  const [mapKey, setMapKey] = useState(0)
+  const [fitWorld, setFitWorld] = useState(true)
+
+  // When selectedShipment changes, update fitWorld and mapKey
   useEffect(() => {
-    let timeout
-    const checkIsMobile = () => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        const mobile = window.innerWidth <= 768
-        setIsMobile(mobile)
-        // Auto-collapse sidebar on mobile initially
-        if (mobile && !sidebarCollapsed) {
-          setSidebarCollapsed(true)
-        }
-      }, 100)
+    if (!selectedShipment) {
+      setFitWorld(true)
+      setMapKey((k) => k + 1)
+      setLiveRoute([])
+    } else {
+      setFitWorld(false)
     }
-    checkIsMobile()
-    window.addEventListener('resize', checkIsMobile)
-    return () => {
-      clearTimeout(timeout)
-      window.removeEventListener('resize', checkIsMobile)
+  }, [selectedShipment])
+
+  // Add new state for route progress
+  const [completedRoute, setCompletedRoute] = useState([])
+  const [remainingRoute, setRemainingRoute] = useState([])
+
+  // Helper function to calculate distance between two points
+  const calculateDistance = (point1, point2) => {
+    const [lat1, lon1] = point1
+    const [lat2, lon2] = point2
+    const R = 6371 // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  // Helper function to find the closest point on the planned route to current GPS position
+  const findClosestRouteSegment = (currentPosition, plannedRoute) => {
+    if (!currentPosition || !plannedRoute || plannedRoute.length < 2) return -1
+    
+    let minDistance = Infinity
+    let closestSegmentIndex = -1
+    
+    for (let i = 0; i < plannedRoute.length - 1; i++) {
+      const segmentStart = plannedRoute[i]
+      const segmentEnd = plannedRoute[i + 1]
+      
+      // Calculate distance from current position to this segment
+      const distToStart = calculateDistance(currentPosition, segmentStart)
+      const distToEnd = calculateDistance(currentPosition, segmentEnd)
+      const segmentLength = calculateDistance(segmentStart, segmentEnd)
+      
+      // Use the closest point on the segment
+      const minDistToSegment = Math.min(distToStart, distToEnd)
+      
+      if (minDistToSegment < minDistance) {
+        minDistance = minDistToSegment
+        closestSegmentIndex = i
+      }
     }
-  }, [sidebarCollapsed])
+    
+    return closestSegmentIndex
+  }
+
+  // Helper function to split route into completed and remaining segments
+  const splitRouteByProgress = (plannedRoute, currentPosition) => {
+    if (!plannedRoute || plannedRoute.length < 2 || !currentPosition) {
+      return { completed: [], remaining: plannedRoute || [] }
+    }
+
+    const closestSegmentIndex = findClosestRouteSegment(currentPosition, plannedRoute)
+    
+    if (closestSegmentIndex === -1) {
+      return { completed: [], remaining: plannedRoute }
+    }
+
+    // Create completed route: from start to current position
+    const completed = plannedRoute.slice(0, closestSegmentIndex + 1)
+    completed.push(currentPosition) // Add current position as end of completed route
+    
+    // Create remaining route: from current position to end
+    const remaining = [currentPosition, ...plannedRoute.slice(closestSegmentIndex + 1)]
+    
+    return { completed, remaining }
+  }
+
+  // Update route progress when GPS position changes
+  useEffect(() => {
+    if (liveRoute.length > 0 && allLegCoords.length > 0) {
+      const currentPosition = liveRoute[liveRoute.length - 1]
+      const plannedRoute = allLegCoords.map(leg => leg.position)
+      
+      const { completed, remaining } = splitRouteByProgress(plannedRoute, currentPosition)
+      setCompletedRoute(completed)
+      setRemainingRoute(remaining)
+    } else if (allLegCoords.length > 0) {
+      // No GPS data yet, show entire route as remaining
+      setCompletedRoute([])
+      setRemainingRoute(allLegCoords.map(leg => leg.position))
+    } else {
+      setCompletedRoute([])
+      setRemainingRoute([])
+    }
+  }, [liveRoute, allLegCoords])
 
   return (
     <div style={{ 
@@ -999,48 +1531,22 @@ const Shipments = () => {
                         icon={createClusterIcon(cluster.count, cluster.region)}
                       >
                         <Popup>
-                          <div style={{ minWidth: '250px' }}>
-                            <strong style={{ fontSize: '16px', color: '#1976d2' }}>
-                              📊 {cluster.region}
-                            </strong>
-                            <div style={{ margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                              <strong>Total Shipments:</strong> <span style={{ color: '#d32f2f', fontSize: '18px' }}>{cluster.count}</span>
+                          <div style={{ minWidth: '200px' }}>
+                            <strong>📊 {cluster.region}</strong><br/>
+                            <strong>Shipments:</strong> {cluster.count}<br/>
+                            <strong>Origins:</strong><br/>
+                            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '12px', marginTop: '8px' }}>
+                              {cluster.addresses.slice(0, 5).map((addr, idx) => (
+                                <div key={idx} style={{ marginBottom: '4px', padding: '2px 0' }}>
+                                  • {addr.length > 40 ? addr.substring(0, 37) + '...' : addr}
+                                </div>
+                              ))}
+                              {cluster.addresses.length > 5 && (
+                                <div style={{ fontStyle: 'italic', color: '#666', marginTop: '4px' }}>
+                                  ...and {cluster.addresses.length - 5} more
+                                </div>
+                              )}
                             </div>
-                            <strong>Origin Addresses:</strong>
-                            <div style={{ 
-                              maxHeight: '150px', 
-                              overflowY: 'auto', 
-                              fontSize: '13px', 
-                              marginTop: '8px',
-                              border: '1px solid #ddd',
-                              borderRadius: '4px',
-                              padding: '8px'
-                            }}>
-                              {cluster.addresses.map((addr, idx) => {
-                                const shipmentCount = shipments.filter(
-                                  s => s.legs?.[0]?.shipFromAddress === addr
-                                ).length
-                                return (
-                                  <div key={idx} style={{ 
-                                    marginBottom: '6px', 
-                                    padding: '4px 0',
-                                    borderBottom: idx < cluster.addresses.length - 1 ? '1px solid #eee' : 'none'
-                                  }}>
-                                    <div style={{ fontWeight: '500' }}>
-                                      📍 {addr.length > 50 ? addr.substring(0, 47) + '...' : addr}
-                                    </div>
-                                    <div style={{ color: '#666', fontSize: '11px', marginTop: '2px' }}>
-                                      {shipmentCount} shipment{shipmentCount > 1 ? 's' : ''}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            {isLoadingClusters && (
-                              <div style={{ textAlign: 'center', margin: '8px 0', color: '#666' }}>
-                                <small>Loading cluster data...</small>
-                              </div>
-                            )}
                           </div>
                         </Popup>
                       </Marker>
